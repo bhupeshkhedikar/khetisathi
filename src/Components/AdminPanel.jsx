@@ -1523,7 +1523,8 @@ const isWorkerAvailable = (worker, date) => {
                   <tr key={order.id} className="border-b hover:bg-gray-50">
                     <td className="py-2 px-4">{order.id.slice(0, 6)}</td>
                     <td className="py-2 px-4">
-                      {users[order.farmerId]?.name || 'N/A'} - 📎 {users[order.farmerId]?.mobile || 'N/A'}
+                      {users[order.farmerId]?.name || 'N/A'} - 📎 {users[order.farmerId]?.mobile || 'N/A'}<br/>
+                      <b>Address:</b> {order.address }
                     </td>
                     <td className="py-2 px-4">
                       {Array.isArray(order.workerId) && order.workerId.length > 0 ? (
@@ -1592,7 +1593,7 @@ const isWorkerAvailable = (worker, date) => {
                         <span className="block text-xs text-gray-600">{order.totalWorkers || 1} Worker(s)</span>
                       )}
                     </td>
-                    <td className="py-2 px-4">₹{(order.cost || 0).toFixed(2)}</td>
+                    <td className="py-2 px-4">₹{(order.cost || 0).toFixed(2)} </td>
                     <td className="py-2 px-4">
                       <span
                         className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
@@ -1786,6 +1787,9 @@ const isWorkerAvailable = (worker, date) => {
                 </div>
                 <div>
                   <span className="font-medium">Start Date:</span> {currentOrder.startDate}
+                </div>
+                  <div>
+                  <span className="font-medium">Farmer Address:</span> {currentOrder.address}
                 </div>
                 <div>
                   <span className="font-medium">Workers Requested:</span> 
