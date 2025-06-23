@@ -11,7 +11,11 @@ import Login from './Components/Login.jsx';
 import Register from './Components/Register.jsx';
 import Profile from './Components/Profile.jsx';
 import FarmerDashboard from './Components/FarmerDashboard.jsx';
-
+import AboutUs from './Components/pages/AboutUs.jsx';
+import ContactUs from './Components/pages/ContactUs.jsx';
+import Terms from './Components/pages/Terms.jsx';
+import RefundPolicy from './Components/pages/RefundPolicy.jsx';
+import PrivacyPolicy from './Components/pages/PrivacyPolicy.jsx';
 const App = () => {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState('');
@@ -226,6 +230,11 @@ const App = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/farmer-dashboard" element={<FarmerDashboard />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/contact" element={<ContactUs />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/refund" element={<RefundPolicy />} />
       </Routes>
     </Router>
   );
