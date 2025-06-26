@@ -67,17 +67,18 @@ const AboutUs = () => {
           <div className="grid md:grid-cols-3 gap-6 text-center">
             <div>
               <i className="fas fa-map-marker-alt text-green-600 text-2xl mb-2"></i>
-              <p className="text-gray-600">AT POST LAKHORI TAH LAKHANI DIST BHANDARA, Bhandara, Maharashtra, India - 441804</p>
+              <p className="text-gray-600">BHUPESH PRAKASH KHEDIKAR, NEAR HANUMAN MANDIR LAKHORI, LAKHORI, Lakhori, PO:
+Lakhni, DIST: Bhandara, Maharashtra - 441804</p>
             </div>
             <div>
               <i className="fas fa-envelope text-green-600 text-2xl mb-2"></i>
               <p className="text-gray-600">
-                <a href="mailto:support@khetisathi.com" className="hover:text-green-700">support@khetisathi.com</a>
+                <a href="mailto:support@khetisathi.com" className="hover:text-green-700">support@khetisathi.com or bhupssspk@gmail.com</a>
               </p>
             </div>
             <div>
               <i className="fas fa-phone-alt text-green-600 text-2xl mb-2"></i>
-              <p className="text-gray-600">+91 98765 43210</p>
+              <p className="text-gray-600">+91 8788647637</p>
             </div>
           </div>
         </section>
