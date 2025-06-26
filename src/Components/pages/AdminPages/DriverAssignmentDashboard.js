@@ -42,11 +42,11 @@ const DriverAssignmentDashboard = () => {
 
   const sendWhatsAppMessage = async (mobile, message) => {
     try {
-      if (!mobile || !MOBILE_REGEX.test(mobile)) return false;
+      if (!mobile) return false;
       const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: `+91${mobile.replace(/\s/g, '')}`, message }),
+        body: JSON.stringify({ to: `+91${mobile}`, message }),
       });
       return response.ok;
     } catch (err) {
@@ -229,48 +229,63 @@ const DriverAssignmentDashboard = () => {
     }
   };
 
-  const handleAssignDriver = async (groupId, index) => {
-    const group = groups.find((g) => g.id === groupId);
-    if (!group.vehicleType) return setError('Select a vehicle type.');
-    if (!selectedDriver) return setError('Select a driver.');
-    if (!group.location?.trim()) return setError('Location is missing.');
-    if (!group.startDate || !isFutureDate(group.startDate)) return setError('Invalid start date.');
+const handleAssignDriver = async (groupId, index) => {
+  const group = groups.find((g) => g.id === groupId);
+  if (!group.vehicleType) return setError('Select a vehicle type.');
+  if (!selectedDriver) return setError('Select a driver.');
+  if (!group.location?.trim()) return setError('Location is missing.');
+  if (!group.startDate || !isFutureDate(group.startDate)) return setError('Invalid start date.');
 
-    const driver = drivers.find((d) => d.id === selectedDriver);
-    if (!driver || driver.driverStatus !== 'available') return setError('Driver unavailable.');
+  const driver = drivers.find((d) => d.id === selectedDriver);
+  if (!driver || driver.driverStatus !== 'available') return setError('Driver unavailable.');
 
-    try {
-      setLoading(true);
-      setError('');
-      const assignmentRef = doc(db, 'assignments', groupId);
-      await updateDoc(assignmentRef, {
-        driverId: selectedDriver,
-        status: 'pending',
-        updatedAt: serverTimestamp(),
-        rejectedDriverIds: [...(group.rejectedDriverIds || []), group.driverId].filter(Boolean),
-      });
+  try {
+    setLoading(true);
+    setError('');
 
-      const workerNames = group.workerIds.map((wid) => workers.find((w) => w.id === wid)?.name || 'Unknown').join(', ');
-      const workerMobiles = group.workerIds.map((wid) => workers.find((w) => w.id === wid)?.mobile || 'N/A').join(', ');
-      const messages = [
-        ...group.workerIds.map((wid) => {
-          const worker = workers.find((w) => w.id === wid);
-          return worker && sendWhatsAppMessage(worker.mobile, `Assigned to driver ${driver.name} (${driver.mobile}) at ${group.location} on ${group.startDate}. Price: ₹${(group.customPrice || 0).toFixed(2)}.`);
-        }),
-        sendWhatsAppMessage(driver.mobile, `Assigned to transport: ${workerNames} (Contact: ${workerMobiles}) at ${group.location} on ${group.startDate}. Price: ₹${(group.customPrice || 0).toFixed(2)}. Accept/reject in dashboard.`),
-      ];
-      const results = await Promise.all(messages);
-      const notificationErrors = results.some((r) => !r) ? ['Some notifications failed.'] : [];
-      setSelectedDriver('');
-      setSuccess(notificationErrors.length ? `Assignment successful, but ${notificationErrors.join('; ')}` : 'Driver assigned and notified!');
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      logError('Error assigning driver', err);
-      setError('Failed to assign driver.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const assignmentRef = doc(db, 'assignments', groupId);
+    await updateDoc(assignmentRef, {
+      driverId: selectedDriver,
+      status: 'pending',
+      updatedAt: serverTimestamp(),
+      rejectedDriverIds: [...(group.rejectedDriverIds || []), group.driverId].filter(Boolean),
+    });
+
+    const workerNames = group.workerIds
+      .map((wid) => workers.find((w) => w.id === wid)?.name || 'Unknown')
+      .join(', ');
+
+    const workerMobiles = group.workerIds
+      .map((wid) => workers.find((w) => w.id === wid)?.mobile || 'N/A')
+      .join(', ');
+
+    const driverMessage = `🚛 New Ride Assignment!
+
+👥 Workers: ${workerNames}
+📞 Contact: ${workerMobiles}
+📍 Location: ${group.location}
+📅 Date: ${group.startDate}
+💰 Earning: ₹${(group.customPrice || 0).toFixed(2)}
+
+✅ Accept or ❌ Reject this ride within 5 minutes from your dashboard.
+🔗 Dashboard: https://yourdashboardlink.com`;
+
+    const messages = [sendWhatsAppMessage(driver.mobile, driverMessage)];
+
+    const results = await Promise.all(messages);
+    const notificationErrors = results.some((r) => !r) ? ['Notification to driver failed.'] : [];
+
+    setSelectedDriver('');
+    setSuccess(notificationErrors.length ? `Assigned, but ${notificationErrors.join('; ')}` : 'Driver assigned and notified!');
+    setTimeout(() => setSuccess(''), 3000);
+  } catch (err) {
+    logError('Error assigning driver', err);
+    setError('Failed to assign driver.');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleVehicleTypeChange = async (groupId, type) => {
     if (!type) return setError('Select a valid vehicle type.');

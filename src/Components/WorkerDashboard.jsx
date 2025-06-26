@@ -4,6 +4,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc, updateDoc, getDoc, getDocs, addDoc } from 'firebase/firestore';
 import { serverTimestamp } from 'firebase/firestore';
 import SKILLS from '../utils/skills.js';
+import { CheckCircleIcon, XCircleIcon, CalendarIcon, CashIcon, UserIcon, ChevronDownIcon, ChevronUpIcon, BanknotesIcon, BoltIcon } from '@heroicons/react/24/outline';
 
 const WorkerDashboard = () => {
   const [user, setUser] = useState(null);
@@ -24,6 +25,13 @@ const WorkerDashboard = () => {
   const [timerIntervals, setTimerIntervals] = useState({});
   const [paymentMethod, setPaymentMethod] = useState({});
   const [orderPincodes, setOrderPincodes] = useState({});
+  const [showPendingTasks, setShowPendingTasks] = useState(true);
+  const [showRejectedTasks, setShowRejectedTasks] = useState(false);
+  const [showEarnings, setShowEarnings] = useState(false);
+  const [showAvailability, setShowAvailability] = useState(false);
+  const [showSkills, setShowSkills] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [allSectionsOpen, setAllSectionsOpen] = useState(false);
 
   // Format date as "DD MMMM YYYY"
   const formatDate = (dateString) => {
@@ -33,6 +41,34 @@ const WorkerDashboard = () => {
       month: 'long',
       year: 'numeric'
     });
+  };
+
+  // Send WhatsApp message
+  const sendWhatsAppMessage = async (mobile, message) => {
+    try {
+      if (!mobile) return false;
+      const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: `+91${mobile}`, message }),
+      });
+      return response.ok;
+    } catch (err) {
+      console.error(`[WorkerDashboard] Error sending WhatsApp message to ${mobile}`, err);
+      return false;
+    }
+  };
+
+  // Toggle all sections
+  const toggleAllSections = () => {
+    const newState = !allSectionsOpen;
+    setAllSectionsOpen(newState);
+    setShowPendingTasks(newState);
+    setShowRejectedTasks(newState);
+    setShowEarnings(newState);
+    setShowAvailability(newState);
+    setShowSkills(newState);
+    setShowProfile(newState);
   };
 
   // Effect for authentication and data fetching
@@ -69,7 +105,6 @@ const WorkerDashboard = () => {
           setSkills(userData.skills || []);
           setAvailability(userData.availability || { workingDays: [], offDays: [] });
 
-          // Query for active orders (pending or assigned)
           const singleWorkerQuery = query(
             collection(db, 'orders'),
             where('workerId', '==', user.uid),
@@ -81,7 +116,6 @@ const WorkerDashboard = () => {
             where('status', 'in', ['pending', 'assigned'])
           );
 
-          // Query for rejected orders (pending reassignment)
           const singleRejectedQuery = query(
             collection(db, 'orders'),
             where('workerId', '==', user.uid),
@@ -94,7 +128,6 @@ const WorkerDashboard = () => {
             where('status', '==', 'pending')
           );
 
-          // Fetch active orders
           const unsubscribeSingleWorker = onSnapshot(singleWorkerQuery, async (snapshot) => {
             const singleOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setOrders(prevOrders => {
@@ -103,7 +136,7 @@ const WorkerDashboard = () => {
             });
             await fetchOrderPincodes(singleOrders);
           }, (err) => {
-            console.error('Error fetching single worker orders:', err);
+            console.error('[WorkerDashboard] Error fetching single worker orders:', err);
             setError(`Error fetching orders: ${err.message}`);
           });
 
@@ -115,11 +148,10 @@ const WorkerDashboard = () => {
             });
             await fetchOrderPincodes(arrayOrders);
           }, (err) => {
-            console.error('Error fetching array worker orders:', err);
+            console.error('[WorkerDashboard] Error fetching array worker orders:', err);
             setError(`Error fetching orders: ${err.message}`);
           });
 
-          // Fetch rejected orders
           const unsubscribeSingleRejected = onSnapshot(singleRejectedQuery, async (snapshot) => {
             const singleRejected = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setRejectedOrders(prevOrders => {
@@ -128,7 +160,7 @@ const WorkerDashboard = () => {
             });
             await fetchOrderPincodes(singleRejected);
           }, (err) => {
-            console.error('Error fetching single rejected orders:', err);
+            console.error('[WorkerDashboard] Error fetching single rejected orders:', err);
             setError(`Error fetching rejected orders: ${err.message}`);
           });
 
@@ -140,11 +172,10 @@ const WorkerDashboard = () => {
             });
             await fetchOrderPincodes(arrayRejected);
           }, (err) => {
-            console.error('Error fetching array rejected orders:', err);
+            console.error('[WorkerDashboard] Error fetching array rejected orders:', err);
             setError(`Error fetching rejected orders: ${err.message}`);
           });
 
-          // Fetch pincodes for orders
           const fetchOrderPincodes = async (orders) => {
             const newOrderPincodes = { ...orderPincodes };
             for (const order of orders) {
@@ -158,14 +189,12 @@ const WorkerDashboard = () => {
             setOrderPincodes(newOrderPincodes);
           };
 
-          // Fetch services and earnings
           const servicesSnapshot = await getDocs(collection(db, 'services'));
           setServices(servicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
           const earningsSnapshot = await getDocs(collection(db, `users/${user.uid}/earnings`));
           setEarnings(earningsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-          // Cleanup listeners
           return () => {
             unsubscribeSingleWorker();
             unsubscribeArrayWorker();
@@ -173,77 +202,75 @@ const WorkerDashboard = () => {
             unsubscribeArrayRejected();
           };
         } catch (err) {
-          console.error('Error initializing worker dashboard:', err);
+          console.error('[WorkerDashboard] Error initializing worker dashboard:', err);
           setError(`Initialization error: ${err.message}`);
         }
       }
     }, (err) => {
-      console.error('Auth state change error:', err);
+      console.error('[WorkerDashboard] Auth state change error:', err);
       setError(`Authentication error: ${err.message}`);
     });
 
     return () => unsubscribeAuth();
   }, []);
 
-  // Handle order timeout
-const handleTimeoutOrder = async (orderId) => {
-  setLoading(true);
-  try {
-    const orderRef = doc(db, 'orders', orderId);
-    const orderDoc = await getDoc(orderRef);
-    if (!orderDoc.exists()) {
-      console.warn(`Order ${orderId} does not exist.`);
-      return;
+  const handleTimeoutOrder = async (orderId) => {
+    setLoading(true);
+    try {
+      const orderRef = doc(db, 'orders', orderId);
+      const orderDoc = await getDoc(orderRef);
+      if (!orderDoc.exists()) {
+        console.warn(`[WorkerDashboard] Order ${orderId} does not exist.`);
+        return;
+      }
+      const orderData = orderDoc.data();
+
+      let updateData = {};
+      if (Array.isArray(orderData.workerId)) {
+        const updatedAcceptances = orderData.workerAcceptances
+          ? orderData.workerAcceptances.map(wa =>
+              wa.workerId === user.uid
+                ? { ...wa, status: 'rejected', rejectedAt: new Date().toISOString() }
+                : wa
+            )
+          : orderData.workerId.map(wid => ({
+              workerId: wid,
+              status: wid === user.uid ? 'rejected' : 'pending',
+              ...(wid === user.uid ? { rejectedAt: new Date().toISOString() } : {})
+            }));
+        const updatedWorkerIds = orderData.workerId.filter(id => id !== user.uid);
+        const updatedAttemptedWorkers = [...(orderData.attemptedWorkers || []), user.uid];
+        updateData = {
+          workerId: updatedWorkerIds.length > 0 ? updatedWorkerIds : null,
+          workerAcceptances: updatedAcceptances,
+          status: 'pending',
+          attemptedWorkers: updatedAttemptedWorkers,
+          updatedAt: serverTimestamp(),
+        };
+      } else {
+        updateData = {
+          workerId: null,
+          accepted: 'rejected',
+          status: 'pending',
+          attemptedWorkers: [...(orderData.attemptedWorkers || []), user.uid],
+          updatedAt: serverTimestamp(),
+        };
+      }
+
+      await updateDoc(orderRef, updateData);
+
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, { workerStatus: 'ready' });
+      setWorkerStatus('ready');
+      setProfile(prev => ({ ...prev, workerStatus: 'ready' }));
+    } catch (err) {
+      console.error('[WorkerDashboard] Error handling timeout order:', err);
+      setError(`Error handling timeout: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
-    const orderData = orderDoc.data();
+  };
 
-    let updateData = {};
-    if (Array.isArray(orderData.workerId)) {
-      const updatedAcceptances = orderData.workerAcceptances
-        ? orderData.workerAcceptances.map(wa =>
-            wa.workerId === user.uid
-              ? { ...wa, status: 'rejected', rejectedAt: new Date().toISOString() }
-              : wa
-          )
-        : orderData.workerId.map(wid => ({
-            workerId: wid,
-            status: wid === user.uid ? 'rejected' : 'pending',
-            ...(wid === user.uid ? { rejectedAt: new Date().toISOString() } : {})
-          }));
-      const updatedWorkerIds = orderData.workerId.filter(id => id !== user.uid);
-      const updatedAttemptedWorkers = [...(orderData.attemptedWorkers || []), user.uid];
-      updateData = {
-        workerId: updatedWorkerIds.length > 0 ? updatedWorkerIds : null,
-        workerAcceptances: updatedAcceptances,
-        status: 'pending',
-        attemptedWorkers: updatedAttemptedWorkers,
-        updatedAt: serverTimestamp(),
-      };
-    } else {
-      updateData = {
-        workerId: null,
-        accepted: 'rejected',
-        status: 'pending',
-        attemptedWorkers: [...(orderData.attemptedWorkers || []), user.uid],
-        updatedAt: serverTimestamp(),
-      };
-    }
-
-    await updateDoc(orderRef, updateData);
-
-    const userRef = doc(db, 'users', user.uid);
-    await updateDoc(userRef, { workerStatus: 'ready' });
-    setWorkerStatus('ready');
-    setProfile(prev => ({ ...prev, workerStatus: 'ready' }));
-  } catch (err) {
-    console.error('Error handling timeout order:', err);
-    setError(`Error handling timeout: ${err.message}`);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  // Effect for updating timers
   useEffect(() => {
     const updateTimers = (newOrders) => {
       newOrders.forEach(order => {
@@ -263,7 +290,6 @@ const handleTimeoutOrder = async (orderId) => {
                 delete newIntervals[order.id];
                 return newIntervals;
               });
-              // Handle timeout by rejecting the order
               handleTimeoutOrder(order.id);
             }
           };
@@ -292,13 +318,20 @@ const handleTimeoutOrder = async (orderId) => {
     };
   }, [orders, user]);
 
-  // Handle accepting an order
   const handleAcceptOrder = async (orderId) => {
     setLoading(true);
     try {
       const orderRef = doc(db, 'orders', orderId);
       const orderDoc = await getDoc(orderRef);
       const orderData = orderDoc.data();
+
+      const messageSent = await sendWhatsAppMessage(
+        orderData.contactNumber,
+        `I am ${profile.name} and ${profile.mobile} your today's worker, I will arrive soon at ${orderData.address}. If any query call Contact: ${profile.mobile}. Regards Khetisathi`
+      );
+      if (!messageSent && orderData.contactNumber) {
+        alert('Failed to send WhatsApp notification to farmer.');
+      }
 
       let updateData = {};
       if (Array.isArray(orderData.workerId)) {
@@ -333,70 +366,68 @@ const handleTimeoutOrder = async (orderId) => {
 
       alert('Order accepted!');
     } catch (err) {
-      console.error('Error accepting order:', err);
+      console.error('[WorkerDashboard] Error accepting order:', err);
       setError(`Error accepting order: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle rejecting an order
-const handleRejectOrder = async (orderId) => {
-  setLoading(true);
-  try {
-    const orderRef = doc(db, 'orders', orderId);
-    const orderDoc = await getDoc(orderRef);
-    const orderData = orderDoc.data();
+  const handleRejectOrder = async (orderId) => {
+    setLoading(true);
+    try {
+      const orderRef = doc(db, 'orders', orderId);
+      const orderDoc = await getDoc(orderRef);
+      const orderData = orderDoc.data();
 
-    let updateData = {};
-    if (Array.isArray(orderData.workerId)) {
-      const updatedAcceptances = orderData.workerAcceptances
-        ? orderData.workerAcceptances.map(wa =>
-            wa.workerId === user.uid
-              ? { ...wa, status: 'rejected', rejectedAt: new Date().toISOString() }
-              : wa
-          )
-        : orderData.workerId.map(wid => ({
-            workerId: wid,
-            status: wid === user.uid ? 'rejected' : 'pending',
-            ...(wid === user.uid ? { rejectedAt: new Date().toISOString() } : {})
-          }));
-      const updatedWorkerIds = orderData.workerId.filter(id => id !== user.uid);
-      const updatedAttemptedWorkers = [...(orderData.attemptedWorkers || []), user.uid];
-      updateData = {
-        workerId: updatedWorkerIds.length > 0 ? updatedWorkerIds : null,
-        workerAcceptances: updatedAcceptances,
-        status: 'pending',
-        attemptedWorkers: updatedAttemptedWorkers,
-        updatedAt: serverTimestamp(),
-      };
-    } else {
-      updateData = {
-        workerId: null,
-        accepted: 'rejected',
-        status: 'pending',
-        attemptedWorkers: [...(orderData.attemptedWorkers || []), user.uid],
-        updatedAt: serverTimestamp(),
-      };
+      let updateData = {};
+      if (Array.isArray(orderData.workerId)) {
+        const updatedAcceptances = orderData.workerAcceptances
+          ? orderData.workerAcceptances.map(wa =>
+              wa.workerId === user.uid
+                ? { ...wa, status: 'rejected', rejectedAt: new Date().toISOString() }
+                : wa
+            )
+          : orderData.workerId.map(wid => ({
+              workerId: wid,
+              status: wid === user.uid ? 'rejected' : 'pending',
+              ...(wid === user.uid ? { rejectedAt: new Date().toISOString() } : {})
+            }));
+        const updatedWorkerIds = orderData.workerId.filter(id => id !== user.uid);
+        const updatedAttemptedWorkers = [...(orderData.attemptedWorkers || []), user.uid];
+        updateData = {
+          workerId: updatedWorkerIds.length > 0 ? updatedWorkerIds : null,
+          workerAcceptances: updatedAcceptances,
+          status: 'pending',
+          attemptedWorkers: updatedAttemptedWorkers,
+          updatedAt: serverTimestamp(),
+        };
+      } else {
+        updateData = {
+          workerId: null,
+          accepted: 'rejected',
+          status: 'pending',
+          attemptedWorkers: [...(orderData.attemptedWorkers || []), user.uid],
+          updatedAt: serverTimestamp(),
+        };
+      }
+
+      await updateDoc(orderRef, updateData);
+
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, { workerStatus: 'ready' });
+      setWorkerStatus('ready');
+      setProfile(prev => ({ ...prev, workerStatus: 'ready' }));
+
+      alert('Order rejected! It is now pending reassignment by the admin.');
+    } catch (err) {
+      console.error('[WorkerDashboard] Error rejecting order:', err);
+      setError(`Error rejecting order: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    await updateDoc(orderRef, updateData);
-
-    const userRef = doc(db, 'users', user.uid);
-    await updateDoc(userRef, { workerStatus: 'ready' });
-    setWorkerStatus('ready');
-    setProfile(prev => ({ ...prev, workerStatus: 'ready' }));
-
-    alert('Order rejected! It is now pending reassignment by the admin.');
-  } catch (err) {
-    console.error('Error rejecting order:', err);
-    setError(`Error rejecting order: ${err.message}`);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  // Handle completing an order
   const handleCompleteOrder = async (orderId) => {
     if (!paymentMethod[orderId]) {
       setError('Please select a payment method.');
@@ -452,19 +483,17 @@ const handleRejectOrder = async (orderId) => {
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, { workerStatus: 'ready' });
       setWorkerStatus('ready');
-      setProfile(prev => ({ ...prev, workerStatus: 'ready' }));
-
+      setProfile(prev => ({ ...prev, capitalworkerStatus: 'ready' }));
       setPaymentMethod(prev => ({ ...prev, [orderId]: undefined }));
       alert('Task marked as completed and payment recorded!');
     } catch (err) {
-      console.error('Error completing order:', err);
+      console.error('[WorkerDashboard] Error completing order:', err);
       setError(`Error completing order: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle adding availability
   const handleAddAvailability = async (e) => {
     e.preventDefault();
     if (!newAvailabilityDate) {
@@ -490,14 +519,13 @@ const handleRejectOrder = async (orderId) => {
       setNewAvailabilityDate('');
       alert('Availability updated!');
     } catch (err) {
-      console.error('Error updating availability:', err);
+      console.error('[WorkerDashboard] Error updating availability:', err);
       setError(`Error updating availability: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle updating skills
   const handleUpdateSkills = async (e) => {
     e.preventDefault();
     if (skills.length === 0) {
@@ -509,14 +537,13 @@ const handleRejectOrder = async (orderId) => {
       await updateDoc(doc(db, 'users', user.uid), { skills });
       alert('Skills updated!');
     } catch (err) {
-      console.error('Error updating skills:', err);
+      console.error('[WorkerDashboard] Error updating skills:', err);
       setError(`Error updating skills: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle updating profile
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -550,497 +577,637 @@ const handleRejectOrder = async (orderId) => {
       setError('');
       alert('Profile updated successfully!');
     } catch (err) {
-      console.error('Error updating profile:', err);
+      console.error('[WorkerDashboard] Error updating profile:', err);
       setError(`Error updating profile: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle skills change
   const handleSkillsChange = (e) => {
     const selectedSkills = Array.from(e.target.selectedOptions).map(opt => opt.value);
     setSkills(selectedSkills);
   };
 
-  if (!user || error) {
+  if (!user || error.includes('Access restricted') || error.includes('Please log in')) {
     return (
-      <div className="max-w-6xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-lg">
-        <p className="text-red-600 text-center">{error || 'Please log in as a worker.'}</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-4">
+        <div className="max-w-md w-full p-6 bg-white rounded-xl shadow-2xl text-center transform transition-all hover:scale-105">
+          <XCircleIcon className="w-12 h-12 mx-auto mb-4 text-red-500 animate-pulse" />
+          <p className="text-xl font-semibold text-red-600">{error || 'Please log in as a worker.'}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto mt-10 p-6 bg-gray-100 rounded-lg shadow-lg">
-      {/* Welcome and Status Chips */}
-      <div className="text-center mb-4">
-        <span className="inline-block px-4 py-2 rounded-full text-sm font-semibold bg-green-600 text-white">
-          Welcome, {profile.name || 'Worker'}
-        </span>
-      </div>
-      <div className="text-center mb-4 flex justify-center space-x-4">
-        <span
-          className={`inline-block px-3 py-1 rounded-full text-sm font-semibold
-            ${status === 'approved' ? 'bg-green-100 text-green-800' :
-              status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-red-100 text-red-800'}`}
-        >
-          Approval: {status.charAt(0).toUpperCase() + status.slice(1)}
-        </span>
-        <span
-          className={`inline-block px-3 py-1 rounded-full text-sm font-semibold
-            ${workerStatus === 'busy' ? 'bg-blue-100 text-blue-800' :
-              'bg-green-100 text-green-800'}`}
-        >
-          Status: {workerStatus.charAt(0).toUpperCase() + workerStatus.slice(1)}
-        </span>
-      </div>
-      <h2 className="text-3xl font-bold mb-8 text-center text-green-700">Worker Dashboard</h2>
-      {error && <p className="text-red-600 mb-4 text-center">{error}</p>}
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <header className="bg-gradient-to-r from-green-800 to-green-300 rounded-xl shadow-lg mb-6 p-6 transform transition-all hover:shadow-2xl">
+          <div className="flex flex-col sm:flex-row justify-between items-center">
+            <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center">
+              <UserIcon className="w-8 h-8 mr-2 text-white" />
+              Welcome, {profile.name || 'Worker'}!
+            </h1>
+            <div className="flex flex-col sm:flex-row items-center gap-4 mt-4 sm:mt-0">
+              <span
+                className={`px-4 py-1 rounded-full text-sm font-medium text-white ${
+                  status === 'approved' ? 'bg-green-700' : 'bg-yellow-500'
+                } shadow-md`}
+              >
+                Approval: {status.charAt(0).toUpperCase() + status.slice(1)}
+              </span>
+              <span
+                className={`px-4 py-1 rounded-full text-sm font-medium text-white ${
+                  workerStatus === 'busy' ? 'bg-blue-700' : 'bg-green-700'
+                } shadow-md`}
+              >
+                Status: {workerStatus.charAt(0).toUpperCase() + workerStatus.slice(1)}
+              </span>
+              <button
+                onClick={toggleAllSections}
+                className="px-4 py-2 bg-white text-green-600 rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-2 shadow-md hover:shadow-lg"
+                aria-label={allSectionsOpen ? "Collapse all sections" : "Expand all sections"}
+              >
+                <BoltIcon className="w-5 h-5" />
+                {allSectionsOpen ? 'Collapse All' : 'Expand All'}
+              </button>
+            </div>
+          </div>
+        </header>
 
-      {/* Pending Tasks Section */}
-    <section className="mb-8">
-  <h3 className="text-2xl font-semibold mb-4 text-green-700">Pending Tasks</h3>
-  <div className="grid grid-cols-1 gap-6">
-    {orders.length === 0 ? (
-      <p className="text-center text-gray-600">No tasks assigned yet.</p>
-    ) : (
-      orders.map(order => {
-        const isWorkerAssigned = Array.isArray(order.workerId)
-          ? order.workerId.includes(user.uid)
-          : order.workerId === user.uid;
-        const workerAcceptance = Array.isArray(order.workerAcceptances)
-          ? order.workerAcceptances.find(wa => wa.workerId === user.uid)?.status || 'pending'
-          : order.accepted || 'pending';
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          <div className="bg-gradient-to-br from-green-400 to-green-600 rounded-xl shadow-lg p-6 flex items-center gap-4 transform transition-all hover:scale-105">
+            <BanknotesIcon className="w-12 h-12 text-white" />
+            <div>
+              <p className="text-lg font-medium text-white">Total Earnings</p>
+              <p className="text-3xl font-bold text-white">
+                ₹{(earnings.reduce((sum, e) => sum + (e.cost || 0), 0)).toFixed(2)}
+              </p>
+            </div>
+          </div>
+<div className="bg-gradient-to-br from-blue-400 to-indigo-600 rounded-xl shadow-lg p-6 flex items-center gap-4 transform transition-all hover:scale-105">
+            <CheckCircleIcon className="w-12 h-12 text-white" />
+            <div>
+              <p className="text-lg font-medium text-white">Completed Tasks</p>
+              <p className="text-3xl font-bold text-white">{earnings.length}</p>
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl shadow-lg p-6 flex items-center gap-4 transform transition-all hover:scale-105">
+            <CalendarIcon className="w-12 h-12 text-white" />
+            <div>
+              <p className="text-lg font-medium text-white">Pending Tasks</p>
+              <p className="text-3xl font-bold text-white">{orders.length}</p>
+            </div>
+          </div>
+        </div>
 
-        if (!isWorkerAssigned || workerAcceptance === 'rejected' || workerAcceptance === 'completed') {
-          return null;
-        }
+        {/* Error and Loading */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-xl flex items-center shadow-md">
+            <XCircleIcon className="w-6 h-6 mr-2" />
+            <p>{error}</p>
+          </div>
+        )}
+        {loading && (
+          <div className="mb-6 flex justify-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-green-600"></div>
+          </div>
+        )}
 
-        return (
-          <div
-            key={order.id}
-            className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow duration-200"
+        {/* Pending Tasks Section */}
+        <section className="mb-6 bg-white rounded-xl shadow-lg overflow-hidden transform transition-all hover:shadow-2xl">
+          <button
+            onClick={() => setShowPendingTasks(!showPendingTasks)}
+            className="w-full p-4 flex items-center justify-between text-xl font-semibold text-gray-800 hover:bg-gray-50 rounded-t-xl focus:outline-none"
+            aria-label="Toggle Pending Tasks"
           >
-            <div className="flex justify-between items-start">
-              <div>
-                <h4 className="text-lg font-semibold text-gray-800">
-                  {services.find(s => s.type === order.serviceType)?.name || order.serviceType}
-                </h4>
-                <p className="text-sm text-gray-500">
-                  Earnings: ₹{(order.cost / (Array.isArray(order.workerId) ? order.workerId.length : 1)).toFixed(2)}
+            <span className="flex items-center">
+              <CheckCircleIcon className="w-6 h-6 mr-2 text-green-600" />
+              Pending Tasks
+            </span>
+            {showPendingTasks ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
+          </button>
+          {showPendingTasks && (
+            <div className="p-6">
+              {orders.length === 0 ? (
+                <p className="text-center text-gray-600 flex items-center justify-center py-4">
+                  <CalendarIcon className="w-6 h-6 mr-2" />
+                  No tasks assigned yet.
                 </p>
-              </div>
-              {workerAcceptance === 'pending' && (
-                timers[order.id] > 0 ? (
-                  <span className="text-sm font-medium text-red-600">
-                    Time Left: {Math.floor(timers[order.id] / 60)}:{(timers[order.id] % 60).toString().padStart(2, '0')}
-                  </span>
-                ) : (
-                  <span className="inline-block px-2 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800">
-                    Timeout
-                  </span>
-                )
-              )}
-            </div>
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {order.serviceType === 'farm-workers' && (
-                <>
-                  {order.bundleDetails ? (
-                    <p className="text-gray-600">
-                      <span className="font-medium">Bundle:</span> {order.bundleDetails.name} (
-                      {order.bundleDetails.maleWorkers} Male + {order.bundleDetails.femaleWorkers} Female)
-                    </p>
-                  ) : (
-                    <>
-                      <p className="text-gray-600">
-                        <span className="font-medium">Male Workers:</span> {order.maleWorkers || 0}
-                      </p>
-                      <p className="text-gray-600">
-                        <span className="font-medium">Female Workers:</span> {order.femaleWorkers || 0}
-                      </p>
-                    </>
-                  )}
-                </>
-              )}
-              {order.serviceType === 'tractor-drivers' && (
-                <p className="text-gray-600">
-                  <span className="font-medium">Hours:</span> {order.hours || 'N/A'}
-                </p>
-              )}
-              <p className="text-gray-600">
-                <span className="font-medium">Days:</span> {order.numberOfDays || 1} Day{order.numberOfDays > 1 ? 's' : ''}
-              </p>
-              <p className="text-gray-600">
-                <span className="font-medium">Start Date:</span> {order.startDate || 'N/A'}
-              </p>
-              <p className="text-gray-600">
-                <span className="font-medium">End Date:</span> {order.endDate || 'N/A'}
-              </p>
-              <p className="text-gray-600">
-                <span className="font-medium">Start Time:</span> {order.startTime || 'N/A'}
-              </p>
-              <p className="text-gray-600">
-                <span className="font-medium">Address:</span> {order.address || 'N/A'}
-              </p>
-              <p className="text-gray-600">
-                <span className="font-medium">Pincode:</span> {orderPincodes[order.id] || 'N/A'}
-                {!orderPincodes[order.id] && (
-                  <span className="text-yellow-600 text-sm ml-2">[Missing]</span>
-                )}
-              </p>
-              <p className="text-gray-600">
-                <span className="font-medium">Contact:</span> {order.contactNumber || 'N/A'}
-              </p>
-              <p className="text-gray-600">
-                <span className="font-medium">Payment Method:</span>{' '}
-                {order.paymentMethod ? order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1) : 'N/A'}
-              </p>
-              <p className="text-gray-600">
-                <span className="font-medium">Note:</span> {order.additionalNote || 'None'}
-              </p>
-            </div>
-            {workerAcceptance === 'pending' && (
-              <>
-                {timers[order.id] > 0 ? (
-                  <div className="flex space-x-3 mt-6">
-                    <button
-                      onClick={() => handleAcceptOrder(order.id)}
-                      className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-500 transition-colors flex items-center justify-center gap-2"
-                      disabled={loading || status !== 'approved'}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                      Accept (₹{(order.cost / (Array.isArray(order.workerId) ? order.workerId.length : 1)).toFixed(2)})
-                    </button>
-                    <button
-                      onClick={() => handleRejectOrder(order.id)}
-                      className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
-                      disabled={loading || status !== 'approved'}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      Reject
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-6">
-                    <p className="text-red-600 font-semibold">You cannot accept this task now.</p>
-                  </div>
-                )}
-              </>
-            )}
-            {workerAcceptance === 'accepted' && (
-              <div className="mt-6">
-                <p className="text-green-600 font-semibold mb-2">Task Accepted</p>
-                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
-                  <select
-                    value={paymentMethod[order.id] || ''}
-                    onChange={e => setPaymentMethod(prev => ({ ...prev, [order.id]: e.target.value }))}
-                    className="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-green-600"
-                    required
-                  >
-                    <option value="">Select Payment Method</option>
-                    <option value="cash">Cash</option>
-                    <option value="online">Online</option>
-                  </select>
-                  <button
-                    onClick={() => handleCompleteOrder(order.id)}
-                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                    disabled={loading || !paymentMethod[order.id] || status !== 'approved'}
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    Mark as Completed
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })
-    )}
-  </div>
-</section>
+              ) : (
+                <div className="grid grid-cols-1 gap-6">
+                  {orders.map(order => {
+                    const isWorkerAssigned = Array.isArray(order.workerId)
+                      ? order.workerId.includes(user.uid)
+                      : order.workerId === user.uid;
+                    const workerAcceptance = Array.isArray(order.workerAcceptances)
+                      ? order.workerAcceptances.find(wa => wa.workerId === user.uid)?.status || 'pending'
+                      : order.accepted || 'pending';
 
-        {/* Rejected Tasks Section */}
-        <section className="mb-8">
-          <h3 className="text-2xl font-semibold mb-4 text-green-700">Rejected Tasks (Pending Reassignment)</h3>
-          <div className="grid grid-cols-1 gap-6">
-            {rejectedOrders.length === 0 ? (
-              <p className="text-center text-gray-600">No tasks rejected.</p>
-            ) : (
-              rejectedOrders.map(order => (
-                <div
-                  key={order.id}
-                  className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow duration-200"
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="text-lg font-semibold text-gray-800">
-                        {services.find(s => s.type === order.serviceType)?.name || order.serviceType}
-                      </h4>
-                      <p className="text-sm text-gray-500">Order ID: {order.id}</p>
-                      <p className="text-sm text-gray-500">
-                        Earnings: ₹{(order.cost / (Array.isArray(order.workerId) ? order.workerId.length : 1)).toFixed(2)}
-                      </p>
-                    </div>
-                    <span className="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800">
-                      Pending Reassignment
-                    </span>
-                  </div>
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <p className="text-gray-600">
-                      <span className="font-medium">Start Date:</span> {order.startDate || 'N/A'}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Pincode:</span> {orderPincodes[order.id] || 'N/A'}
-                      {!orderPincodes[order.id] && (
-                        <span className="text-yellow-600 text-sm ml-2">[Missing]</span>
-                      )}
-                    </p>
-                  </div>
-                  <p className="mt-4 text-gray-600 font-semibold">
-                    This task was rejected by you and is now pending reassignment by the admin.
-                  </p>
+                    if (!isWorkerAssigned || workerAcceptance === 'rejected' || workerAcceptance === 'completed') {
+                      return null;
+                    }
+
+                    const maxTimer = 300;
+                    const progress = timers[order.id] > 0 ? (timers[order.id] / maxTimer) * 100 : 0;
+
+                    return (
+                      <div
+                        key={order.id}
+                        className="p-6 bg-gray-50 rounded-lg hover:shadow-md transition-all"
+                      >
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                          <div>
+                            <h4 className="text-lg font-semibold text-gray-800">
+                              {services.find(s => s.type === order.serviceType)?.name || order.serviceType.replace('-', ' ').toUpperCase()}
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              Earnings: ₹{(order.cost / (Array.isArray(order.workerId) ? order.workerId.length : 1)).toFixed(2)}
+                            </p>
+                          </div>
+                          {workerAcceptance === 'pending' && (
+                            timers[order.id] > 0 ? (
+                              <div className="mt-2 sm:mt-0 flex flex-col items-end gap-2">
+                                <div className="flex items-center">
+                                  <CalendarIcon className="w-5 h-5 mr-2 text-red-600" />
+                                  <span className="text-sm font-medium text-red-600">
+                                    {Math.floor(timers[order.id] / 60)}:{(timers[order.id] % 60).toString().padStart(2, '0')}
+                                  </span>
+                                </div>
+                                <div className="w-24 bg-gray-200 rounded-full h-2.5">
+                                  <div
+                                    className="bg-red-600 h-2.5 rounded-full transition-all"
+                                    style={{ width: `${progress}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="mt-2 sm:mt-0 px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                                Timeout
+                              </span>
+                            )
+                          )}
+                        </div>
+                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                          {order.serviceType === 'farm-workers' && (
+                            <>
+                              {order.bundleDetails ? (
+                                <p>
+                                  <span className="font-medium">Bundle:</span> {order.bundleDetails.name} (
+                                  {order.bundleDetails.maleWorkers} Male + {order.bundleDetails.femaleWorkers} Female)
+                                </p>
+                              ) : (
+                                <>
+                                  <p><span className="font-medium">Male Workers:</span> {order.maleWorkers || 0}</p>
+                                  <p><span className="font-medium">Female Workers:</span> {order.femaleWorkers || 0}</p>
+                                </>
+                              )}
+                            </>
+                          )}
+                          {order.serviceType === 'tractor-drivers' && (
+                            <p><span className="font-medium">Hours:</span> {order.hours || 'N/A'}</p>
+                          )}
+                          <p><span className="font-medium">Days:</span> {order.numberOfDays || 1} Day{order.numberOfDays > 1 ? 's' : ''}</p>
+                          <p><span className="font-medium">Start Date:</span> {formatDate(order.startDate)}</p>
+                          <p><span className="font-medium">End Date:</span> {formatDate(order.endDate)}</p>
+                          <p><span className="font-medium">Start Time:</span> {order.startTime || 'N/A'}</p>
+                          <p><span className="font-medium">Address:</span> {order.address || 'N/A'}</p>
+                          <p>
+                            <span className="font-medium">Pincode:</span> {orderPincodes[order.id] || 'N/A'}
+                            {!orderPincodes[order.id] && (
+                              <span className="text-yellow-600 text-xs ml-1">[Missing]</span>
+                            )}
+                          </p>
+                          <p><span className="font-medium">Contact:</span> {order.contactNumber || 'N/A'}</p>
+                          <p>
+                            <span className="font-medium">Payment Method:</span>{' '}
+                            {order.paymentMethod ? order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1) : 'N/A'}
+                          </p>
+                          <p><span className="font-medium">Note:</span> {order.additionalNote || 'None'}</p>
+                        </div>
+                        {workerAcceptance === 'pending' && (
+                          <>
+                            {timers[order.id] > 0 ? (
+                              <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                                <button
+                                  onClick={() => handleAcceptOrder(order.id)}
+                                  className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-all flex items-center justify-center gap-2 transform hover:scale-105"
+                                  disabled={loading || status !== 'approved'}
+                                  aria-label="Accept task"
+                                >
+                                  <CheckCircleIcon className="w-5 h-5" />
+                                  Accept (₹{(order.cost / (Array.isArray(order.workerId) ? order.workerId.length : 1)).toFixed(2)})
+                                </button>
+                                <button
+                                  onClick={() => handleRejectOrder(order.id)}
+                                  className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 transition-all flex items-center justify-center gap-2 transform hover:scale-105"
+                                  disabled={loading || status !== 'approved'}
+                                  aria-label="Reject task"
+                                >
+                                  <XCircleIcon className="w-5 h-5" />
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="mt-4 text-red-600 flex items-center">
+                                <XCircleIcon className="w-5 h-5 mr-2" />
+                                You cannot accept this task now.
+                              </p>
+                            )}
+                          </>
+                        )}
+                        {workerAcceptance === 'accepted' && (
+                          <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                            <select
+                              value={paymentMethod[order.id] || ''}
+                              onChange={e => setPaymentMethod(prev => ({ ...prev, [order.id]: e.target.value }))}
+                              className="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
+                              required
+                              aria-label="Select payment method"
+                            >
+                              <option value="">Select Payment Method</option>
+                              <option value="cash">Cash</option>
+                              <option value="online">Online</option>
+                            </select>
+                            <button
+                              onClick={() => handleCompleteOrder(order.id)}
+                              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-all flex items-center justify-center gap-2 transform hover:scale-105"
+                              disabled={loading || !paymentMethod[order.id] || status !== 'approved'}
+                              aria-label="Mark task as completed"
+                            >
+                              <CheckCircleIcon className="w-5 h-5" />
+                              Mark as Completed
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              ))
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </section>
 
-        {/* Availability Section */}
-        <section className="mb-8">
-          <h3 className="text-2xl font-semibold mb-4 text-green-700">Set Availability</h3>
-          <form onSubmit={handleAddAvailability} className="bg-white p-6 rounded-lg shadow-lg">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-gray-700">Date</label>
-                <input
-                  type="date"
-                  value={newAvailabilityDate}
-                  onChange={e => setNewAvailabilityDate(e.target.value)}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700">Type</label>
-                <select
-                  value={availabilityType}
-                  onChange={e => setAvailabilityType(e.target.value)}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
-                  required
-                >
-                  <option value="working">Working Day</option>
-                  <option value="off">Off Day</option>
-                </select>
-              </div>
-            </div>
-            <button
-              type="submit"
-              className="mt-4 w-full bg-green-600 text-white p-3 rounded-full font-semibold hover:bg-green-700 transition-colors"
-              disabled={loading}
-            >
-              Update Availability
-            </button>
-          </form>
-          <div className="mt-4">
-            <p className="text-gray-700 font-semibold">Working Days:</p>
-            <div className="mt-2">
-              {availability.workingDays.length === 0 ? (
-                <p className="text-gray-600">None</p>
+        {/* Rejected Tasks Section */}
+        <section className="mb-6 bg-white rounded-xl shadow-lg overflow-hidden transform transition-all hover:shadow-2xl">
+          <button
+            onClick={() => setShowRejectedTasks(!showRejectedTasks)}
+            className="w-full p-4 flex items-center justify-between text-xl font-semibold text-gray-800 hover:bg-gray-50 rounded-t-xl focus:outline-none"
+            aria-label="Toggle Rejected Tasks"
+          >
+            <span className="flex items-center">
+              <XCircleIcon className="w-6 h-6 mr-2 text-red-600" />
+              Rejected Tasks
+            </span>
+            {showRejectedTasks ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
+          </button>
+          {showRejectedTasks && (
+            <div className="p-6">
+              {rejectedOrders.length === 0 ? (
+                <p className="text-center text-gray-600 flex items-center justify-center py-4">
+                  <XCircleIcon className="w-6 h-6 mr-2" />
+                  No tasks rejected.
+                </p>
               ) : (
-                availability.workingDays.map(date => (
-                  <span
-                    key={date}
-                    date
-                      className="inline-block px-3 py-4 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800 mr-2 mb-2"
-                  >
-                    {formatDate(date)}
-                  </span>
-                ))
+                <div className="grid grid-cols-1 gap-6">
+                  {rejectedOrders.map(order => (
+                    <div key={order.id} className="p-6 bg-gray-50 rounded-lg hover:shadow-md transition-all">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-lg font-semibold text-gray-800">
+                            {services.find(s => s.type === order.serviceType)?.name || order.serviceType.replace('-', ' ').toUpperCase()}
+                          </h4>
+                          <p className="text-sm text-gray-600">Order ID: {order.id}</p>
+                          <p className="text-sm text-gray-600">
+                            Earnings: ₹{(order.cost / (Array.isArray(order.workerId) ? order.workerId.length : 1)).toFixed(2)}
+                          </p>
+                        </div>
+                        <span className="px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                          Pending Reassignment
+                        </span>
+                      </div>
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <p><span className="font-medium">Start Date:</span> {formatDate(order.startDate)}</p>
+                        <p>
+                          <span className="font-medium">Pincode:</span> {orderPincodes[order.id] || 'N/A'}
+                          {!orderPincodes[order.id] && (
+                            <span className="text-yellow-600 text-xs ml-1">[Missing]</span>
+                          )}
+                        </p>
+                      </div>
+                      <p className="mt-4 text-red-600 flex items-center text-sm">
+                        <XCircleIcon className="w-5 h-5 mr-2" />
+                        This task was rejected and is pending reassignment.
+                      </p>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-            <p className="text-gray-700 font-semibold mt-4">Off Days:</p>
-            <div className="mt-2">
-              {availability.offDays.length === 0 ? (
-                <p className="text-gray-600">None</p>
-              ) : (
-                availability.offDays.map(date => (
-                  <span
-                    key={date}
-                    className="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-red-400 text-red-100 text-red-800 mr-2 mb-2"
-                  >
-                    {formatDate(date)}
-                  </span>
-                ))
-              )}
-            </div>
-          </div>
+          )}
         </section>
 
         {/* Earnings Section */}
-<section className="mb-8">
-  <h3 className="text-2xl font-semibold mb-4 text-green-700">Earnings</h3>
-  <div className="bg-white rounded-lg shadow-lg p-4">
-    <p className="text-green-600 font-bold text-xl">
-      Total Earnings: ₹{(earnings.reduce((sum, e) => sum + (e.cost || 0), 0)).toFixed(2)}
-    </p>
-    <div className="grid grid-cols-1 gap-4 mt-4">
-      {earnings.length === 0 ? (
-        <p className="text-center text-gray-600">No earnings recorded.</p>
-      ) : (
-        earnings.map(earning => (
-          <div key={earning.id} className="bg-gray-50 rounded-lg p-4">
-            <p><strong>Order ID:</strong> {earning.orderId}</p>
-            <p><strong>Service:</strong> {services.find(s => s.type === earning.serviceType)?.name || earning.serviceType}</p>
-            <p><strong>Earnings:</strong> ₹{(earning.cost || 0).toFixed(2)}</p>
-            <p><strong>Payment Method:</strong> {earning.paymentMethod ? earning.paymentMethod.charAt(0).toUpperCase() + earning.paymentMethod.slice(1) : 'N/A'}</p>
-            <p><strong>Completed:</strong> {earning.completedAt ? new Date(earning.completedAt.toDate()).toLocaleDateString('en-IN') : 'N/A'}</p>
-          </div>
-        ))
-      )}
-    </div>
-  </div>
-</section>
+        <section className="mb-6 bg-white rounded-xl shadow-lg overflow-hidden transform transition-all hover:shadow-2xl">
+          <button
+            onClick={() => setShowEarnings(!showEarnings)}
+            className="w-full p-4 flex items-center justify-between text-xl font-semibold text-gray-800 hover:bg-gray-50 rounded-t-xl focus:outline-none"
+            aria-label="Toggle Earnings"
+          >
+            <span className="flex items-center">
+              <BanknotesIcon className="w-6 h-6 mr-2 text-green-600" />
+              Earnings
+            </span>
+            {showEarnings ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
+          </button>
+          {showEarnings && (
+            <div className="p-6">
+              <p className="text-lg font-semibold text-green-600 mb-4">
+                Total Earnings: ₹{(earnings.reduce((sum, e) => sum + (e.cost || 0), 0)).toFixed(2)}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {earnings.length === 0 ? (
+                  <p className="text-center text-gray-600 col-span-full flex items-center justify-center py-4">
+                    <BanknotesIcon className="w-6 h-6 mr-2" />
+                    No earnings recorded yet.
+                  </p>
+                ) : (
+                  earnings.map(earning => (
+                    <div key={earning.id} className="p-4 bg-gray-50 rounded-lg hover:shadow-md transition-all">
+                      <p className="text-sm"><strong>Order ID:</strong> {earning.orderId}</p>
+                      <p className="text-sm"><strong>Service:</strong> {services.find(s => s.type === earning.serviceType)?.name || earning.serviceType.replace('-', ' ').toUpperCase()}</p>
+                      <p className="text-sm"><strong>Earnings:</strong> ₹{(earning.cost || 0).toFixed(2)}</p>
+                      <p className="text-sm"><strong>Payment Method:</strong> {earning.paymentMethod ? earning.paymentMethod.charAt(0).toUpperCase() + earning.paymentMethod.slice(1) : 'N/A'}</p>
+                      <p className="text-sm"><strong>Completed:</strong> {earning.completedAt ? formatDate(earning.completedAt.toDate()) : 'N/A'}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Availability Section */}
+        <section className="mb-6 bg-white rounded-xl shadow-lg overflow-hidden transform transition-all hover:shadow-2xl">
+          <button
+            onClick={() => setShowAvailability(!showAvailability)}
+            className="w-full p-4 flex items-center justify-between text-xl font-semibold text-gray-800 hover:bg-gray-50 rounded-t-xl focus:outline-none"
+            aria-label="Toggle Set Availability"
+          >
+            <span className="flex items-center">
+              <CalendarIcon className="w-6 h-6 mr-2 text-green-600" />
+              Set Availability
+            </span>
+            {showAvailability ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
+          </button>
+          {showAvailability && (
+            <div className="p-6">
+              <form onSubmit={handleAddAvailability} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={newAvailabilityDate}
+                    onChange={e => setNewAvailabilityDate(e.target.value)}
+                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    aria-label="Select availability date"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                  <select
+                    value={availabilityType}
+                    onChange={e => setAvailabilityType(e.target.value)}
+                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
+                    required
+                    aria-label="Select availability type"
+                  >
+                    <option value="working">Working Day</option>
+                    <option value="off">Off Day</option>
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  className="col-span-full bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-all flex items-center justify-center gap-2 transform hover:scale-105"
+                  disabled={loading}
+                  aria-label="Update availability"
+                >
+                  <CalendarIcon className="w-5 h-5" />
+                  Update Availability
+                </button>
+              </form>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Working Days:</p>
+                  {availability.workingDays.length === 0 ? (
+                    <p className="text-sm text-gray-600">No working days set.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {availability.workingDays.sort((a, b) => new Date(a) - new Date(b)).map(date => (
+                        <span
+                          key={date}
+                          className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
+                        >
+                          {formatDate(date)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Off Days:</p>
+                  {availability.offDays.length === 0 ? (
+                    <p className="text-sm text-gray-600">No off days set.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {availability.offDays.sort((a, b) => new Date(a) - new Date(b)).map(date => (
+                        <span
+                          key={date}
+                          className="px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800"
+                        >
+                          {formatDate(date)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
 
         {/* Skills Section */}
-        <section className="mb-8">
-          <h3 className="text-2xl font-semibold mb-4 text-green-700">Manage Skills</h3>
-          <form onSubmit={handleUpdateSkills} className="bg-white p-6 rounded-lg shadow-lg">
-            <div className="mb-4">
-              <label className="block text-gray-700">Select Skills</label>
-              <select
-                multiple
-                value={skills}
-                onChange={handleSkillsChange}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
-              >
-                {SKILLS.map(skill => (
-                  <option key={skill} value={skill}>
-                    {skill.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                  </option>
-                ))}
-              </select>
-              <p className="text-sm text-gray-500 mt-1">Hold Ctrl (Cmd on Mac) to select multiple skills.</p>
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-green-600 text-white p-3 rounded-full font-semibold hover:bg-green-700 transition-colors"
-              disabled={loading}
-            >
-              Update Skills
-            </button>
-          </form>
-          <div className="mt-4">
-            <p className="text-gray-700 font-semibold">Current Skills:</p>
-            <div className="mt-2">
-              {skills.length === 0 ? (
-                <p className="text-gray-600">No skills selected.</p>
-              ) : (
-                skills.map(skill => (
-                  <span
-                    key={skill}
-                    className="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800 mr-2 mb-2"
+        <section className="mb-6 bg-white rounded-xl shadow-lg overflow-hidden transform transition-all hover:shadow-2xl">
+          <button
+            onClick={() => setShowSkills(!showSkills)}
+            className="w-full p-4 flex items-center justify-between text-xl font-semibold text-gray-800 hover:bg-gray-50 rounded-t-xl focus:outline-none"
+            aria-label="Toggle Manage Skills"
+          >
+            <span className="flex items-center">
+              <UserIcon className="w-6 h-6 mr-2 text-green-600" />
+              Manage Skills
+            </span>
+            {showSkills ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
+          </button>
+          {showSkills && (
+            <div className="p-6">
+              <form onSubmit={handleUpdateSkills}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Select Skills</label>
+                  <select
+                    multiple
+                    value={skills}
+                    onChange={handleSkillsChange}
+                    className="w-full p-2 border rounded-lg h-32 focus:ring-2 focus:ring-green-600 bg-white"
+                    aria-label="Select skills"
                   >
-                    {skill.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                  </span>
-                ))
-              )}
+                    {SKILLS.map(skill => (
+                      <option key={skill} value={skill}>
+                        {skill.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Hold Ctrl (Cmd on Mac) to select multiple skills.</p>
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-all flex items-center justify-center gap-2 transform hover:scale-105"
+                  disabled={loading}
+                  aria-label="Update skills"
+                >
+                  <CheckCircleIcon className="w-5 h-5" />
+                  Update Skills
+                </button>
+              </form>
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-gray-700 mb-2">Current Skills:</p>
+                {skills.length === 0 ? (
+                  <p className="text-sm text-gray-600">No skills selected.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {skills.map(skill => (
+                      <span
+                        key={skill}
+                        className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                      >
+                        {skill.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </section>
 
         {/* Profile Section */}
-        <section>
-          <h3 className="text-2xl font-semibold mb-4 text-green-700">Edit Profile</h3>
-          <form onSubmit={handleUpdateProfile} className="bg-white p-6 rounded-lg shadow-lg" noValidate>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-gray-700">Name</label>
-                <input
-                  type="text"
-                  value={profile.name || ''}
-                  onChange={e => setProfile(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700">Pincode</label>
-                <input
-                  type="text"
-                  value={profile.pincode || ''}
-                  onChange={e => setProfile(prev => ({ ...prev, pincode: e.target.value }))}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
-                  required
-                  pattern="\d{6}"
-                  title="Enter a 6-digit pincode"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700">Mobile Number</label>
-                <input
-                  type="tel"
-                  inputMode="numeric"
-                  placeholder="Enter 10-digit mobile number"
-                  value={profile.mobile || ''}
-                  onChange={e => setProfile(prev => ({ ...prev, mobile: e.target.value }))}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
-                  required
-                  pattern="\d{10}"
-                  title="Enter a 10-digit mobile number"
-                  maxLength="10"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700">Gender</label>
-                <select
-                  value={profile.gender || ''}
-                  onChange={e => setProfile(prev => ({ ...prev, gender: e.target.value }))}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
-                  required
+        <section className="mb-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg overflow-hidden transform transition-all hover:shadow-2xl">
+          <button
+            onClick={() => setShowProfile(!showProfile)}
+            className="w-full p-4 flex items-center justify-between text-xl font-semibold text-white hover:bg-opacity-10 hover:bg-white rounded-t-xl focus:outline-none"
+            aria-label="Toggle Edit Profile"
+          >
+            <span className="flex items-center">
+              <UserIcon className="w-6 h-6 mr-2 text-white" />
+              Edit Profile
+            </span>
+            {showProfile ? <ChevronUpIcon className="w-6 h-6 text-white" /> : <ChevronDownIcon className="w-6 h-6 text-white" />}
+          </button>
+          {showProfile && (
+            <div className="p-6 bg-white rounded-b-xl">
+              <form onSubmit={handleUpdateProfile} noValidate>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={profile.name || ''}
+                      onChange={e => setProfile(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
+                      required
+                      aria-label="Enter name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
+                    <input
+                      type="text"
+                      value={profile.pincode || ''}
+                      onChange={e => setProfile(prev => ({ ...prev, pincode: e.target.value }))}
+                      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
+                      required
+                      pattern="\d{6}"
+                      title="Enter a 6-digit pincode"
+                      aria-label="Enter 6-digit pincode"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      placeholder="Enter 10-digit mobile number"
+                      value={profile.mobile || ''}
+                      onChange={e => setProfile(prev => ({ ...prev, mobile: e.target.value }))}
+                      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
+                      required
+                      pattern="\d{10}"
+                      title="Enter a 10-digit mobile number"
+                      maxLength="10"
+                      aria-label="Enter 10-digit mobile number"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                    <select
+                      value={profile.gender || ''}
+                      onChange={e => setProfile(prev => ({ ...prev, gender: e.target.value }))}
+                      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
+                      required
+                      aria-label="Select gender"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Worker Status</label>
+                    <select
+                      value={profile.workerStatus || 'ready'}
+                      onChange={e => setProfile(prev => ({ ...prev, workerStatus: e.target.value }))}
+                      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
+                      required
+                      aria-label="Select worker status"
+                    >
+                      <option value="ready">Ready</option>
+                      <option value="busy">Busy</option>
+                    </select>
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  className="mt-4 w-full bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-all flex items-center justify-center gap-2 transform hover:scale-105"
+                  disabled={loading}
+                  aria-label="Update profile"
                 >
-                  <option value="">Select Gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-gray-700">Worker Status</label>
-                <select
-                  value={profile.workerStatus || 'ready'}
-                  onChange={e => setProfile(prev => ({ ...prev, workerStatus: e.target.value }))}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
-                  required
-                >
-                  <option value="ready">Ready</option>
-                  <option value="busy">Busy</option>
-                </select>
-              </div>
+                  <CheckCircleIcon className="w-5 h-5" />
+                  Update Profile
+                </button>
+              </form>
             </div>
-            <button
-              type="submit"
-              className="mt-4 w-full bg-green-600 text-white p-3 rounded-full font-semibold hover:bg-green-700 transition-colors"
-              disabled={loading}
-            >
-              Update Profile
-            </button>
-          </form>
+          )}
         </section>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
-  export default WorkerDashboard;
+export default WorkerDashboard;

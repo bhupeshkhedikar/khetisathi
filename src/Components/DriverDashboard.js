@@ -36,7 +36,7 @@ const DriverDashboard = () => {
 
   const sendWhatsAppMessage = async (mobile, message) => {
     try {
-      if (!mobile || !MOBILE_REGEX.test(mobile)) return false;
+      if (!mobile) return false;
       const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -184,25 +184,59 @@ const DriverDashboard = () => {
     }
   };
 
-  const handleAcceptAssignment = async (assignmentId) => {
-    try {
-      setLoading(true);
-      const assignment = assignments.find((a) => a.id === assignmentId);
-      await updateDoc(doc(db, 'assignments', assignmentId), { status: 'accepted', updatedAt: serverTimestamp() });
-      await updateDoc(doc(db, 'users', user.uid), { driverStatus: 'busy' });
-      setDriverStatus('busy');
-      setProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
-      setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
-      for (const worker of workerDetails[assignmentId] || []) {
-        await sendWhatsAppMessage(worker.mobile, `Driver ${profile.name} accepted your ride at ${assignment.location} on ${assignment.startDate}. Price: ₹${(assignment.customPrice || 0).toFixed(2)}.`);
-      }
-      alert('Assignment accepted!');
-    } catch (err) {
-      setError('Failed to accept assignment.');
-    } finally {
-      setLoading(false);
+const handleAcceptAssignment = async (assignmentId) => {
+  try {
+    setLoading(true);
+    const assignment = assignments.find((a) => a.id === assignmentId);
+    if (!assignment || !assignment.location) {
+      setError('Invalid assignment details.');
+      return;
     }
-  };
+
+    await updateDoc(doc(db, 'assignments', assignmentId), {
+      status: 'accepted',
+      updatedAt: serverTimestamp(),
+    });
+
+    await updateDoc(doc(db, 'users', user.uid), {
+      driverStatus: 'busy',
+    });
+
+    setDriverStatus('busy');
+    setProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
+    setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
+
+    // Send WhatsApp message to workers
+    const workerMessages = (workerDetails[assignmentId] || []).map((worker) =>
+      sendWhatsAppMessage(
+        worker.mobile,
+        `👋 Hello ${worker.name},
+
+I am ${profile.name} (${profile.mobile}), your assigned driver for today.
+
+📍 I’ll be arriving soon at: ${assignment.location}
+
+📞 For any questions, feel free to contact me directly.
+
+Regards,  
+Khetisathi 🚜`
+      )
+    );
+
+    const results = await Promise.all(workerMessages);
+    if (workerMessages.length > 0 && results.every((r) => !r)) {
+      setError('Failed to send notifications to workers.');
+    }
+
+    alert('Assignment accepted!');
+  } catch (err) {
+    logError('Error accepting assignment', err);
+    setError('Failed to accept assignment.');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleRejectAssignment = async (assignmentId) => {
     try {
@@ -220,6 +254,7 @@ const DriverDashboard = () => {
       setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'available' }));
       alert('Assignment rejected.');
     } catch (err) {
+      logError('Error rejecting assignment', err);
       setError('Failed to reject assignment.');
     } finally {
       setLoading(false);
@@ -251,6 +286,7 @@ const DriverDashboard = () => {
       setPaymentMethod((prev) => ({ ...prev, [assignmentId]: undefined }));
       alert('Task completed!');
     } catch (err) {
+      logError('Error completing assignment', err);
       setError('Failed to complete assignment.');
     } finally {
       setLoading(false);
@@ -276,6 +312,7 @@ const DriverDashboard = () => {
       setNewAvailabilityDate('');
       alert('Working day added!');
     } catch (err) {
+      logError('Error adding working day', err);
       setError('Failed to update availability.');
     } finally {
       setLoading(false);
@@ -301,6 +338,7 @@ const DriverDashboard = () => {
       setNewOffDayDate('');
       alert('Off day added!');
     } catch (err) {
+      logError('Error adding off day', err);
       setError('Failed to add off day.');
     } finally {
       setLoading(false);
@@ -318,6 +356,7 @@ const DriverDashboard = () => {
       setAvailability(updatedAvailability);
       alert('Working day removed!');
     } catch (err) {
+      logError('Error removing working day', err);
       setError('Failed to remove working day.');
     } finally {
       setLoading(false);
@@ -335,6 +374,7 @@ const DriverDashboard = () => {
       setAvailability(updatedAvailability);
       alert('Off day removed!');
     } catch (err) {
+      logError('Error removing off day', err);
       setError('Failed to remove off day.');
     } finally {
       setLoading(false);
@@ -349,6 +389,7 @@ const DriverDashboard = () => {
       await updateDoc(doc(db, 'users', user.uid), { vehicleSkills });
       alert('Vehicle skills updated!');
     } catch (err) {
+      logError('Error updating vehicle skills', err);
       setError('Failed to update vehicle skills.');
     } finally {
       setLoading(false);
@@ -369,6 +410,7 @@ const DriverDashboard = () => {
       setDriverStatus(updatedProfile.driverStatus);
       alert('Profile updated successfully!');
     } catch (err) {
+      logError('Error updating profile', err);
       setError('Failed to update profile.');
     } finally {
       setLoading(false);
@@ -441,73 +483,76 @@ const DriverDashboard = () => {
             </p>
           ) : (
             <div className="space-y-4">
-              {assignments.map((assignment) => (
-                <div key={assignment.id} className="border border-gray-200 p-4 rounded-lg hover:shadow-md transition-shadow">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <p><strong>Type:</strong> {assignment.vehicleType.replace('-', ' ').toUpperCase()}</p>
-                    <p><strong>Date:</strong> {new Date(assignment.startDate).toLocaleDateString('en-GB')}</p>
-                    <p><strong>Location:</strong> {assignment.location}</p>
-                    <p><strong>Earnings:</strong> ₹{(assignment.customPrice || 0).toFixed(2)}</p>
-                    <p>
-                      <strong>Workers:</strong>{' '}
-                      {(workerDetails[assignment.id]?.length > 0)
-                        ? workerDetails[assignment.id].map((w) => `${w.name} (${w.mobile})`).join(', ')
-                        : 'None'}
-                    </p>
-                    <p><strong>Status:</strong> <span className={`px-3 py-1 rounded-full text-sm ${STATUS_COLORS[assignment.status] || 'bg-gray-100 text-gray-600'}`}>{assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}</span></p>
+              {assignments.map((assignment) => {
+                console.log(`[DriverDashboard] Assignment ID: ${assignment.id}, vehicleType: ${assignment.vehicleType}`);
+                return (
+                  <div key={assignment.id} className="border border-gray-200 p-4 rounded-lg hover:shadow-md transition-shadow">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <p><strong>Type:</strong> {assignment.vehicleType.replace('-', ' ').toUpperCase()}</p>
+                      <p><strong>Date:</strong> {new Date(assignment.startDate).toLocaleDateString('en-GB')}</p>
+                      <p><strong>Location:</strong> {assignment.location}</p>
+                      <p><strong>Earnings:</strong> ₹{(assignment.customPrice || 0).toFixed(2)}</p>
+                      <p>
+                        <strong>Workers:</strong>{' '}
+                        {(workerDetails[assignment.id]?.length > 0)
+                          ? workerDetails[assignment.id].map((w) => `${w.name} (${w.mobile})`).join(', ')
+                          : 'None'}
+                      </p>
+                      <p><strong>Status:</strong> <span className={`px-3 py-1 rounded-full text-sm ${STATUS_COLORS[assignment.status] || 'bg-gray-100 text-gray-600'}`}>{assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}</span></p>
+                    </div>
+                    {assignment.status === 'pending' && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          onClick={() => handleAcceptAssignment(assignment.id)}
+                          className="flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors"
+                          disabled={loading || timers[assignment.id] === 0 || status !== 'approved'}
+                          title="Accept this task"
+                        >
+                          <CheckCircleIcon className="w-5 h-5 mr-2" />
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleRejectAssignment(assignment.id)}
+                          className="flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 transition-colors"
+                          disabled={loading || timers[assignment.id] === 0 || status !== 'approved'}
+                          title="Reject this task"
+                        >
+                          <XCircleIcon className="w-5 h-5 mr-2" />
+                          Reject
+                        </button>
+                        {timers[assignment.id] > 0 && (
+                          <span className="flex items-center text-red-600">
+                            <ClockIcon className="w-5 h-5 mr-2" />
+                            Time Left: {Math.floor(timers[assignment.id] / 60)}:{(timers[assignment.id] % 60).toString().padStart(2, '0')}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {assignment.status === 'accepted' && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <select
+                          value={paymentMethod[assignment.id] || ''}
+                          onChange={(e) => setPaymentMethod((prev) => ({ ...prev, [assignment.id]: e.target.value }))}
+                          className="p-2 border rounded-lg focus:ring-2 focus:ring-green-600"
+                        >
+                          <option value="" disabled>Select Payment</option>
+                          <option value="cash">Cash</option>
+                          <option value="online">Online</option>
+                        </select>
+                        <button
+                          onClick={() => handleCompleteAssignment(assignment.id)}
+                          className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                          disabled={loading || !paymentMethod[assignment.id]}
+                          title="Mark task as completed"
+                        >
+                          <CheckCircleIcon className="w-5 h-5 mr-2" />
+                          Complete
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {assignment.status === 'pending' && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        onClick={() => handleAcceptAssignment(assignment.id)}
-                        className="flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors"
-                        disabled={loading || timers[assignment.id] === 0 || status !== 'approved'}
-                        title="Accept this task"
-                      >
-                        <CheckCircleIcon className="w-5 h-5 mr-2" />
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => handleRejectAssignment(assignment.id)}
-                        className="flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 transition-colors"
-                        disabled={loading || timers[assignment.id] === 0 || status !== 'approved'}
-                        title="Reject this task"
-                      >
-                        <XCircleIcon className="w-5 h-5 mr-2" />
-                        Reject
-                      </button>
-                      {timers[assignment.id] > 0 && (
-                        <span className="flex items-center text-red-600">
-                          <ClockIcon className="w-5 h-5 mr-2" />
-                          Time Left: {Math.floor(timers[assignment.id] / 60)}:{(timers[assignment.id] % 60).toString().padStart(2, '0')}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {assignment.status === 'accepted' && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <select
-                        value={paymentMethod[assignment.id] || ''}
-                        onChange={(e) => setPaymentMethod((prev) => ({ ...prev, [assignment.id]: e.target.value }))}
-                        className="p-2 border rounded-lg focus:ring-2 focus:ring-green-600"
-                      >
-                        <option value="" disabled>Select Payment</option>
-                        <option value="cash">Cash</option>
-                        <option value="online">Online</option>
-                      </select>
-                      <button
-                        onClick={() => handleCompleteAssignment(assignment.id)}
-                        className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
-                        disabled={loading || !paymentMethod[assignment.id]}
-                        title="Mark task as completed"
-                      >
-                        <CheckCircleIcon className="w-5 h-5 mr-2" />
-                        Complete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
