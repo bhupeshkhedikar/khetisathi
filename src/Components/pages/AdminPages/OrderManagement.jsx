@@ -1,5 +1,6 @@
 import React from 'react';
 import AssignWorkerModal from './AssignWorkerModal';
+import AssignDriverModal from './AssignDriverModal';
 
 const OrderManagement = ({
   orders,
@@ -25,12 +26,60 @@ const OrderManagement = ({
   setSelectedWorkers,
   handleAssignWorker,
   isWorkerAvailable,
+  openAssignDriverModal,
+  showAssignDriverModal,
+  currentOrderForDriver,
+  setShowAssignDriverModal,
+  handleAssignDriver,
   loading,
 }) => {
+  // Sort orders based on sortConfig
+  const sortedOrders = [...orders].sort((a, b) => {
+    const key = sortConfig.key;
+    const direction = sortConfig.direction === 'asc' ? 1 : -1;
+
+    if (key === 'id') {
+      return direction * a.id.localeCompare(b.id);
+    } else if (key === 'farmerName') {
+      const aName = users[a.farmerId]?.name || '';
+      const bName = users[b.farmerId]?.name || '';
+      return direction * aName.localeCompare(bName);
+    } else if (key === 'workerName') {
+      const aWorkerNames = Array.isArray(a.workerId)
+        ? a.workerId.map((id) => users[id]?.name || '').join(', ')
+        : users[a.workerId]?.name || '';
+      const bWorkerNames = Array.isArray(b.workerId)
+        ? b.workerId.map((id) => users[id]?.name || '').join(', ')
+        : users[b.workerId]?.name || '';
+      return direction * aWorkerNames.localeCompare(bWorkerNames);
+    } else if (key === 'serviceType') {
+      const aService = services.find((s) => s.id === a.serviceId)?.name || a.serviceType || '';
+      const bService = services.find((s) => s.id === b.serviceId)?.name || b.serviceType || '';
+      return direction * aService.localeCompare(bService);
+    } else if (key === 'cost') {
+      return direction * ((a.cost || 0) - (b.cost || 0));
+    } else if (key === 'status') {
+      return direction * (a.status || '').localeCompare(b.status || '');
+    } else if (key === 'createdAt') {
+      const aTime = a.createdAt ? a.createdAt.toDate().getTime() : 0;
+      const bTime = b.createdAt ? b.createdAt.toDate().getTime() : 0;
+      return direction * (aTime - bTime);
+    } else if (key === 'completedAt') {
+      const aTime = a.completedAt ? a.completedAt.toDate().getTime() : 0;
+      const bTime = b.completedAt ? b.completedAt.toDate().getTime() : 0;
+      return direction * (aTime - bTime);
+    } else if (key === 'paymentStatus') {
+      const aStatus = a.paymentStatus?.status || 'Not Paid';
+      const bStatus = b.paymentStatus?.status || 'Not Paid';
+      return direction * aStatus.localeCompare(bStatus);
+    }
+    return 0;
+  });
+
   return (
     <section className="mb-8">
       <h3 className="text-2xl font-semibold mb-6 text-gray-800">All Orders</h3>
-      {orders.length === 0 ? (
+      {sortedOrders.length === 0 ? (
         <p className="text-center text-gray-500">No orders found.</p>
       ) : (
         <div className="overflow-x-auto">
@@ -69,15 +118,23 @@ const OrderManagement = ({
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => {
+              {sortedOrders.map((order) => {
                 const { totalNeeded, maleNeeded, femaleNeeded, rejections } = calculateWorkersNeeded(order);
                 const needsReassignment = rejections > 0 && (totalNeeded > 0 || maleNeeded > 0 || femaleNeeded > 0);
+                const hasAssignedWorkers = Array.isArray(order.workerId)
+                  ? order.workerId.some((workerId) => {
+                      const workerStatusEntry = (order.workerAcceptances || []).find(
+                        (entry) => entry.workerId === workerId
+                      );
+                      return workerStatusEntry && workerStatusEntry.status === 'accepted';
+                    })
+                  : order.workerId && order.accepted === 'accepted';
 
                 return (
                   <tr key={order.id} className="border-b hover:bg-gray-50">
                     <td className="py-2 px-4">{order.id.slice(0, 6)}</td>
                     <td className="py-2 px-4">
-                      {users[order.farmerId]?.name || 'N/A'} - 📎 {users[order.farmerId]?.mobile || 'N/A'}<br />
+                      {users[order.farmerId]?.name || 'N/A'} - 📲 {users[order.farmerId]?.mobile || 'N/A'}<br />
                       <b>Address:</b> {order.address}
                     </td>
                     <td className="py-2 px-4">
@@ -100,7 +157,7 @@ const OrderManagement = ({
                           const workerPhone = users[workerId]?.mobile || 'N/A';
                           return (
                             <div key={workerId} className="mb-1 text-sm">
-                              {users[workerId]?.name || 'N/A'} - 📎 {workerPhone}, {statusText}, {completionText}
+                              {users[workerId]?.name || 'N/A'} - 📲 {workerPhone}, {statusText}, {completionText}
                               {index < order.workerId.length - 1 && <br />}
                             </div>
                           );
@@ -121,7 +178,7 @@ const OrderManagement = ({
                           const workerPhone = users[order.workerId]?.mobile || 'N/A';
                           return (
                             <div className="text-sm">
-                              {users[order.workerId]?.name || 'N/A'} - 📎 {workerPhone}, {statusText}, {completionText}
+                              {users[order.workerId]?.name || 'N/A'} - 📲 {workerPhone}, {statusText}, {completionText}
                             </div>
                           );
                         })()
@@ -134,9 +191,7 @@ const OrderManagement = ({
                       {order.serviceType === 'farm-workers' && (
                         <span className="block text-xs text-gray-600">
                           {order.orderType === 'bundle'
-                            ? `Bundle: ${order.bundleDetails?.name || 'N/A'} (${
-                                order.bundleDetails?.maleWorkers || 0
-                              } Male, ${order.bundleDetails?.femaleWorkers || 0} Female)`
+                            ? `Bundle: ${order.bundleDetails?.name || 'N/A'} (${order.bundleDetails?.maleWorkers || 0} Male, ${order.bundleDetails?.femaleWorkers || 0} Female)`
                             : `(${order.maleWorkers || 0} Male, ${order.femaleWorkers || 0} Female)`}
                         </span>
                       )}
@@ -218,25 +273,34 @@ const OrderManagement = ({
                             className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-xs"
                             disabled={loading}
                           >
-                            Auto Assign
+                            Auto Assign Workers
                           </button>
                           <button
                             onClick={() => openAssignModal(order)}
                             className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-xs"
                             disabled={loading}
                           >
-                            Manual Assign
+                            Manual Assign Workers
                           </button>
                         </div>
                       )}
-                      {(order.status === 'accepted' || order.status === 'assigned') && (
-                        <button
-                          onClick={() => handleProcessPayment(order.id)}
-                          className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-xs"
-                          disabled={loading}
-                        >
-                          Process Payment
-                        </button>
+                      {(order.status === 'accepted' || order.status === 'assigned') && hasAssignedWorkers && (
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => openAssignDriverModal(order)}
+                            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition text-xs"
+                            disabled={loading}
+                          >
+                            Assign Drivers
+                          </button>
+                          <button
+                            onClick={() => handleProcessPayment(order.id)}
+                            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-xs"
+                            disabled={loading}
+                          >
+                            Process Payment
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -261,6 +325,17 @@ const OrderManagement = ({
           setSelectedWorkers={setSelectedWorkers}
           handleAssignWorker={handleAssignWorker}
           setShowAssignModal={setShowAssignModal}
+          loading={loading}
+        />
+      )}
+      {showAssignDriverModal && currentOrderForDriver && (
+        <AssignDriverModal
+          currentOrder={currentOrderForDriver}
+          users={users}
+          workers={workers}
+          isWorkerAvailable={isWorkerAvailable}
+          handleAssignDriver={handleAssignDriver}
+          setShowAssignDriverModal={setShowAssignDriverModal}
           loading={loading}
         />
       )}

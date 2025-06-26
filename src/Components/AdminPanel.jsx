@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebaseConfig';
 import { collection, query, where, getDoc, getDocs, doc, updateDoc, addDoc, deleteDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import Analytics from './AdminPages/Analytics';
-import UserManagement from './AdminPages/UserManagement';
-import ServiceManagement from './AdminPages/ServiceManagement';
-import BundleManagement from './AdminPages/BundleManagement';
-import OrderManagement from './AdminPages/OrderManagement';
+import Analytics from './pages/AdminPages/Analytics';
+import UserManagement from './pages/AdminPages/UserManagement';
+import ServiceManagement from './pages/AdminPages/ServiceManagement';
+import BundleManagement from './pages/AdminPages/BundleManagement';
+// import OrderManagement from './pages/AdminPages/OrderManagement';
+import DriverApproval from './DriverApproval';
+import DriverAssignmentDashboard from './pages/AdminPages/DriverAssignmentDashboard';
+import OrderManagement from './pages/AdminPages/OrderManagement';
+
 
 const AdminPanel = () => {
   const [adminUser, setAdminUser] = useState(null);
@@ -49,6 +53,9 @@ const AdminPanel = () => {
   const [editBundleMaleWorkers, setEditBundleMaleWorkers] = useState('0');
   const [editBundleFemaleWorkers, setEditBundleFemaleWorkers] = useState('0');
   const [editBundlePrice, setEditBundlePrice] = useState('');
+  const [showAssignDriverModal, setShowAssignDriverModal] = useState(false);
+  const [currentOrderForDriver, setCurrentOrderForDriver] = useState(null);
+
 
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
@@ -659,6 +666,88 @@ const AdminPanel = () => {
       setLoading(false);
     }
   };
+const handleAssignDriver = async (orderId, driverIds) => {
+    if (!driverIds || driverIds.length === 0) {
+      setError('Please select at least one driver.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const orderRef = doc(db, 'orders', orderId);
+      const orderDoc = await getDoc(orderRef);
+      if (!orderDoc.exists()) throw new Error('Order not found');
+      const orderData = orderDoc.data();
+
+      const existingDriverIds = Array.isArray(orderData.driverId)
+        ? orderData.driverId.filter((id) => {
+            const da = orderData.driverAcceptances?.find((da) => da.driverId === id);
+            return da?.status === 'accepted' || da?.status === 'pending';
+          })
+        : [];
+
+      const existingAcceptances = Array.isArray(orderData.driverAcceptances)
+        ? orderData.driverAcceptances.filter((da) => da.status === 'accepted' || da.status === 'pending')
+        : [];
+
+      await updateDoc(orderRef, {
+        driverId: [...existingDriverIds, ...driverIds],
+        driverAcceptances: [
+          ...existingAcceptances,
+          ...driverIds.map((id) => ({ driverId: id, status: 'pending' })),
+        ],
+        timeout: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+        attemptedDrivers: [...(orderData.attemptedDrivers || []), ...driverIds],
+        updatedAt: serverTimestamp(),
+      });
+
+      const farmerName = users[orderData.farmerId]?.name || 'Farmer';
+      for (const driverId of driverIds) {
+        const driver = workers.find((w) => w.id === driverId);
+        if (!driver || !driver.mobile) continue;
+
+        const message = `🔔 New Driver Assignment on KhetiSathi! 🚜\n\n` +
+          `You have been assigned as a driver for an order. Please respond within 10 minutes!\n\n` +
+          `• 📋 Order ID: ${orderId.slice(0, 8)}\n` +
+          `• 👨‍🌾 Farmer: ${farmerName}\n` +
+          `• 📅 Start Date: ${orderData.startDate || 'N/A'}\n` +
+          `• 📍 Address: ${orderData.address || 'N/A'}\n` +
+          `• 🚗 Vehicle: ${driver.vehicleSkills.join(', ')}\n\n` +
+          `📲 Click below to respond:\n` +
+          `✅ Accept: https://khetisathi.com/driver-response?orderId=${orderId}&driverId=${driverId}&response=accept\n` +
+          `❌ Reject: https://khetisathi.com/driver-response?orderId=${orderId}&driverId=${driverId}&response=reject\n\n` +
+          `⏰ Deadline: ${new Date(Date.now() + 10 * 60 * 1000).toLocaleTimeString()}`;
+
+        try {
+          const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: `+91${driver.mobile}`,
+              message,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error(`WhatsApp failed for driver ${driverId}:`, await response.json());
+          }
+        } catch (err) {
+          console.error(`Error sending WhatsApp to driver ${driverId}:`, err);
+        }
+      }
+
+      setShowAssignDriverModal(false);
+      alert(`Assigned ${driverIds.length} driver(s) successfully! Notifications sent.`);
+    } catch (err) {
+      setError(`Error assigning drivers: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openAssignDriverModal = (order) => {
+    setCurrentOrderForDriver(order);
+    setShowAssignDriverModal(true);
+  };
 
   const handleProcessPayment = async (orderId) => {
     setLoading(true);
@@ -703,6 +792,7 @@ const AdminPanel = () => {
     setEditBundlePrice(bundle.price || '');
     setShowEditBundleModal(true);
   };
+  
 
   if (error) {
     return (
@@ -742,6 +832,8 @@ const AdminPanel = () => {
           </div>
         )}
         <Analytics orders={orders} workers={workers} />
+        <DriverApproval/>
+        <DriverAssignmentDashboard/>
         <UserManagement
           farmers={farmers}
           workers={workers}
@@ -816,31 +908,36 @@ const AdminPanel = () => {
           loading={loading}
         />
 <OrderManagement
-  orders={orders}
-  services={services}
-  users={users}
-  workers={workers}
-  sortConfig={sortConfig}
-  handleSort={handleSort}
-  calculateWorkersNeeded={calculateWorkersNeeded}
-  handleAcceptOrder={handleAcceptOrder}
-  handleRejectOrder={handleRejectOrder}
-  autoAssignWorkers={autoAssignWorkers}
-  handleProcessPayment={handleProcessPayment}
-  openAssignModal={openAssignModal}
-  showAssignModal={showAssignModal}
-  currentOrder={currentOrder}
-  setShowAssignModal={setShowAssignModal}
-  selectedMaleWorkers={selectedMaleWorkers}
-  setSelectedMaleWorkers={setSelectedMaleWorkers}
-  selectedFemaleWorkers={selectedFemaleWorkers}
-  setSelectedFemaleWorkers={setSelectedFemaleWorkers}
-  selectedWorkers={selectedWorkers}
-  setSelectedWorkers={setSelectedWorkers}
-  handleAssignWorker={handleAssignWorker}
-  isWorkerAvailable={isWorkerAvailable} // Passed here
-  loading={loading}
-/>
+          orders={orders}
+          services={services}
+          users={users}
+          workers={workers}
+          sortConfig={sortConfig}
+          handleSort={handleSort}
+          calculateWorkersNeeded={calculateWorkersNeeded}
+          handleAcceptOrder={handleAcceptOrder}
+          handleRejectOrder={handleRejectOrder}
+          autoAssignWorkers={autoAssignWorkers}
+          handleProcessPayment={handleProcessPayment}
+          openAssignModal={openAssignModal}
+          showAssignModal={showAssignModal}
+          currentOrder={currentOrder}
+          setShowAssignModal={setShowAssignModal}
+          selectedMaleWorkers={selectedMaleWorkers}
+          setSelectedMaleWorkers={setSelectedMaleWorkers}
+          selectedFemaleWorkers={selectedFemaleWorkers}
+          setSelectedFemaleWorkers={setSelectedFemaleWorkers}
+          selectedWorkers={selectedWorkers}
+          setSelectedWorkers={setSelectedWorkers}
+          handleAssignWorker={handleAssignWorker}
+          isWorkerAvailable={isWorkerAvailable}
+          openAssignDriverModal={openAssignDriverModal}
+          showAssignDriverModal={showAssignDriverModal}
+          currentOrderForDriver={currentOrderForDriver}
+          setShowAssignDriverModal={setShowAssignDriverModal}
+          handleAssignDriver={handleAssignDriver}
+          loading={loading}
+        />
       </div>
     </div>
   );

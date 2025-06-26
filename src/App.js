@@ -16,6 +16,7 @@ import ContactUs from './Components/pages/ContactUs.jsx';
 import Terms from './Components/pages/Terms.jsx';
 import RefundPolicy from './Components/pages/RefundPolicy.jsx';
 import PrivacyPolicy from './Components/pages/PrivacyPolicy.jsx';
+import DriverDashboard from './Components/DriverDashboard.js';
 const App = () => {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState('');
@@ -226,6 +227,7 @@ const App = () => {
         <Route path="/track-order" element={<TrackOrder />} />
         <Route path="/admin-panel" element={<AdminPanel />} />
         <Route path="/worker-dashboard" element={<WorkerDashboard />} />
+        <Route path="/driver-dashboard" element={<DriverDashboard />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/profile" element={<Profile />} />

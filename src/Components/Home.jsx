@@ -921,7 +921,7 @@ const Home = () => {
                 )}
                 <p><span className="review-label">{t.days}:</span> {numberOfDays} {numberOfDays > 1 ? t.daysPlural : t.day}</p>
                 <p><span className="review-label">{t.startDate}:</span> {startDate}</p>
-                {renderCostBreakdown()}
+                <div>{renderCostBreakdown()}</div>
               </div>
               <button
                 className="back-button"
