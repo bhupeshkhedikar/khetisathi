@@ -26,7 +26,7 @@ const Terms = () => {
             <h2 className="text-2xl font-semibold text-green-700">General</h2>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md">
-            <p className="text-gray-600 mb-2">This website is operated by KhetiSathi Pvt. Ltd.</p>
+            <p className="text-gray-600 mb-2">This website is operated by Bhupesh Prakash Khedikar</p>
             <p className="text-gray-600">Users must be 18 years or older to make purchases.</p>
           </div>
         </section>

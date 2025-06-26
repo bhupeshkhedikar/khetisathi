@@ -64,6 +64,20 @@ const RefundPolicy = () => {
           </div>
         </section>
 
+        {/* Shipping Policy */}
+        <section className="mb-12">
+          <div className="flex items-center mb-4">
+            <i className="fas fa-shipping-fast text-green-600 text-2xl mr-3"></i>
+            <h2 className="text-2xl font-semibold text-green-700">Shipping Policy</h2>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <p className="text-gray-600 mb-2">We deliver across India using reliable logistics partners.</p>
+            <p className="text-gray-600 mb-2">Standard shipping duration: <strong>5-7 business days</strong>.</p>
+            <p className="text-gray-600 mb-2">Orders are processed within 1-2 business days after confirmation.</p>
+            <p className="text-gray-600">Tracking details will be shared once the order is dispatched.</p>
+          </div>
+        </section>
+
         {/* Contact Queries */}
         <section className="mb-12 bg-green-50 p-8 rounded-lg shadow-md text-center">
           <p className="text-gray-600">
@@ -72,9 +86,6 @@ const RefundPolicy = () => {
           </p>
         </section>
       </main>
-
-      {/* Footer */}
-
     </div>
   );
 };
