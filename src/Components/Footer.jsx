@@ -24,7 +24,7 @@ const Footer = ({ language, translations }) => {
           <Link to="/contact" className="contact-info">Contact Us</Link> |{' '}
           <Link to="/terms" className="contact-info">Terms & Conditions</Link> |{' '}
           <Link to="/privacy" className="contact-info">Privacy Policy</Link> |{' '}
-          <Link to="/refund" className="contact-info">Refund Policy</Link>
+          <Link to="/refund" className="contact-info">Refund Policy</Link>  |{' '}
           <Link to="https://merchant.razorpay.com/policy/QmVyGCcVlqPd2h/shipping" className="contact-info">Shipping Policy</Link>
         </nav>
       </div>
