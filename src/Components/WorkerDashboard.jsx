@@ -767,7 +767,7 @@ const WorkerDashboard = () => {
                               )}
                             </>
                           )}
-                          {order.serviceType === 'tractor-drivers' && (
+                          {order.serviceType === 'ownertc' && (
                             <p><span className="font-medium">Hours:</span> {order.hours || 'N/A'}</p>
                           )}
                           <p><span className="font-medium">Days:</span> {order.numberOfDays || 1} Day{order.numberOfDays > 1 ? 's' : ''}</p>

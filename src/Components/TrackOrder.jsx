@@ -57,7 +57,7 @@ const TrackOrder = () => {
                   )}
                 </>
               )}
-              {order.serviceType === 'tractor-drivers' && (
+              {order.serviceType === 'ownertc' && (
                 <p><strong>Hours:</strong> {order.hours}</p>
               )}
               <p><strong>Cost:</strong> ${order.cost}</p>

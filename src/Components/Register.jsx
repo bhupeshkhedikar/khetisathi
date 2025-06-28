@@ -3,7 +3,8 @@ import { auth, db } from './firebaseConfig.js';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { Link, useNavigate } from 'react-router-dom';
-import { SKILLS, VEHICLE_SKILLS } from '../utils/skills.js';
+import { SKILLS, SKILL_LABELS, VEHICLE_SKILLS, VEHICLE_SKILL_LABELS } from '../utils/skills.js';
+
 
 const Register = () => {
   const [activeTab, setActiveTab] = useState('farmer');
@@ -229,33 +230,30 @@ const Register = () => {
         <button
           type="button"
           onClick={() => handleTabChange('farmer')}
-          className={`flex-1 py-3 text-center font-semibold rounded-l-lg transition duration-300 ${
-            activeTab === 'farmer'
+          className={`flex-1 py-3 text-center font-semibold rounded-l-lg transition duration-300 ${activeTab === 'farmer'
               ? 'bg-green-600 text-white'
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
+            }`}
         >
           {t.farmer}
         </button>
         <button
           type="button"
           onClick={() => handleTabChange('worker')}
-          className={`flex-1 py-3 text-center font-semibold transition duration-300 ${
-            activeTab === 'worker'
+          className={`flex-1 py-3 text-center font-semibold transition duration-300 ${activeTab === 'worker'
               ? 'bg-green-600 text-white'
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
+            }`}
         >
           {t.worker}
         </button>
         <button
           type="button"
           onClick={() => handleTabChange('driver')}
-          className={`flex-1 py-3 text-center font-semibold rounded-r-lg transition duration-300 ${
-            activeTab === 'driver'
+          className={`flex-1 py-3 text-center font-semibold rounded-r-lg transition duration-300 ${activeTab === 'driver'
               ? 'bg-green-600 text-white'
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
+            }`}
         >
           {t.driver}
         </button>
@@ -325,7 +323,7 @@ const Register = () => {
             >
               {SKILLS.map((skill) => (
                 <option key={skill} value={skill}>
-                  {skill.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                  {SKILL_LABELS[skill]?.[language] || skill}
                 </option>
               ))}
             </select>
@@ -345,7 +343,7 @@ const Register = () => {
             >
               {VEHICLE_SKILLS.map((skill) => (
                 <option key={skill} value={skill}>
-                  {skill.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                  {VEHICLE_SKILL_LABELS[skill]?.[language] || skill}
                 </option>
               ))}
             </select>

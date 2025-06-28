@@ -20,6 +20,7 @@ const AssignWorkerModal = ({
   const farmerPincode = users[currentOrder.farmerId]?.pincode || '';
   const farmerName = users[currentOrder.farmerId]?.name || 'N/A';
   const farmerPhone = users[currentOrder.farmerId]?.mobile || 'N/A';
+
   const assignedWorkers = Array.isArray(currentOrder.workerId)
     ? currentOrder.workerId.filter((id) => {
         const wa = currentOrder.workerAcceptances?.find((wa) => wa.workerId === id);
@@ -28,9 +29,13 @@ const AssignWorkerModal = ({
     : currentOrder.workerId && currentOrder.accepted !== 'rejected'
     ? [currentOrder.workerId]
     : [];
+
   const rejectedWorkers = (currentOrder.workerAcceptances || [])
     .filter((wa) => wa.status === 'rejected')
     .map((wa) => wa.workerId);
+
+  // Determine eligible skills based on service type
+  const eligibleSkills =[currentOrder.serviceType];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -40,30 +45,18 @@ const AssignWorkerModal = ({
             ? `Reassign Worker(s) to Order: ${currentOrder.id.slice(0, 6)}`
             : `Assign Worker(s) to Order: ${currentOrder.id.slice(0, 6)}`}
         </h3>
+
+        {/* Order Details */}
         <div className="mb-6 p-4 bg-gray-100 rounded-lg">
           <h4 className="text-md font-semibold mb-2 text-gray-800">Order Details</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-            <div>
-              <span className="font-medium">Order ID:</span> {currentOrder.id}
-            </div>
-            <div>
-              <span className="font-medium">Service Type:</span> {currentOrder.serviceType.replace('-', ' ').toUpperCase()}
-            </div>
-            <div>
-              <span className="font-medium">Farmer Name:</span> {farmerName}
-            </div>
-            <div>
-              <span className="font-medium">Farmer Phone:</span> {farmerPhone}
-            </div>
-            <div>
-              <span className="font-medium">Pincode:</span> {farmerPincode || 'N/A'}
-            </div>
-            <div>
-              <span className="font-medium">Start Date:</span> {currentOrder.startDate}
-            </div>
-            <div>
-              <span className="font-medium">Farmer Address:</span> {currentOrder.address}
-            </div>
+            <div><span className="font-medium">Order ID:</span> {currentOrder.id}</div>
+            <div><span className="font-medium">Service Type:</span> {currentOrder.serviceType.replace('-', ' ').toUpperCase()}</div>
+            <div><span className="font-medium">Farmer Name:</span> {farmerName}</div>
+            <div><span className="font-medium">Farmer Phone:</span> {farmerPhone}</div>
+            <div><span className="font-medium">Pincode:</span> {farmerPincode || 'N/A'}</div>
+            <div><span className="font-medium">Start Date:</span> {currentOrder.startDate}</div>
+            <div><span className="font-medium">Farmer Address:</span> {currentOrder.address}</div>
             <div>
               <span className="font-medium">Workers Requested:</span>
               {currentOrder.maleWorkers > 0 && ` ${currentOrder.maleWorkers} Male`}
@@ -74,212 +67,199 @@ const AssignWorkerModal = ({
               {maleNeeded > 0 && ` ${maleNeeded} Male`}
               {femaleNeeded > 0 && ` ${femaleNeeded} Female`}
             </div>
-            <div>
-              <span className="font-medium">Rejections:</span> {rejections} worker(s)
-            </div>
+            <div><span className="font-medium">Rejections:</span> {rejections} worker(s)</div>
             {rejectedWorkers.length > 0 && (
               <div className="col-span-2">
-                <span className="font-medium">Rejected By:</span>
+                <span className="font-medium">Rejected By:</span>{' '}
                 {rejectedWorkers.map((id) => workers.find((w) => w.id === id)?.name || id).join(', ')}
               </div>
             )}
           </div>
         </div>
+
+        {/* Rejection notice */}
         {rejections > 0 && (
           <p className="text-sm text-red-600 mb-4">
             {rejections} worker(s) rejected. Please assign {maleNeeded + femaleNeeded || totalNeeded} worker(s).
           </p>
         )}
+
+        {/* Farm Worker Specific Logic */}
         {currentOrder.serviceType === 'farm-workers' ? (
           <>
+            {/* Male Workers */}
             {maleNeeded > 0 && (
               <div className="mb-4">
                 <h4 className="text-md font-semibold mb-2">Select Male Workers</h4>
                 <p className="text-sm text-gray-600 mb-2">Required: {maleNeeded}</p>
-                {workers
-                  .filter(
-                    (w) =>
-                      w.gender === 'male' &&
-                      w.status === 'approved' &&
-                      w.workerStatus === 'ready' &&
-                      w.skills?.includes('farm-worker') &&
-                      (farmerPincode ? w.pincode === farmerPincode : true) &&
-                      !rejectedWorkers.includes(w.id) &&
-                      !assignedWorkers.includes(w.id) &&
-                      isWorkerAvailable(w, currentOrder.startDate)
-                  )
-                  .length === 0 ? (
+                {workers.filter(
+                  (w) =>
+                    w.gender === 'male' &&
+                    w.status === 'approved' &&
+                    w.workerStatus === 'ready' &&
+                    w.skills?.includes('farm-worker') &&
+                    (farmerPincode ? w.pincode === farmerPincode : true) &&
+                    !rejectedWorkers.includes(w.id) &&
+                    !assignedWorkers.includes(w.id) &&
+                    isWorkerAvailable(w, currentOrder.startDate)
+                ).length === 0 ? (
                   <p className="text-sm text-red-600">No eligible male workers available.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-48 overflow-y-auto">
-                    {workers
-                      .filter(
-                        (w) =>
-                          w.gender === 'male' &&
-                          w.status === 'approved' &&
-                          w.workerStatus === 'ready' &&
-                          w.skills?.includes('farm-worker') &&
-                          (farmerPincode ? w.pincode === farmerPincode : true) &&
-                          !rejectedWorkers.includes(w.id) &&
-                          !assignedWorkers.includes(w.id) &&
-                          isWorkerAvailable(w, currentOrder.startDate)
-                      )
-                      .map((worker) => (
-                        <div key={worker.id} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id={`male-${worker.id}`}
-                            value={worker.id}
-                            checked={selectedMaleWorkers.includes(worker.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedMaleWorkers([...selectedMaleWorkers, worker.id]);
-                              } else {
-                                setSelectedMaleWorkers(selectedMaleWorkers.filter((id) => id !== worker.id));
-                              }
-                            }}
-                            className="mr-2"
-                            disabled={
-                              selectedMaleWorkers.length >= maleNeeded &&
-                              !selectedMaleWorkers.includes(worker.id)
+                    {workers.filter(
+                      (w) =>
+                        w.gender === 'male' &&
+                        w.status === 'approved' &&
+                        w.workerStatus === 'ready' &&
+                        w.skills?.includes('farm-worker') &&
+                        (farmerPincode ? w.pincode === farmerPincode : true) &&
+                        !rejectedWorkers.includes(w.id) &&
+                        !assignedWorkers.includes(w.id) &&
+                        isWorkerAvailable(w, currentOrder.startDate)
+                    ).map((worker) => (
+                      <div key={worker.id} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id={`male-${worker.id}`}
+                          checked={selectedMaleWorkers.includes(worker.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedMaleWorkers([...selectedMaleWorkers, worker.id]);
+                            } else {
+                              setSelectedMaleWorkers(selectedMaleWorkers.filter((id) => id !== worker.id));
                             }
-                          />
-                          <label htmlFor={`male-${worker.id}`} className="text-sm">
-                            {worker.name || 'N/A'} ({worker.pincode || 'No Pincode'})
-                          </label>
-                        </div>
-                      ))}
+                          }}
+                          className="mr-2"
+                          disabled={
+                            selectedMaleWorkers.length >= maleNeeded &&
+                            !selectedMaleWorkers.includes(worker.id)
+                          }
+                        />
+                        <label htmlFor={`male-${worker.id}`} className="text-sm">
+                          {worker.name || 'N/A'} ({worker.pincode || 'No Pincode'})
+                        </label>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             )}
+
+            {/* Female Workers */}
             {femaleNeeded > 0 && (
               <div className="mb-4">
                 <h4 className="text-md font-semibold mb-2">Select Female Workers</h4>
                 <p className="text-sm text-gray-600 mb-2">Required: {femaleNeeded}</p>
-                {workers
-                  .filter(
-                    (w) =>
-                      w.gender === 'female' &&
-                      w.status === 'approved' &&
-                      w.workerStatus === 'ready' &&
-                      w.skills?.includes('farm-worker') &&
-                      (farmerPincode ? w.pincode === farmerPincode : true) &&
-                      !rejectedWorkers.includes(w.id) &&
-                      !assignedWorkers.includes(w.id) &&
-                      isWorkerAvailable(w, currentOrder.startDate)
-                  )
-                  .length === 0 ? (
+                {workers.filter(
+                  (w) =>
+                    w.gender === 'female' &&
+                    w.status === 'approved' &&
+                    w.workerStatus === 'ready' &&
+                    w.skills?.includes('farm-worker') &&
+                    (farmerPincode ? w.pincode === farmerPincode : true) &&
+                    !rejectedWorkers.includes(w.id) &&
+                    !assignedWorkers.includes(w.id) &&
+                    isWorkerAvailable(w, currentOrder.startDate)
+                ).length === 0 ? (
                   <p className="text-sm text-red-600">No eligible female workers available.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-48 overflow-y-auto">
-                    {workers
-                      .filter(
-                        (w) =>
-                          w.gender === 'female' &&
-                          w.status === 'approved' &&
-                          w.workerStatus === 'ready' &&
-                          w.skills?.includes('farm-worker') &&
-                          (farmerPincode ? w.pincode === farmerPincode : true) &&
-                          !rejectedWorkers.includes(w.id) &&
-                          !assignedWorkers.includes(w.id) &&
-                          isWorkerAvailable(w, currentOrder.startDate)
-                      )
-                      .map((worker) => (
-                        <div key={worker.id} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id={`female-${worker.id}`}
-                            value={worker.id}
-                            checked={selectedFemaleWorkers.includes(worker.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedFemaleWorkers([...selectedFemaleWorkers, worker.id]);
-                              } else {
-                                setSelectedFemaleWorkers(selectedFemaleWorkers.filter((id) => id !== worker.id));
-                              }
-                            }}
-                            className="mr-2"
-                            disabled={
-                              selectedFemaleWorkers.length >= femaleNeeded &&
-                              !selectedFemaleWorkers.includes(worker.id)
+                    {workers.filter(
+                      (w) =>
+                        w.gender === 'female' &&
+                        w.status === 'approved' &&
+                        w.workerStatus === 'ready' &&
+                        w.skills?.includes('farm-worker') &&
+                        (farmerPincode ? w.pincode === farmerPincode : true) &&
+                        !rejectedWorkers.includes(w.id) &&
+                        !assignedWorkers.includes(w.id) &&
+                        isWorkerAvailable(w, currentOrder.startDate)
+                    ).map((worker) => (
+                      <div key={worker.id} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id={`female-${worker.id}`}
+                          checked={selectedFemaleWorkers.includes(worker.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedFemaleWorkers([...selectedFemaleWorkers, worker.id]);
+                            } else {
+                              setSelectedFemaleWorkers(selectedFemaleWorkers.filter((id) => id !== worker.id));
                             }
-                          />
-                          <label htmlFor={`female-${worker.id}`} className="text-sm">
-                            {worker.name || 'N/A'} ({worker.pincode || 'No Pincode'})
-                          </label>
-                        </div>
-                      ))}
+                          }}
+                          className="mr-2"
+                          disabled={
+                            selectedFemaleWorkers.length >= femaleNeeded &&
+                            !selectedFemaleWorkers.includes(worker.id)
+                          }
+                        />
+                        <label htmlFor={`female-${worker.id}`} className="text-sm">
+                          {worker.name || 'N/A'} ({worker.pincode || 'No Pincode'})
+                        </label>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             )}
           </>
         ) : (
+          // Other Service Types (ownertc, etc.)
           <div className="mb-4">
             <h4 className="text-md font-semibold mb-2">Select Worker(s)</h4>
             <p className="text-sm text-gray-600 mb-2">Required: {totalNeeded}</p>
-            {workers
-              .filter((w) => {
-                const skill =
-                  currentOrder.serviceType === 'tractor-drivers' ? 'tractor-driver' : currentOrder.serviceType;
-                return (
-                  w.status === 'approved' &&
-                  w.workerStatus === 'ready' &&
-                  w.skills?.includes(skill) &&
-                  (farmerPincode ? w.pincode === farmerPincode : true) &&
-                  !rejectedWorkers.includes(w.id) &&
-                  !assignedWorkers.includes(w.id) &&
-                  isWorkerAvailable(w, currentOrder.startDate)
-                );
-              })
-              .length === 0 ? (
+            {workers.filter(
+              (w) =>
+                w.status === 'approved' &&
+                w.workerStatus === 'ready' &&
+                eligibleSkills.some((skill) => w.skills?.includes(skill)) &&
+                (farmerPincode ? w.pincode === farmerPincode : true) &&
+                !rejectedWorkers.includes(w.id) &&
+                !assignedWorkers.includes(w.id) &&
+                isWorkerAvailable(w, currentOrder.startDate)
+            ).length === 0 ? (
               <p className="text-sm text-red-600">No eligible workers available.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-48 overflow-y-auto">
-                {workers
-                  .filter((w) => {
-                    const skill =
-                      currentOrder.serviceType === 'tractor-drivers' ? 'tractor-driver' : currentOrder.serviceType;
-                    return (
-                      w.status === 'approved' &&
-                      w.workerStatus === 'ready' &&
-                      w.skills?.includes(skill) &&
-                      (farmerPincode ? w.pincode === farmerPincode : true) &&
-                      !rejectedWorkers.includes(w.id) &&
-                      !assignedWorkers.includes(w.id) &&
-                      isWorkerAvailable(w, currentOrder.startDate)
-                    );
-                  })
-                  .map((worker) => (
-                    <div key={worker.id} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`worker-${worker.id}`}
-                        value={worker.id}
-                        checked={selectedWorkers.includes(worker.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedWorkers([...selectedWorkers, worker.id]);
-                          } else {
-                            setSelectedWorkers(selectedWorkers.filter((id) => id !== worker.id));
-                          }
-                        }}
-                        className="mr-2"
-                        disabled={
-                          selectedWorkers.length >= totalNeeded &&
-                          !selectedWorkers.includes(worker.id)
+                {workers.filter(
+                  (w) =>
+                    w.status === 'approved' &&
+                    w.workerStatus === 'ready' &&
+                    eligibleSkills.some((skill) => w.skills?.includes(skill)) &&
+                    (farmerPincode ? w.pincode === farmerPincode : true) &&
+                    !rejectedWorkers.includes(w.id) &&
+                    !assignedWorkers.includes(w.id) &&
+                    isWorkerAvailable(w, currentOrder.startDate)
+                ).map((worker) => (
+                  <div key={worker.id} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id={`worker-${worker.id}`}
+                      checked={selectedWorkers.includes(worker.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedWorkers([...selectedWorkers, worker.id]);
+                        } else {
+                          setSelectedWorkers(selectedWorkers.filter((id) => id !== worker.id));
                         }
-                      />
-                      <label htmlFor={`worker-${worker.id}`} className="text-sm">
-                        {worker.name || 'N/A'} ({worker.pincode || 'No Pincode'})
-                      </label>
-                    </div>
-                  ))}
+                      }}
+                      className="mr-2"
+                      disabled={
+                        selectedWorkers.length >= totalNeeded &&
+                        !selectedWorkers.includes(worker.id)
+                      }
+                    />
+                    <label htmlFor={`worker-${worker.id}`} className="text-sm">
+                      {worker.name || 'N/A'} ({worker.pincode || 'No Pincode'})
+                    </label>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         )}
+
+        {/* Action Buttons */}
         <div className="flex space-x-2">
           <button
             onClick={() =>

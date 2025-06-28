@@ -195,7 +195,7 @@ const OrderManagement = ({
                             : `(${order.maleWorkers || 0} Male, ${order.femaleWorkers || 0} Female)`}
                         </span>
                       )}
-                      {order.serviceType === 'tractor-drivers' && (
+                      {order.serviceType === 'ownertc' && (
                         <span className="block text-xs text-gray-600">{order.hours || 0} hours</span>
                       )}
                       {order.serviceType !== 'farm-workers' && (

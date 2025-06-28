@@ -467,7 +467,7 @@ const AdminPanel = () => {
           workerIds.push(...availableFemaleWorkers.slice(0, femaleNeeded));
         }
       } else {
-        const skill = order.serviceType === 'tractor-drivers' ? 'tractor-driver' : order.serviceType;
+        const skill = order.serviceType === 'ownertc' ? 'tractor-driver' : order.serviceType;
         const availableWorkers = workers
           .filter(
             (w) =>

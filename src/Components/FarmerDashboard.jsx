@@ -196,7 +196,7 @@ const FarmerDashboard = () => {
               orders.map(order => {
                 const estimatedCompletion = new Date(
                   new Date(order.createdAt?.toDate() || Date.now()).getTime() +
-                  (order.serviceType === 'tractor-drivers' ? order.hours * 3600 * 1000 : 8 * 3600 * 1000) * order.numberOfDays
+                  (order.serviceType === 'ownertc' ? order.hours * 3600 * 1000 : 8 * 3600 * 1000) * order.numberOfDays
                 );
                 const workerIds = Array.isArray(order.workerId) ? order.workerId : order.workerId ? [order.workerId] : [];
                 const assignedWorkers = workerIds
@@ -333,7 +333,7 @@ const FarmerDashboard = () => {
                             )}
                           </>
                         )}
-                        {order.serviceType === 'tractor-drivers' && (
+                        {order.serviceType === 'ownertc' && (
                           <p>
                             <span className="text-gray-700 font-semibold">Hours: </span>
                             <span className="text-gray-900">{order.hours || 'N/A'}</span>

@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Carousel from './Carousel';
 import Footer from './Footer';
 import './Home.css';
+import translations from './translations';
 
 const Home = () => {
   const [user, setUser] = useState(null);
@@ -34,195 +35,6 @@ const Home = () => {
   const [vehicleCost, setVehicleCost] = useState(0);
   const navigate = useNavigate();
 
-  const translations = {
-    english: {
-      farmConnect: "KhetiSathi",
-      tagline: "Seamlessly book farm workers and services to boost your harvest.",
-      getStarted: "Get Started",
-      ourServices: "Our Services",
-      custom: "Custom",
-      popular: "Popular",
-      select: "Select",
-      bookService: "Book a Service",
-      serviceType: "Service Type",
-      selectService: "Select Service",
-      selectBundle: "Select Bundle",
-      noBundle: "No Bundle (Custom)",
-      maleWorkers: "Male Workers",
-      femaleWorkers: "Female Workers",
-      otherWorkers: "Number of Workers",
-      hours: "Hours",
-      numberOfDays: "Number of Days",
-      startDate: "Start Date",
-      endDate: "End Date",
-      startTime: "Start Time",
-      selectTime: "Select Time",
-      locationDetails: "Location Details",
-      fullAddress: "Full Address",
-      contactNumber: "Contact Number",
-      paymentDetails: "Payment Details",
-      paymentMethod: "Payment Method",
-      selectMethod: "Select Method",
-      cash: "Cash",
-      online: "Online",
-      additionalNote: "Additional Note",
-      reviewOrder: "Review Your Order",
-      service: "Service",
-      bundle: "Bundle",
-      days: "Days",
-      address: "Address",
-      contact: "Contact",
-      payment: "Payment",
-      note: "Note",
-      cost: "Cost",
-      submitOrder: "Submit Order",
-      serviceBooked: "Service Booked Successfully!",
-      orderPlaced: "Your order has been placed. We'll confirm your booking soon.",
-      backToHome: "Back to Home",
-      whatFarmersSay: "What Farmers Say",
-      testimonial1: "Hired 5 workers in minutes!",
-      testimonial2: "Tractor drivers were punctual.",
-      testimonial3: "Best service for irrigation setup!",
-      farmer1: "Raj Sharma, Corn Farmer",
-      farmer2: "Maria Lopez, Soybean Farmer",
-      farmer3: "Ali Khan, Vegetable Farmer",
-      trustedPartner: "Your trusted partner for farm services.",
-      contactUs: "Contact us",
-      email: "support@khetisathi.com & bhupssspk@gmail.com",
-      phone: "+91-8788647637",
-      day: "Day",
-      daysPlural: "Days",
-      vehicleType: "Vehicle Type",
-      vehicleCost: "Vehicle Cost",
-      workersCost: "Workers Cost",
-      totalCost: "Total Cost",
-    },
-    hindi: {
-      farmConnect: "KhetiSathi",
-      tagline: "अपनी फसल बढ़ाने के लिए आसानी से खेत मजदूर और सेवाएं बुक करें।",
-      getStarted: "शुरू करें",
-      ourServices: "हमारी सेवाएं",
-      custom: "कस्टम",
-      popular: "लोकप्रिय",
-      select: "चुनें",
-      bookService: "सेवा बुक करें",
-      serviceType: "सेवा का प्रकार",
-      selectService: "सेवा चुनें",
-      selectBundle: "बंडल चुनें",
-      noBundle: "कोई बंडल नहीं (कस्टम)",
-      maleWorkers: "पुरुष मजदूर",
-      femaleWorkers: "महिला मजूर",
-      otherWorkers: "कामगारों की संख्या",
-      hours: "घंटे",
-      numberOfDays: "दिनों की संख्या",
-      startDate: "प्रारंभ तिथि",
-      endDate: "समाप्ति तिथि",
-      startTime: "प्रारंभ समय",
-      selectTime: "समय चुनें",
-      locationDetails: "स्थान विवरण",
-      fullAddress: "पूरा पता",
-      contactNumber: "संपर्क नंबर",
-      paymentDetails: "भुगतान विवरण",
-      paymentMethod: "भुगतान विधि",
-      selectMethod: "विधि चुनें",
-      cash: "नकद",
-      online: "ऑनलाइन",
-      additionalNote: "अतिरिक्त नोट",
-      reviewOrder: "अपने ऑर्डर की समीक्षा करें",
-      service: "सेवा",
-      bundle: "बंडल",
-      days: "दिन",
-      address: "पता",
-      contact: "संपर्क",
-      payment: "भुगतान",
-      note: "नोट",
-      cost: "लागत",
-      submitOrder: "ऑर्डर सबमिट करें",
-      serviceBooked: "सेवा सफलतापूर्वक बुक की गई!",
-      orderPlaced: "आपका ऑर्डर सबमिट हो गया है। हम जल्द ही आपकी बुकिंग की पुष्टि करेंगे।",
-      backToHome: "होम पर वापस जाएं",
-      whatFarmersSay: "किसान क्या कहते हैं",
-      testimonial1: "मिनटों में 5 मजदूरों को काम पर रखा!",
-      testimonial2: "ट्रैक्टर ड्राइवर समय पर थे।",
-      testimonial3: "सिंचाई सेटअप के लिए सबसे अच्छी सेवा!",
-      farmer1: "राज शर्मा, मक्का किसान",
-      farmer2: "मारिया लोपेज, सोयाबीन किसान",
-      farmer3: "अली खान, सब्जी किसान",
-      trustedPartner: "खेत सेवाओं के लिए आपका भरोसेमंद साथी।",
-      contactUs: "हमसे संपर्क करें",
-      email: "support@khetisathi.com & bhupssspk@gmail.com",
-      phone: "+91-8788647637",
-      day: "दिन",
-      daysPlural: "दिन",
-      vehicleType: "वाहन प्रकार",
-      vehicleCost: "वाहन लागत",
-      workersCost: "कामगार लागत",
-      totalCost: "कुल लागत",
-    },
-    marathi: {
-      farmConnect: "KhetiSathi",
-      tagline: "तुमच्या पिकाला चालना देण्यासाठी सहजपणे शेतमजूर आणि सेवा बुक करा.",
-      getStarted: "सुरू करा",
-      ourServices: "आमच्या सेवा",
-      custom: "कस्टम",
-      popular: "लोकप्रिय",
-      select: "निवडा",
-      bookService: "सेवा बुक करा",
-      serviceType: "सेवा प्रकार",
-      selectService: "सेवा निवडा",
-      selectBundle: "बंडल निवडा",
-      noBundle: "कोणताही बंडल नाही (कस्टम)",
-      maleWorkers: "पुरुष मजूर",
-      femaleWorkers: "महिला मजूर",
-      otherWorkers: "कामगारांची संख्या",
-      hours: "तास",
-      numberOfDays: "दिवसांची संख्या",
-      startDate: "प्रारंभ तारीख",
-      endDate: "समाप्ती तारीख",
-      startTime: "प्रारंभ वेळ",
-      selectTime: "वेळ निवडा",
-      locationDetails: "स्थान तपशील",
-      fullAddress: "पूर्ण पत्ता",
-      contactNumber: "संपर्क क्रमांक",
-      paymentDetails: "पेमेंट तपशील",
-      paymentMethod: "पेमेंट पद्धत",
-      selectMethod: "पद्धत निवडा",
-      cash: "रोख",
-      online: "ऑनलाइन",
-      additionalNote: "अतिरिक्त टीप",
-      reviewOrder: "तुमच्या ऑर्डरची पुनरावलोकन करा",
-      service: "सेवा",
-      bundle: "बंडल",
-      days: "दिवस",
-      address: "पत्ता",
-      contact: "संपर्क",
-      payment: "पेमेंट",
-      note: "टीप",
-      cost: "खर्च",
-      submitOrder: "ऑर्डर सबमिट करा",
-      serviceBooked: "सेवा यशस्वीरित्या बुक झाली!",
-      orderPlaced: "तुमचा ऑर्डर सबमिट झाला आहे. आम्ही लवकरच तुमच्या बुकिंगची पुष्टी करू.",
-      backToHome: "होमवर परत जा",
-      whatFarmersSay: "शेतकरी काय म्हणतात",
-      testimonial1: "काही मिनिटांत 5 मजूर भाड्याने घेतले!",
-      testimonial2: "ट्रॅक्टर ड्रायव्हर वेळेवर होते.",
-      testimonial3: "सिंचन सेटअपसाठी सर्वोत्तम सेवा!",
-      farmer1: "राज शर्मा, मका शेतकरी",
-      farmer2: "मारिया लोपेज, सोयाबीन शेतकरी",
-      farmer3: "अली खान, भाजीपाला शेतकरी",
-      trustedPartner: "शेत सेवांसाठी तुमचा विश्वासू भागीदार.",
-      contactUs: "आमच्याशी संपर्क साधा",
-      email: "support@khetisathi.com & bhupssspk@gmail.com",
-      phone: "+91-8788647637",
-      day: "दिवस",
-      daysPlural: "दिवस",
-      vehicleType: "वाहन प्रकार",
-      vehicleCost: "वाहन खर्च",
-      workersCost: "कामगार खर्च",
-      totalCost: "एकूण खर्च",
-    },
-  };
-
   const t = translations[language];
 
   const steps = [
@@ -240,11 +52,12 @@ const Home = () => {
       try {
         const servicesSnapshot = await getDocs(query(collection(db, 'services')));
         const servicesData = servicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('servicesData',servicesData)
         setServices(servicesData);
 
-        const farmWorkersService = servicesData.find(s => s.type === 'farm-workers');
-        if (farmWorkersService) {
-          const bundlesSnapshot = await getDocs(collection(db, `services/${farmWorkersService.id}/bundles`));
+        const targetService = servicesData.find(s => s.type === 'farm-workers' || s.type === 'ploughing-laborer');
+        if (targetService) {
+          const bundlesSnapshot = await getDocs(collection(db, `services/${targetService.id}/bundles`));
           setBundles(bundlesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         }
       } catch (err) {
@@ -271,7 +84,7 @@ const Home = () => {
   }, [startDate, numberOfDays]);
 
   useEffect(() => {
-    if (selectedService === 'farm-workers') {
+    if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       const totalWorkers = selectedBundle
         ? bundles.find(b => b.id === selectedBundle)?.maleWorkers + bundles.find(b => b.id === selectedBundle)?.femaleWorkers
         : maleWorkers + femaleWorkers;
@@ -335,7 +148,7 @@ const Home = () => {
         setError('Please select a service.');
         return false;
       }
-      if (selectedService === 'farm-workers') {
+      if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
         if (!selectedBundle && (maleWorkers <= 0 && femaleWorkers <= 0)) {
           setError('Please select a bundle or specify at least one worker.');
           return false;
@@ -346,7 +159,7 @@ const Home = () => {
           return false;
         }
       }
-      if (selectedService === 'tractor-drivers' && parseInt(hours) < 1) {
+      if (selectedService === 'ownertc' && parseInt(hours) < 1) {
         setError('Please specify at least hours.');
         return false;
       }
@@ -424,7 +237,7 @@ const Home = () => {
       let maleWorkersCount = 0;
       let femaleWorkersCount = 0;
 
-      if (selectedService === 'farm-workers') {
+      if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
         if (selectedBundle) {
           const bundle = bundles.find(b => b.id === selectedBundle);
           orderData.bundleDetails = {
@@ -449,7 +262,7 @@ const Home = () => {
         orderData.vehicleCost = vehicleCost;
       } else {
         orderData.totalWorkers = otherWorkers;
-        if (selectedService === 'tractor-drivers') {
+        if (selectedService === 'ownertc') {
           orderData.hours = parseInt(hours);
           cost = parseInt(hours) * service.cost * otherWorkers * parseInt(numberOfDays);
         } else {
@@ -466,7 +279,7 @@ const Home = () => {
       const farmerName = user.displayName || 'Farmer';
 
       let totalWorkersMessage = `• 👥 Total Workers: ${orderData.totalWorkers}`;
-      if (selectedService === 'farm-workers') {
+      if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
         totalWorkersMessage += ` (👨 ${maleWorkersCount}, 👩 ${femaleWorkersCount})`;
         totalWorkersMessage += `\n• 🚗 Vehicle: ${vehicleType} (₹${vehicleCost})`;
       }
@@ -578,7 +391,7 @@ const Home = () => {
     let workersCost = 0;
     let totalCost = 0;
 
-    if (selectedService === 'farm-workers') {
+    if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       if (selectedBundle) {
         const bundle = bundles.find(b => b.id === selectedBundle);
         workersCost = bundle.price * days;
@@ -601,7 +414,7 @@ const Home = () => {
           </div>
         );
       }
-    } else if (selectedService === 'tractor-drivers') {
+    } else if (selectedService === 'ownertc') {
       totalCost = parseInt(hours) * service.cost * otherWorkers * days;
       return (
         <div className="cost-breakdown">
@@ -637,7 +450,7 @@ const Home = () => {
                 ))}
               </select>
             </div>
-            {selectedService === 'farm-workers' && (
+            {(selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') && (
               <>
                 <div className="input-wrapper">
                   <label className="input-label">{t.selectBundle}</label>
@@ -693,7 +506,7 @@ const Home = () => {
                 )}
               </>
             )}
-            {selectedService && selectedService !== 'farm-workers' && (
+            {selectedService && selectedService !== 'farm-workers' && selectedService !== 'ploughing-laborer' && (
               <div className="input-wrapper">
                 <label className="input-label">
                   {t.otherWorkers}
@@ -708,7 +521,7 @@ const Home = () => {
                 />
               </div>
             )}
-            {selectedService === 'tractor-drivers' && (
+            {selectedService === 'ownertc' && (
               <div className="input-wrapper">
                 <label className="input-label">
                   {t.hours} (₹{services.find(s => s.type === selectedService)?.cost || 0}/{t.hours.toLowerCase()})
@@ -847,7 +660,7 @@ const Home = () => {
             <div className="review-details">
               <div className="review-grid">
                 <p><span className="review-label">{t.service}:</span> {services.find(s => s.type === selectedService)?.[language === 'english' ? 'name' : language === 'hindi' ? 'nameHindi' : 'nameMarathi'] || selectedService}</p>
-                {selectedService === 'farm-workers' && (
+                {(selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') && (
                   <>
                     {selectedBundle ? (
                       <p><span className="review-label">{t.bundle}:</span> {bundles.find(b => b.id === selectedBundle)?.[language === 'english' ? 'name' : language === 'hindi' ? 'nameHindi' : 'nameMarathi']} ({bundles.find(b => b.id === selectedBundle)?.maleWorkers} {t.maleWorkers} + {bundles.find(b => b.id === selectedBundle)?.femaleWorkers} {t.femaleWorkers})</p>
@@ -862,10 +675,10 @@ const Home = () => {
                     )}
                   </>
                 )}
-                {selectedService !== 'farm-workers' && (
+                {selectedService !== 'farm-workers' && selectedService !== 'ploughing-laborer' && (
                   <p><span className="review-label">{t.otherWorkers}:</span> {otherWorkers}</p>
                 )}
-                {selectedService === 'tractor-drivers' && <p><span className="review-label">{t.hours}:</span> {hours}</p>}
+                {selectedService === 'ownertc' && <p><span className="review-label">{t.hours}:</span> {hours}</p>}
                 <p><span className="review-label">{t.days}:</span> {numberOfDays} {numberOfDays > 1 ? t.daysPlural : t.day}</p>
                 <p><span className="review-label">{t.startDate}:</span> {startDate}</p>
                 <p><span className="review-label">{t.endDate}:</span> {endDate}</p>
@@ -901,7 +714,7 @@ const Home = () => {
             <p className="success-message">{t.orderPlaced}</p>
             <div className="success-details">
               <p><span className="review-label">{t.service}:</span> {services.find(s => s.type === selectedService)?.[language === 'english' ? 'name' : language === 'hindi' ? 'nameHindi' : 'nameMarathi'] || selectedService}</p>
-              {selectedService === 'farm-workers' && (
+              {(selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') && (
                 <>
                   {selectedBundle ? (
                     <p><span className="review-label">{t.bundle}:</span> {bundles.find(b => b.id === selectedBundle)?.[language === 'english' ? 'name' : language === 'hindi' ? 'nameHindi' : 'nameMarathi']} ({bundles.find(b => b.id === selectedBundle)?.maleWorkers} {t.maleWorkers} + {bundles.find(b => b.id === selectedBundle)?.femaleWorkers} {t.femaleWorkers})</p>
@@ -916,7 +729,7 @@ const Home = () => {
                     )}
                   </>
                 )}
-                {selectedService !== 'farm-workers' && (
+                {selectedService !== 'farm-workers' && selectedService !== 'ploughing-laborer' && (
                   <p><span className="review-label">{t.otherWorkers}:</span> {otherWorkers}</p>
                 )}
                 <p><span className="review-label">{t.days}:</span> {numberOfDays} {numberOfDays > 1 ? t.daysPlural : t.day}</p>
@@ -936,7 +749,7 @@ const Home = () => {
           return null;
         }
       };
-    
+
       useEffect(() => {
         if (currentStep === 4) {
           const canvas = document.getElementById('confetti-canvas');
@@ -944,10 +757,10 @@ const Home = () => {
             const ctx = canvas.getContext('2d');
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
-    
+
             const confetti = [];
             const colors = ['#F59E0B', '#10B981', '#3B82F6'];
-    
+
             for (let i = 0; i < 100; i++) {
               confetti.push({
                 x: Math.random() * canvas.width,
@@ -959,7 +772,7 @@ const Home = () => {
                 tiltAngle: Math.random() * Math.PI
               });
             }
-    
+
             let animationFrame;
             const animate = () => {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -968,12 +781,12 @@ const Home = () => {
                 c.y += c.d;
                 c.x += Math.sin(c.tiltAngle) * 0.5;
                 c.tilt = Math.sin(c.tiltAngle) * 15;
-    
+
                 if (c.y > canvas.height) {
                   c.y = -c.r;
                   c.x = Math.random() * canvas.width;
                 }
-    
+
                 ctx.beginPath();
                 ctx.lineWidth = c.r;
                 ctx.strokeStyle = c.color;
@@ -983,13 +796,13 @@ const Home = () => {
               });
               animationFrame = requestAnimationFrame(animate);
             };
-    
+
             animate();
             return () => cancelAnimationFrame(animationFrame);
           }
         }
       }, [currentStep]);
-    
+
       return (
         <div className="home-container">
           <section className="hero-section">
@@ -1000,7 +813,7 @@ const Home = () => {
               translations={translations}
             />
           </section>
-    
+
           <section className="services-section">
             <h2 className="services-title">{t.ourServices}</h2>
             {isServicesLoading ? (
@@ -1009,60 +822,67 @@ const Home = () => {
               </div>
             ) : (
               <div className="services-grid">
-                {services.map((s, index) => (
-                  <div
-                    key={s.id}
-                    onClick={() => handleServiceChange(s.type)}
-                    className={`service-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`}
-                  >
-                    <div className="service-image-container">
-                      <img
-                        src={s.image || 'https://images.unsplash.com/photo-1592210454359-9047f8d00805?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'}
-                        alt={s.name}
-                        className="service-image"
-                      />
-                      <div className="service-overlay"></div>
-                    </div>
-                    <div className="service-content">
-                      <div className="service-tags">
-                        <div className="service-pricing">
-                          {s.type === 'farm-workers' && (
-                            <>
-                              <span className="male-price">
-                                <i className="fas fa-male"></i> ₹{s.maleCost || 'N/A'}/{t.day}
-                              </span>
-                              <span className="female-price">
-                                <i className="fas fa-female"></i> ₹{s.femaleCost || 'N/A'}/{t.day}
-                              </span>
-                            </>
-                          )}
-                          <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
-                            {s.type === 'farm-workers' ? t.custom : `₹${s.cost || 0}${s.type === 'tractor-drivers' ? `/${t.hours.toLowerCase()}` : `/${t.day}`}`}
+                {services
+                  .slice() // Create a copy to avoid mutating the original array
+                  .sort((a, b) => {
+                    const isAPopular = a.type === 'farm-workers' || a.type === 'ploughing-laborer';
+                    const isBPopular = b.type === 'farm-workers' || b.type === 'ploughing-laborer';
+                    return isBPopular - isAPopular; // Sort popular services first
+                  })
+                  .map((s, index) => (
+                    <div
+                      key={s.id}
+                      onClick={() => handleServiceChange(s.type)}
+                      className={`service-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`}
+                    >
+                      <div className="service-image-container">
+                        <img
+                          src={s.image || 'https://images.unsplash.com/photo-1592210454359-9047f8d00805?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'}
+                          alt={s.name}
+                          className="service-image"
+                        />
+                        <div className="service-overlay"></div>
+                      </div>
+                      <div className="service-content">
+                        <div className="service-tags">
+                          <div className="service-pricing">
+                            {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
+                              <>
+                                <span className="male-price">
+                                  <i className="fas fa-male"></i> ₹{s.maleCost || 'N/A'}/{t.day}
+                                </span>
+                                <span className="female-price">
+                                  <i className="fas fa-female"></i> ₹{s.femaleCost || 'N/A'}/{t.day}
+                                </span>
+                              </>
+                            )}
+                            <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
+                              {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') ? t.custom : `₹${s.cost || 0}${s.type === 'ownertc' ? `/${t.hours.toLowerCase()}` : `/${t.day}`}`}
+                            </span>
+                          </div>
+                        </div>
+                        {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
+                          <div className="popular-tag-container">
+                            <span className="popular-tag">
+                              <i className="fas fa-star"></i> {t.popular}
+                            </span>
+                          </div>
+                        )}
+                        <div className="service-name-container">
+                          <span className={`service-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                            {language === 'english' ? s.name : language === 'hindi' ? s.nameHindi || s.name : s.nameMarathi || s.name}
                           </span>
                         </div>
                       </div>
-                      {s.type === 'farm-workers' && (
-                        <div className="popular-tag-container">
-                          <span className="popular-tag">
-                            <i className="fas fa-star"></i> {t.popular}
-                          </span>
-                        </div>
-                      )}
-                      <div className="service-name-container">
-                        <span className={`service-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
-                          {language === 'english' ? s.name : language === 'hindi' ? s.nameHindi || s.name : s.nameMarathi || s.name}
-                        </span>
+                      <div className={`select-button ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                        {t.select}
                       </div>
                     </div>
-                    <div className={`select-button ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
-                      {t.select}
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </section>
-    
+
           <section id="order" className="order-section">
             <div className="order-container">
               <h2 className="order-title">
@@ -1071,7 +891,7 @@ const Home = () => {
               </h2>
               {error && <p className="error-message">{error}</p>}
               {success && currentStep < 4 && <p className="success-message">{success}</p>}
-    
+
               <div className="stepper-container">
                 <div className="stepper">
                   {steps.map((step, index) => (
@@ -1087,9 +907,9 @@ const Home = () => {
                   <div className="progress-bar" style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}></div>
                 </div>
               </div>
-    
+
               <div className="step-content">{renderStepContent()}</div>
-    
+
               {currentStep < 4 && (
                 <div className="button-group">
                   {currentStep > 0 && (
@@ -1112,7 +932,7 @@ const Home = () => {
               )}
             </div>
           </section>
-    
+
           <section id="testimonials" className="testimonials-section">
             <h2 className="testimonials-title">{t.whatFarmersSay}</h2>
             <div className="testimonials-grid">
@@ -1129,10 +949,10 @@ const Home = () => {
               ))}
             </div>
           </section>
-    
+
           <Footer language={language} translations={translations} />
         </div>
       );
-    };
-    
-    export default Home;
+};
+
+export default Home;

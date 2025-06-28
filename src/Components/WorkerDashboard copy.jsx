@@ -664,7 +664,7 @@ const handleRejectOrder = async (orderId) => {
                   )}
                 </>
               )}
-              {order.serviceType === 'tractor-drivers' && (
+              {order.serviceType === 'ownertc' && (
                 <p className="text-gray-600">
                   <span className="font-medium">Hours:</span> {order.hours || 'N/A'}
                 </p>

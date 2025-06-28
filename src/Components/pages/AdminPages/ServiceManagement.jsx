@@ -48,7 +48,7 @@ const ServiceManagement = ({
               <p className={s.type === 'farm-workers' ? 'text-green-600 font-semibold' : 'text-green-600 font-bold'}>
                 {s.type === 'farm-workers'
                   ? `Male: ₹${s.maleCost || 0}/day, Female: ₹${s.femaleCost || 0}/day`
-                  : `₹${s.cost || 0}${s.type === 'tractor-drivers' ? '/hour' : ''}`}
+                  : `₹${s.cost || 0}${s.type === 'ownertc' ? '/hour' : ''}`}
               </p>
               <div className="flex space-x-2 mt-4">
                 <button
@@ -92,13 +92,14 @@ const ServiceManagement = ({
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
               required
             >
-              <option value="">Select Type</option>
-              <option value="farm-workers">Farm Workers</option>
-              <option value="tractor-drivers">Tractor Drivers</option>
-              <option value="plowing">Plowing</option>
-              <option value="harvesting">Harvesting</option>
-              <option value="irrigation">Irrigation</option>
-            </select>
+                    <option value="">Select Type</option>
+                    <option value="farm-workers">Farm Workers शेतमजूर </option>
+                    <option value="ownertc">Tractor ट्रॅक्टर मालक (ड्रायव्हरसह सेवा)</option>
+                    <option value="tractor-driver">Tractor Driver फक्त ट्रॅक्टर चालक</option>
+                    <option value="sower">Sower पेंडकर</option>
+                    <option value="fertilizer-applicator">Fertilizer Applicator खत मारणारा</option>
+                    <option value="irrigation">Irrigation</option>
+                  </select>
           </div>
           {newServiceType === 'farm-workers' ? (
             <>
@@ -129,7 +130,7 @@ const ServiceManagement = ({
             </>
           ) : (
             <div>
-              <label className="block text-gray-700">Cost (₹/{newServiceType === 'tractor-drivers' ? 'hour' : 'job'}):</label>
+              <label className="block text-gray-700">Cost (₹/{newServiceType === 'ownertc' ? 'hour' : 'job'}):</label>
               <input
                 type="number"
                 value={newServiceCost}
@@ -184,10 +185,11 @@ const ServiceManagement = ({
                     required
                   >
                     <option value="">Select Type</option>
-                    <option value="farm-workers">Farm Workers</option>
-                    <option value="tractor-drivers">Tractor Drivers</option>
-                    <option value="plowing">Plowing</option>
-                    <option value="harvesting">Harvesting</option>
+                    <option value="farm-workers">Farm Workers शेतमजूर </option>
+                    <option value="ownertc">Tractor ट्रॅक्टर मालक (ड्रायव्हरसह सेवा)</option>
+                    <option value="tractor-driver">Tractor Driver फक्त ट्रॅक्टर चालक</option>
+                    <option value="sower">Sower पेंडकर</option>
+                    <option value="fertilizer-applicator">Fertilizer Applicator खत मारणारा</option>
                     <option value="irrigation">Irrigation</option>
                   </select>
                 </div>
@@ -221,7 +223,7 @@ const ServiceManagement = ({
                 ) : (
                   <div>
                     <label className="block text-gray-700">
-                      Cost (₹/{editServiceType === 'tractor-drivers' ? 'hour' : 'job'}):
+                      Cost (₹/{editServiceType === 'ownertc' ? 'hour' : 'job'}):
                     </label>
                     <input
                       type="[number"
