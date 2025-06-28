@@ -462,7 +462,7 @@ const Home = () => {
                     <option value="">{t.noBundle}</option>
                     {bundles.map(b => (
                       <option key={b.id} value={b.id}>
-                        ₹{b.price} - {language === 'english' ? b.name : language === 'hindi' ? b.nameHindi || b.name : b.nameMarathi || b.name} ({b.maleWorkers} {t.maleWorkers} + {b.femaleWorkers} {t.femaleWorkers})
+                        ₹{b.price} - {language === 'english' ? b.name : language === 'hindi' ? b.nameHindi || b.name : b.nameMarathi || b.name} ({b.maleWorkers} {t.maleWorkers} पेंडकर  + {b.femaleWorkers} {t.femaleWorkers})
                       </option>
                     ))}
                   </select>
