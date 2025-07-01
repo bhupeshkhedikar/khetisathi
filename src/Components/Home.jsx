@@ -19,6 +19,7 @@ const Home = () => {
   const [selectedBundle, setSelectedBundle] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [isServicesLoading, setIsServicesLoading] = useState(true);
   const [address, setAddress] = useState('');
@@ -33,6 +34,7 @@ const Home = () => {
   const [language, setLanguage] = useState('marathi');
   const [vehicleType, setVehicleType] = useState('');
   const [vehicleCost, setVehicleCost] = useState(0);
+  const [showCashModal, setShowCashModal] = useState(false);
   const navigate = useNavigate();
 
   const t = translations[language];
@@ -45,6 +47,17 @@ const Home = () => {
     { label: t.success || "Success", icon: 'fas fa-check-double' }
   ];
 
+  // Load Razorpay script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
@@ -52,7 +65,7 @@ const Home = () => {
       try {
         const servicesSnapshot = await getDocs(query(collection(db, 'services')));
         const servicesData = servicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log('servicesData',servicesData)
+        console.log('servicesData', servicesData);
         setServices(servicesData);
 
         const targetService = servicesData.find(s => s.type === 'farm-workers' || s.type === 'ploughing-laborer');
@@ -95,7 +108,7 @@ const Home = () => {
       } else if (totalWorkers >= 5 && totalWorkers <= 6) {
         setVehicleType('UV Auto');
         setVehicleCost(500);
-      } else if (totalWorkers >= 7 && totalWorkers <= 10) {
+      } else if (totalWorkers >= 7 && totalWorkers <= 14) {
         setVehicleType('Omni');
         setVehicleCost(2000);
       } else if (totalWorkers >= 15 && totalWorkers <= 20) {
@@ -132,8 +145,10 @@ const Home = () => {
     setCurrentStep(0);
     setSuccess('');
     setError('');
+    setPaymentStatus('');
     setVehicleType('');
     setVehicleCost(0);
+    setShowCashModal(false);
 
     const orderSection = document.getElementById('order');
     if (orderSection) {
@@ -204,7 +219,73 @@ const Home = () => {
 
   const handlePrevious = () => {
     setError('');
+    setPaymentStatus('');
+    setShowCashModal(false);
     setCurrentStep(currentStep - 1);
+  };
+
+  const handlePaymentMethodChange = (e) => {
+    const method = e.target.value;
+    setPaymentMethod(method);
+    if (method === 'cash') {
+      setShowCashModal(true);
+    } else {
+      setShowCashModal(false);
+    }
+  };
+
+  const closeCashModal = () => {
+    setShowCashModal(false);
+  };
+
+  const renderCashModal = () => {
+    if (!showCashModal) return null;
+    const service = services.find(s => s.type === selectedService);
+    if (!service) return null;
+
+    const days = parseInt(numberOfDays || 0);
+    let workersCost = 0;
+    let serviceFee = 0;
+    const serviceFeeRate = 0.10;
+
+    if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
+      if (selectedBundle) {
+        const bundle = bundles.find(b => b.id === selectedBundle);
+        if (bundle) {
+          workersCost = bundle.price * days;
+          serviceFee = workersCost * serviceFeeRate;
+        }
+      } else {
+        workersCost = (maleWorkers * service.maleCost + femaleWorkers * service.femaleCost) * days;
+        serviceFee = workersCost * serviceFeeRate;
+      }
+    } else if (selectedService === 'ownertc') {
+      workersCost = parseInt(hours) * service.cost * otherWorkers * days;
+      serviceFee = workersCost * serviceFeeRate;
+    } else {
+      workersCost = service.cost * otherWorkers * days;
+      serviceFee = workersCost * serviceFeeRate;
+    }
+
+    return (
+      <div className="modal-overlay">
+        <div className="modal-content">
+          <h3>{t.cashPaymentModalTitle}</h3>
+          <p>{t.cashPaymentModalMessage}</p>
+          <p>
+            <strong>{t.serviceFee} (10%):</strong> ₹{serviceFee.toFixed(2)} ({t.payOnline})
+          </p>
+          <p>
+            <strong>{t.workersCost}:</strong> ₹{workersCost.toFixed(2)}
+            {vehicleCost > 0 && ` + ${t.vehicleCost}: ₹${(vehicleCost * days).toFixed(2)}`}
+            {' '}{t.payOffline}
+          </p>
+          <button className="modal-button" onClick={closeCashModal}>
+            {t.understood}
+          </button>
+        </div>
+      </div>
+    );
   };
 
   const handleBookService = async () => {
@@ -214,32 +295,44 @@ const Home = () => {
     }
 
     setLoading(true);
+    let orderData = {
+      farmerId: user.uid,
+      serviceType: selectedService || 'unknown',
+      status: 'pending',
+      createdAt: new Date(),
+      address: address || '',
+      contactNumber: contactNumber || '',
+      paymentMethod: paymentMethod || 'unknown',
+      additionalNote: additionalNote || '',
+      numberOfDays: parseInt(numberOfDays) || 1,
+      startDate: startDate || '',
+      endDate: endDate || '',
+      startTime: startTime || '',
+      workerId: null,
+      paymentStatus: { status: 'pending' },
+    };
+
     try {
       const service = services.find(s => s.type === selectedService);
-      let cost = 0;
-      let orderData = {
-        farmerId: user.uid,
-        serviceId: service.id,
-        serviceType: selectedService,
-        status: 'pending',
-        createdAt: new Date(),
-        address,
-        contactNumber,
-        paymentMethod,
-        additionalNote,
-        numberOfDays: parseInt(numberOfDays),
-        startDate,
-        endDate,
-        startTime,
-        workerId: null,
-      };
+      if (!service) {
+        throw new Error('Selected service not found.');
+      }
 
+      let workersCost = 0;
+      const serviceFeeRate = 0.10;
+      let serviceFee = 0;
+      let totalCost = 0;
       let maleWorkersCount = 0;
       let femaleWorkersCount = 0;
+
+      orderData.serviceId = service.id;
 
       if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
         if (selectedBundle) {
           const bundle = bundles.find(b => b.id === selectedBundle);
+          if (!bundle) {
+            throw new Error('Selected bundle not found.');
+          }
           orderData.bundleDetails = {
             name: bundle.name,
             maleWorkers: bundle.maleWorkers,
@@ -249,14 +342,18 @@ const Home = () => {
           maleWorkersCount = bundle.maleWorkers;
           femaleWorkersCount = bundle.femaleWorkers;
           orderData.totalWorkers = bundle.maleWorkers + bundle.femaleWorkers;
-          cost = (bundle.price + vehicleCost) * parseInt(numberOfDays);
+          workersCost = bundle.price * parseInt(numberOfDays);
+          serviceFee = workersCost * serviceFeeRate;
+          totalCost = (workersCost + vehicleCost) * parseInt(numberOfDays) + serviceFee;
         } else {
           orderData.maleWorkers = maleWorkers;
           orderData.femaleWorkers = femaleWorkers;
           maleWorkersCount = maleWorkers;
           femaleWorkersCount = femaleWorkers;
           orderData.totalWorkers = maleWorkers + femaleWorkers;
-          cost = ((maleWorkers * service.maleCost + femaleWorkers * service.femaleCost) + vehicleCost) * parseInt(numberOfDays);
+          workersCost = (maleWorkers * service.maleCost + femaleWorkers * service.femaleCost) * parseInt(numberOfDays);
+          serviceFee = workersCost * serviceFeeRate;
+          totalCost = (workersCost + vehicleCost) * parseInt(numberOfDays) + serviceFee;
         }
         orderData.vehicleType = vehicleType;
         orderData.vehicleCost = vehicleCost;
@@ -264,36 +361,104 @@ const Home = () => {
         orderData.totalWorkers = otherWorkers;
         if (selectedService === 'ownertc') {
           orderData.hours = parseInt(hours);
-          cost = parseInt(hours) * service.cost * otherWorkers * parseInt(numberOfDays);
+          workersCost = parseInt(hours) * service.cost * otherWorkers * parseInt(numberOfDays);
+          serviceFee = workersCost * serviceFeeRate;
+          totalCost = workersCost + serviceFee;
         } else {
-          cost = service.cost * otherWorkers * parseInt(numberOfDays);
+          workersCost = service.cost * otherWorkers * parseInt(numberOfDays);
+          serviceFee = workersCost * serviceFeeRate;
+          totalCost = workersCost + serviceFee;
         }
       }
 
-      orderData.cost = cost;
-      await addDoc(collection(db, 'orders'), orderData);
+      orderData.serviceFee = serviceFee;
+      orderData.workersCost = workersCost;
+      orderData.totalCost = totalCost;
+
+      const paymentAmount = paymentMethod === 'cash' ? serviceFee : totalCost;
+
+      if (paymentMethod === 'razorpay' || paymentMethod === 'cash') {
+        const options = {
+          key: 'rzp_live_2dmmin7Uu7tyRI',
+          amount: Math.round(paymentAmount * 100),
+          currency: 'INR',
+          name: 'KhetiSathi',
+          description: paymentMethod === 'cash' ? `Service fee payment for ${selectedService}` : `Payment for ${selectedService} with service fee`,
+          handler: async (response) => {
+            try {
+              orderData.paymentStatus = {
+                status: paymentMethod === 'cash' ? 'service_fee_paid' : 'paid',
+                razorpay_payment_id: response.razorpay_payment_id,
+              };
+              await addDoc(collection(db, 'orders'), orderData);
+              setSuccess('Service booked successfully!');
+              setPaymentStatus(paymentMethod === 'cash' ? 'service_fee_paid' : 'paid');
+              setError('');
+              handleNext();
+            } catch (err) {
+              setError(`Error saving order: ${err.message}`);
+              setPaymentStatus('failed');
+              orderData.paymentStatus = {
+                status: 'failed',
+                error: err.message,
+              };
+              await addDoc(collection(db, 'orders'), orderData);
+            } finally {
+              setLoading(false);
+            }
+          },
+          prefill: {
+            name: user.displayName || 'Farmer',
+            email: user.email || '',
+            contact: contactNumber,
+          },
+          theme: {
+            color: '#F59E0B',
+          },
+        };
+
+        const razorpay = new window.Razorpay(options);
+        razorpay.on('payment.failed', async (response) => {
+          setError(`Payment failed: ${response.error.description}`);
+          setPaymentStatus('failed');
+          orderData.paymentStatus = {
+            status: 'failed',
+            error: response.error.description,
+          };
+          try {
+            await addDoc(collection(db, 'orders'), orderData);
+          } catch (err) {
+            console.error('Error saving failed order:', err);
+          }
+          setLoading(false);
+        });
+        razorpay.open();
+      }
 
       const pinCodeMatch = address.match(/\b\d{6}\b/);
       const pinCode = pinCodeMatch ? pinCodeMatch[0] : 'Not provided';
-
       const farmerName = user.displayName || 'Farmer';
 
-      let totalWorkersMessage = `• 👥 Total Workers: ${orderData.totalWorkers}`;
+      let totalWorkersMessage = `• 👥 Total Workers: ${orderData.totalWorkers || 0}`;
       if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
         totalWorkersMessage += ` (👨 ${maleWorkersCount}, 👩 ${femaleWorkersCount})`;
-        totalWorkersMessage += `\n• 🚗 Vehicle: ${vehicleType} (₹${vehicleCost})`;
+        totalWorkersMessage += `\n• 🚗 Vehicle: ${vehicleType || 'None'} (₹${vehicleCost || 0})`;
       }
 
       const adminWhatsAppNumber = '+918788647637';
       const message = `🎉 New Order Booked on KhetiSathi! 🚜😀\n\n` +
                     `• 👨‍🌾 Farmer: ${farmerName}\n` +
-                    `• 🛠️ Service: ${selectedService}\n` +
+                    `• 🛠️ Service: ${selectedService || 'Unknown'}\n` +
                     `${totalWorkersMessage}\n` +
-                    `• 💰 Cost: ₹${cost}\n` +
-                    `• 📅 Start Date: ${startDate}\n` +
-                    `• 📍 Address: ${address}\n` +
+                    `• 💰 Workers Cost: ₹${workersCost || 0}\n` +
+                    `• 💵 Service Fee (10%): ₹${serviceFee ? serviceFee.toFixed(2) : '0.00'}\n` +
+                    `• 💰 Total Cost: ₹${totalCost ? totalCost.toFixed(2) : '0.00'}\n` +
+                    `• 📅 Start Date: ${startDate || 'Not provided'}\n` +
+                    `• 📍 Address: ${address || 'Not provided'}\n` +
                     `• 📮 Pin Code: ${pinCode}\n` +
-                    `• 📞 Contact: ${contactNumber}\n\n` +
+                    `• 📞 Contact: ${contactNumber || 'Not provided'}\n` +
+                    `• 💳 Payment Method: ${paymentMethod === 'razorpay' ? 'Online (Razorpay)' : paymentMethod === 'cash' ? 'Cash (Service Fee Online)' : 'Unknown'}\n` +
+                    `• 💳 Payment Status: ${orderData.paymentStatus?.status === 'service_fee_paid' ? 'Service Fee Paid' : orderData.paymentStatus?.status || 'Unknown'}\n\n` +
                     `🌟 Please review and assign workers!`;
 
       try {
@@ -317,12 +482,18 @@ const Home = () => {
         console.error('Error sending WhatsApp notification:', notificationErr);
         setError('Order booked, but failed to send WhatsApp notification to admin.');
       }
-
-      setSuccess('Service booked successfully!');
-      setError('');
-      handleNext();
     } catch (err) {
       setError(`Error booking service: ${err.message}`);
+      setPaymentStatus('failed');
+      orderData.paymentStatus = {
+        status: 'failed',
+        error: err.message,
+      };
+      try {
+        await addDoc(collection(db, 'orders'), orderData);
+      } catch (saveErr) {
+        console.error('Error saving failed order:', saveErr);
+      }
     } finally {
       setLoading(false);
     }
@@ -346,8 +517,10 @@ const Home = () => {
     setCurrentStep(0);
     setSuccess('');
     setError('');
+    setPaymentStatus('');
     setVehicleType('');
     setVehicleCost(0);
+    setShowCashModal(false);
   };
 
   const generateTimeOptions = () => {
@@ -387,48 +560,69 @@ const Home = () => {
 
   const renderCostBreakdown = () => {
     const service = services.find(s => s.type === selectedService);
-    const days = parseInt(numberOfDays);
+    const days = parseInt(numberOfDays || 0);
     let workersCost = 0;
+    let serviceFee = 0;
+    const serviceFeeRate = 0.10;
     let totalCost = 0;
+
+    if (!service) {
+      return <div className="cost-breakdown"><p>{t.noServiceSelected}</p></div>;
+    }
 
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       if (selectedBundle) {
         const bundle = bundles.find(b => b.id === selectedBundle);
-        workersCost = bundle.price * days;
-        totalCost = (bundle.price + vehicleCost) * days;
-        return (
-          <div className="cost-breakdown">
-            <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost} ({t.bundle}: ₹{bundle.price}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day})</p>
-            <p><span className="review-label">{t.vehicleCost}:</span> ₹{vehicleCost * days} ({vehicleType}: ₹{vehicleCost}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day})</p>
-            <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost}</p>
-          </div>
-        );
+        if (bundle) {
+          workersCost = bundle.price * days;
+          serviceFee = workersCost * serviceFeeRate;
+          totalCost = (workersCost + vehicleCost) * days + serviceFee;
+          return (
+            <div className="cost-breakdown">
+              <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({t.bundle}: ₹{bundle.price}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
+              <p><span className="review-label">{t.vehicleCost}:</span> ₹{(vehicleCost * days).toFixed(2)} ({vehicleType}: ₹{vehicleCost}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
+              <p><span className="review-label">{t.serviceFee} (10%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
+              <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
+            </div>
+          );
+        }
       } else {
         workersCost = (maleWorkers * service.maleCost + femaleWorkers * service.femaleCost) * days;
-        totalCost = (workersCost / days + vehicleCost) * days;
+        serviceFee = workersCost * serviceFeeRate;
+        totalCost = (workersCost + vehicleCost) * days + serviceFee;
         return (
           <div className="cost-breakdown">
-            <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost} ({maleWorkers} {t.maleWorkers} @ ₹{service.maleCost}/{t.day} + {femaleWorkers} {t.femaleWorkers} @ ₹{service.femaleCost}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day})</p>
-            <p><span className="review-label">{t.vehicleCost}:</span> ₹{vehicleCost * days} ({vehicleType}: ₹{vehicleCost}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day})</p>
-            <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost}</p>
+            <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({maleWorkers} {t.maleWorkers} @ ₹{service.maleCost}/{t.day} + {femaleWorkers} {t.femaleWorkers} @ ₹{service.femaleCost}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
+            <p><span className="review-label">{t.vehicleCost}:</span> ₹{(vehicleCost * days).toFixed(2)} ({vehicleType}: ₹{vehicleCost}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
+            <p><span className="review-label">{t.serviceFee} (10%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
+            <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
           </div>
         );
       }
     } else if (selectedService === 'ownertc') {
-      totalCost = parseInt(hours) * service.cost * otherWorkers * days;
+      workersCost = parseInt(hours) * service.cost * otherWorkers * days;
+      serviceFee = workersCost * serviceFeeRate;
+      totalCost = workersCost + serviceFee;
       return (
         <div className="cost-breakdown">
-          <p><span className="review-label">{t.totalCost}:</span> ₹{totalCost} ({otherWorkers} {t.otherWorkers} @ ₹{service.cost}/{t.hours.toLowerCase()} × {hours} {t.hours.toLowerCase()} × {days} {days > 1 ? t.daysPlural : t.day})</p>
+          <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({otherWorkers} {t.otherWorkers} @ ₹{service.cost}/{t.hours.toLowerCase()} × {hours} {t.hours.toLowerCase()} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
+          <p><span className="review-label">{t.serviceFee} (10%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
+          <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
         </div>
       );
     } else {
-      totalCost = service.cost * otherWorkers * days;
+      workersCost = service.cost * otherWorkers * days;
+      serviceFee = workersCost * serviceFeeRate;
+      totalCost = workersCost + serviceFee;
       return (
         <div className="cost-breakdown">
-          <p><span className="review-label">{t.totalCost}:</span> ₹{totalCost} ({otherWorkers} {t.otherWorkers} @ ₹{service.cost}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day})</p>
+          <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({otherWorkers} {t.otherWorkers} @ ₹{service.cost}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
+          <p><span className="review-label">{t.serviceFee} (10%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
+          <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
         </div>
       );
     }
+    return <div className="cost-breakdown"><p>{t.noServiceSelected}</p></div>;
   };
 
   const renderStepContent = () => {
@@ -462,7 +656,7 @@ const Home = () => {
                     <option value="">{t.noBundle}</option>
                     {bundles.map(b => (
                       <option key={b.id} value={b.id}>
-                        ₹{b.price} - {language === 'english' ? b.name : language === 'hindi' ? b.nameHindi || b.name : b.nameMarathi || b.name} ({b.maleWorkers} {t.maleWorkers} पेंडकर  + {b.femaleWorkers} {t.femaleWorkers})
+                        ₹{b.price} - {language === 'english' ? b.name : language === 'hindi' ? b.nameHindi || b.name : b.nameMarathi || b.name} ({b.maleWorkers} {t.maleWorkers} + {b.femaleWorkers} {t.femaleWorkers})
                       </option>
                     ))}
                   </select>
@@ -632,12 +826,12 @@ const Home = () => {
                   <select
                     className="select-field"
                     value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    onChange={handlePaymentMethodChange}
                     required
                   >
                     <option value="">{t.selectMethod}</option>
                     <option value="cash">{t.cash}</option>
-                    <option value="online">{t.online}</option>
+                    <option value="razorpay">{t.online}</option>
                   </select>
                 </div>
                 <div className="input-wrapper">
@@ -651,6 +845,7 @@ const Home = () => {
                 </div>
               </div>
             </div>
+            {renderCashModal()}
           </div>
         );
       case 3:
@@ -685,7 +880,7 @@ const Home = () => {
                 <p><span className="review-label">{t.startTime}:</span> {startTime}</p>
                 <p><span className="review-label">{t.address}:</span> {address}</p>
                 <p><span className="review-label">{t.contact}:</span> {contactNumber}</p>
-                <p><span className="review-label">{t.payment}:</span> {t[paymentMethod]}</p>
+                <p><span className="review-label">{t.payment}:</span> {t[paymentMethod] || 'Razorpay'} {paymentMethod === 'cash' ? `(${t.serviceFee} ${t.payOnline}, ${t.workersCost} ${t.payOffline})` : ''}</p>
                 <p><span className="review-label">{t.note}:</span> {additionalNote || 'None'}</p>
                 {renderCostBreakdown()}
               </div>
@@ -708,251 +903,254 @@ const Home = () => {
         return (
           <div className="success-container">
             <div className="success-icon-container">
-              <i className="fas fa-check success-icon"></i>
+              <i className={`fas fa-check success-icon ${paymentStatus === 'failed' ? 'error-icon' : ''}`}></i>
             </div>
             <h3 className="success-title">{t.serviceBooked}</h3>
             <p className="success-message">{t.orderPlaced}</p>
+            <p className={`payment-status ${paymentStatus === 'paid' || paymentStatus === 'service_fee_paid' ? 'success' : paymentStatus === 'failed' ? 'error' : ''}`}>
+              {t.paymentStatus}: {paymentStatus === 'paid' ? t.paid : paymentStatus === 'service_fee_paid' ? t.serviceFeePaid : paymentStatus === 'failed' ? t.failed : t.pending}
+            </p>
             <div className="success-details">
               <p><span className="review-label">{t.service}:</span> {services.find(s => s.type === selectedService)?.[language === 'english' ? 'name' : language === 'hindi' ? 'nameHindi' : 'nameMarathi'] || selectedService}</p>
               {(selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') && (
                 <>
                   {selectedBundle ? (
                     <p><span className="review-label">{t.bundle}:</span> {bundles.find(b => b.id === selectedBundle)?.[language === 'english' ? 'name' : language === 'hindi' ? 'nameHindi' : 'nameMarathi']} ({bundles.find(b => b.id === selectedBundle)?.maleWorkers} {t.maleWorkers} + {bundles.find(b => b.id === selectedBundle)?.femaleWorkers} {t.femaleWorkers})</p>
-                    ) : (
-                      <>
-                        <p><span className="review-label">{t.maleWorkers}:</span> {maleWorkers}</p>
-                        <p><span className="review-label">{t.femaleWorkers}:</span> {femaleWorkers}</p>
-                      </>
-                    )}
-                    {vehicleType && (
-                      <p><span className="review-label">{t.vehicleType}:</span> <i className={`${getVehicleIcon(vehicleType)} vehicle-icon`}></i> {vehicleType}</p>
-                    )}
-                  </>
-                )}
-                {selectedService !== 'farm-workers' && selectedService !== 'ploughing-laborer' && (
-                  <p><span className="review-label">{t.otherWorkers}:</span> {otherWorkers}</p>
-                )}
-                <p><span className="review-label">{t.days}:</span> {numberOfDays} {numberOfDays > 1 ? t.daysPlural : t.day}</p>
-                <p><span className="review-label">{t.startDate}:</span> {startDate}</p>
-                <div>{renderCostBreakdown()}</div>
-              </div>
-              <button
-                className="back-button"
-                onClick={resetForm}
-              >
-                {t.backToHome}
-              </button>
-              <canvas className="confetti-canvas" id="confetti-canvas"></canvas>
+                  ) : (
+                    <>
+                      <p><span className="review-label">{t.maleWorkers}:</span> {maleWorkers}</p>
+                      <p><span className="review-label">{t.femaleWorkers}:</span> {femaleWorkers}</p>
+                    </>
+                  )}
+                  {vehicleType && (
+                    <p><span className="review-label">{t.vehicleType}:</span> <i className={`${getVehicleIcon(vehicleType)} vehicle-icon`}></i> {vehicleType}</p>
+                  )}
+                </>
+              )}
+              {selectedService !== 'farm-workers' && selectedService !== 'ploughing-laborer' && (
+                <p><span className="review-label">{t.otherWorkers}:</span> {otherWorkers}</p>
+              )}
+              <p><span className="review-label">{t.days}:</span> {numberOfDays} {numberOfDays > 1 ? t.daysPlural : t.day}</p>
+              <p><span className="review-label">{t.startDate}:</span> {startDate}</p>
+              <div>{renderCostBreakdown()}</div>
             </div>
-          );
-        default:
-          return null;
+            <button
+              className="back-button"
+              onClick={resetForm}
+            >
+              {t.backToHome}
+            </button>
+            <canvas className="confetti-canvas" id="confetti-canvas"></canvas>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  useEffect(() => {
+    if (currentStep === 4 && paymentStatus !== 'failed') {
+      const canvas = document.getElementById('confetti-canvas');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+
+        const confetti = [];
+        const colors = ['#F59E0B', '#10B981', '#3B82F6'];
+
+        for (let i = 0; i < 100; i++) {
+          confetti.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height - canvas.height,
+            r: Math.random() * 4 + 2,
+            d: Math.random() * 10 + 5,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            tilt: Math.random() * 10 - 5,
+            tiltAngle: Math.random() * Math.PI
+          });
         }
-      };
 
-      useEffect(() => {
-        if (currentStep === 4) {
-          const canvas = document.getElementById('confetti-canvas');
-          if (canvas) {
-            const ctx = canvas.getContext('2d');
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
+        let animationFrame;
+        const animate = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          confetti.forEach(c => {
+            c.tiltAngle += 0.1;
+            c.y += c.d;
+            c.x += Math.sin(c.tiltAngle) * 0.5;
+            c.tilt = Math.sin(c.tiltAngle) * 15;
 
-            const confetti = [];
-            const colors = ['#F59E0B', '#10B981', '#3B82F6'];
-
-            for (let i = 0; i < 100; i++) {
-              confetti.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height - canvas.height,
-                r: Math.random() * 4 + 2,
-                d: Math.random() * 10 + 5,
-                color: colors[Math.floor(Math.random() * colors.length)],
-                tilt: Math.random() * 10 - 5,
-                tiltAngle: Math.random() * Math.PI
-              });
+            if (c.y > canvas.height) {
+              c.y = -c.r;
+              c.x = Math.random() * canvas.width;
             }
 
-            let animationFrame;
-            const animate = () => {
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              confetti.forEach(c => {
-                c.tiltAngle += 0.1;
-                c.y += c.d;
-                c.x += Math.sin(c.tiltAngle) * 0.5;
-                c.tilt = Math.sin(c.tiltAngle) * 15;
+            ctx.beginPath();
+            ctx.lineWidth = c.r;
+            ctx.strokeStyle = c.color;
+            ctx.moveTo(c.x + c.tilt + c.r / 2, c.y);
+            ctx.lineTo(c.x + c.tilt - c.r / 2, c.y + c.tilt);
+            ctx.stroke();
+          });
+          animationFrame = requestAnimationFrame(animate);
+        };
 
-                if (c.y > canvas.height) {
-                  c.y = -c.r;
-                  c.x = Math.random() * canvas.width;
-                }
+        animate();
+        return () => cancelAnimationFrame(animationFrame);
+      }
+    }
+  }, [currentStep, paymentStatus]);
 
-                ctx.beginPath();
-                ctx.lineWidth = c.r;
-                ctx.strokeStyle = c.color;
-                ctx.moveTo(c.x + c.tilt + c.r / 2, c.y);
-                ctx.lineTo(c.x + c.tilt - c.r / 2, c.y + c.tilt);
-                ctx.stroke();
-              });
-              animationFrame = requestAnimationFrame(animate);
-            };
+  return (
+    <div className="home-container">
+      <section className="hero-section">
+        <div className="hero-overlay"></div>
+        <Carousel
+          language={language}
+          setLanguage={setLanguage}
+          translations={translations}
+        />
+      </section>
 
-            animate();
-            return () => cancelAnimationFrame(animationFrame);
-          }
-        }
-      }, [currentStep]);
-
-      return (
-        <div className="home-container">
-          <section className="hero-section">
-            <div className="hero-overlay"></div>
-            <Carousel
-              language={language}
-              setLanguage={setLanguage}
-              translations={translations}
-            />
-          </section>
-
-          <section className="services-section">
-            <h2 className="services-title">{t.ourServices}</h2>
-            {isServicesLoading ? (
-              <div className="services-loader-container">
-                <div className="services-loader"></div>
-              </div>
-            ) : (
-              <div className="services-grid">
-                {services
-                  .slice() // Create a copy to avoid mutating the original array
-                  .sort((a, b) => {
-                    const isAPopular = a.type === 'farm-workers' || a.type === 'ploughing-laborer';
-                    const isBPopular = b.type === 'farm-workers' || b.type === 'ploughing-laborer';
-                    return isBPopular - isAPopular; // Sort popular services first
-                  })
-                  .map((s, index) => (
-                    <div
-                      key={s.id}
-                      onClick={() => handleServiceChange(s.type)}
-                      className={`service-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`}
-                    >
-                      <div className="service-image-container">
-                        <img
-                          src={s.image || 'https://images.unsplash.com/photo-1592210454359-9047f8d00805?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'}
-                          alt={s.name}
-                          className="service-image"
-                        />
-                        <div className="service-overlay"></div>
-                      </div>
-                      <div className="service-content">
-                        <div className="service-tags">
-                          <div className="service-pricing">
-                            {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
-                              <>
-                                <span className="male-price">
-                                  <i className="fas fa-male"></i> ₹{s.maleCost || 'N/A'}/{t.day}
-                                </span>
-                                <span className="female-price">
-                                  <i className="fas fa-female"></i> ₹{s.femaleCost || 'N/A'}/{t.day}
-                                </span>
-                              </>
-                            )}
-                            <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
-                              {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') ? t.custom : `₹${s.cost || 0}${s.type === 'ownertc' ? `/${t.hours.toLowerCase()}` : `/${t.day}`}`}
-                            </span>
-                          </div>
-                        </div>
+      <section className="services-section">
+        <h2 className="services-title">{t.ourServices}</h2>
+        {isServicesLoading ? (
+          <div className="services-loader-container">
+            <div className="services-loader"></div>
+          </div>
+        ) : (
+          <div className="services-grid">
+            {services
+              .slice()
+              .sort((a, b) => {
+                const isAPopular = a.type === 'farm-workers' || a.type === 'ploughing-laborer';
+                const isBPopular = b.type === 'farm-workers' || b.type === 'ploughing-laborer';
+                return isBPopular - isAPopular;
+              })
+              .map((s, index) => (
+                <div
+                  key={s.id}
+                  onClick={() => handleServiceChange(s.type)}
+                  className={`service-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`}
+                >
+                  <div className="service-image-container">
+                    <img
+                      src={s.image || 'https://images.unsplash.com/photo-1592210454359-9047f8d00805?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'}
+                      alt={s.name}
+                      className="service-image"
+                    />
+                    <div className="service-overlay"></div>
+                  </div>
+                  <div className="service-content">
+                    <div className="service-tags">
+                      <div className="service-pricing">
                         {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
-                          <div className="popular-tag-container">
-                            <span className="popular-tag">
-                              <i className="fas fa-star"></i> {t.popular}
+                          <>
+                            <span className="male-price">
+                              <i className="fas fa-male"></i> ₹{s.maleCost || 'N/A'}/{t.day}
                             </span>
-                          </div>
+                            <span className="female-price">
+                              <i className="fas fa-female"></i> ₹{s.femaleCost || 'N/A'}/{t.day}
+                            </span>
+                          </>
                         )}
-                        <div className="service-name-container">
-                          <span className={`service-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
-                            {language === 'english' ? s.name : language === 'hindi' ? s.nameHindi || s.name : s.nameMarathi || s.name}
-                          </span>
-                        </div>
-                      </div>
-                      <div className={`select-button ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
-                        {t.select}
+                        <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
+                          {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') ? t.custom : `₹${s.cost || 0}${s.type === 'ownertc' ? `/${t.hours.toLowerCase()}` : `/${t.day}`}`}
+                        </span>
                       </div>
                     </div>
-                  ))}
-              </div>
-            )}
-          </section>
-
-          <section id="order" className="order-section">
-            <div className="order-container">
-              <h2 className="order-title">
-                <i className="fas fa-tractor"></i>
-                {t.bookService}
-              </h2>
-              {error && <p className="error-message">{error}</p>}
-              {success && currentStep < 4 && <p className="success-message">{success}</p>}
-
-              <div className="stepper-container">
-                <div className="stepper">
-                  {steps.map((step, index) => (
-                    <div key={index} className="step">
-                      <div className={`step-icon ${index <= currentStep ? 'active' : ''}`}>
-                        <i className={step.icon}></i>
+                    {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
+                      <div className="popular-tag-container">
+                        <span className="popular-tag">
+                          <i className="fas fa-star"></i> {t.popular}
+                        </span>
                       </div>
-                      <p className="step-label">{step.label}</p>
+                    )}
+                    <div className="service-name-container">
+                      <span className={`service-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                        {language === 'english' ? s.name : language === 'hindi' ? s.nameHindi || s.name : s.nameMarathi || s.name}
+                      </span>
                     </div>
-                  ))}
+                  </div>
+                  <div className={`select-button ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                    {t.select}
+                  </div>
                 </div>
-                <div className="progress-bar-container">
-                  <div className="progress-bar" style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}></div>
-                </div>
-              </div>
+              ))}
+          </div>
+        )}
+      </section>
 
-              <div className="step-content">{renderStepContent()}</div>
+      <section id="order" className="order-section">
+        <div className="order-container">
+          <h2 className="order-title">
+            <i className="fas fa-tractor"></i>
+            {t.bookService}
+          </h2>
+          {error && <p className="error-message">{error}</p>}
+          {success && currentStep < 4 && <p className="success-message">{success}</p>}
 
-              {currentStep < 4 && (
-                <div className="button-group">
-                  {currentStep > 0 && (
-                    <button
-                      className="back-button-nav"
-                      onClick={handlePrevious}
-                    >
-                      Back
-                    </button>
-                  )}
-                  {currentStep < 3 && (
-                    <button
-                      className="next-button"
-                      onClick={handleNext}
-                    >
-                      Next
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section id="testimonials" className="testimonials-section">
-            <h2 className="testimonials-title">{t.whatFarmersSay}</h2>
-            <div className="testimonials-grid">
-              {[
-                { quote: t.testimonial1, name: t.farmer1.split(', ')[0], role: t.farmer1.split(', ')[1], color: 'yellow' },
-                { quote: t.testimonial2, name: t.farmer2.split(', ')[0], role: t.farmer2.split(', ')[1], color: 'green' },
-                { quote: t.testimonial3, name: t.farmer3.split(', ')[0], role: t.farmer3.split(', ')[1], color: 'blue' }
-              ].map((t, i) => (
-                <div key={i} className={`testimonial-card ${t.color}`}>
-                  <p className="testimonial-quote">"{t.quote}"</p>
-                  <p className="testimonial-name">{t.name}</p>
-                  <p className="testimonial-role">{t.role}</p>
+          <div className="stepper-container">
+            <div className="stepper">
+              {steps.map((step, index) => (
+                <div key={index} className="step">
+                  <div className={`step-icon ${index <= currentStep ? 'active' : ''}`}>
+                    <i className={step.icon}></i>
+                  </div>
+                  <p className="step-label">{step.label}</p>
                 </div>
               ))}
             </div>
-          </section>
+            <div className="progress-bar-container">
+              <div className="progress-bar" style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}></div>
+            </div>
+          </div>
 
-          <Footer language={language} translations={translations} />
+          <div className="step-content">{renderStepContent()}</div>
+
+          {currentStep < 4 && (
+            <div className="button-group">
+              {currentStep > 0 && (
+                <button
+                  className="back-button-nav"
+                  onClick={handlePrevious}
+                >
+                  Back
+                </button>
+              )}
+              {currentStep < 3 && (
+                <button
+                  className="next-button"
+                  onClick={handleNext}
+                >
+                  Next
+                </button>
+              )}
+            </div>
+          )}
         </div>
-      );
+      </section>
+
+      <section id="testimonials" className="testimonials-section">
+        <h2 className="testimonials-title">{t.whatFarmersSay}</h2>
+        <div className="testimonials-grid">
+          {[
+            { quote: t.testimonial1, name: t.farmer1.split(', ')[0], role: t.farmer1.split(', ')[1], color: 'yellow' },
+            { quote: t.testimonial2, name: t.farmer2.split(', ')[0], role: t.farmer2.split(', ')[1], color: 'green' },
+            { quote: t.testimonial3, name: t.farmer3.split(', ')[0], role: t.farmer3.split(', ')[1], color: 'blue' }
+          ].map((t, i) => (
+            <div key={i} className={`testimonial-card ${t.color}`}>
+              <p className="testimonial-quote">"{t.quote}"</p>
+              <p className="testimonial-name">{t.name}</p>
+              <p className="testimonial-role">{t.role}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <Footer language={language} translations={translations} />
+    </div>
+  );
 };
 
 export default Home;

@@ -1056,3 +1056,56 @@ a:hover {
       border-top: 1px solid #e5e7eb;
       padding-top: 12px;
     }
+
+    /* Modal for Cash Payment Notification */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  max-width: 90%;
+  width: 20rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.modal-content h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1F2937;
+  margin-bottom: 1rem;
+}
+
+.modal-content p {
+  font-size: 0.875rem;
+  color: #4B5563;
+  margin-bottom: 0.75rem;
+}
+
+.modal-button {
+  background: linear-gradient(to right, #F59E0B, #D97706);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.2s;
+}
+
+.modal-button:hover {
+  background: linear-gradient(to right, #D97706, #F59E0B);
+  transform: translateY(-2px);
+}
