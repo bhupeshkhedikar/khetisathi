@@ -1148,6 +1148,30 @@ const Home = () => {
         </div>
       </section>
 
+      <section id="app-download" className="app-download-section">
+        <div style={{display:'flex',justifyContent:'center'}}><img src='https://i.ibb.co/4nxw7GR6/image-5-removebg-preview.png' height={50} width={150} alt='farmer'/></div>
+        <h2 className="app-download-title">{t.downloadApp}</h2>
+        <p className="app-download-description">{t.downloadAppDescription}</p>
+        <div className="app-download-buttons">
+          <a
+            href="https://play.google.com/store/apps/details?id=com.khetisathi.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="app-download-button google-play"
+          >
+            <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Google Play" />
+          </a>
+          <a
+            href="https://www.apple.com/app-store/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="app-download-button app-store"
+          >
+            <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg" alt="App Store" />
+          </a>
+        </div>
+      </section>
+
       <Footer language={language} translations={translations} />
     </div>
   );

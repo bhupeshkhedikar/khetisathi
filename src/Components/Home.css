@@ -1109,3 +1109,51 @@ a:hover {
   background: linear-gradient(to right, #D97706, #F59E0B);
   transform: translateY(-2px);
 }
+
+.app-download-section {
+  padding: 40px 20px;
+  text-align: center;
+  background-color: #f9f9f9;
+}
+
+.app-download-title {
+  font-size: 2rem;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.app-download-description {
+  font-size: 1.2rem;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.app-download-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.app-download-button {
+  display: inline-block;
+}
+
+.app-download-button img {
+  height: 50px;
+  transition: transform 0.3s ease;
+}
+
+.app-download-button img:hover {
+  transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+  .app-download-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .app-download-button img {
+    height: 40px;
+  }
+}

@@ -67,6 +67,8 @@ const translations = {
     payOffline: 'Pay Offline (to worker)',
     understood: 'Understood',
     serviceFeePaid: 'Service Fee Paid',
+    downloadApp: 'Download Our App',
+    downloadAppDescription: 'Download our app and book services anytime, anywhere!',
   },
   hindi: {
     farmConnect: "KhetiSathi",
@@ -136,6 +138,8 @@ const translations = {
     payOffline: 'ऑफलाइन भुगतान करें (श्रमिक को)',
     understood: 'समझ गया',
     serviceFeePaid: 'सेवा शुल्क भुगतान किया गया',
+    downloadApp: 'हमारा ऐप डाउनलोड करें',
+    downloadAppDescription: 'हमारा ऐप डाउनलोड करें और कभी भी, कहीं भी सेवाएँ बुक करें!',
   },
   marathi: {
     farmConnect: "KhetiSathi",
@@ -205,6 +209,8 @@ const translations = {
     payOffline: 'ऑफलाइन पेमेंट (कामगाराला)',
     understood: 'समजले',
     serviceFeePaid: 'सेवा शुल्क भरले',
+    downloadApp: 'ऐप डाउनलोड करा',
+    downloadAppDescription: 'आमचे ऐप डाउनलोड करा आणि कधीही, कुठेही सेवा बुक करा!',
   },
 };
 
