@@ -2,7 +2,7 @@ const translations = {
   english: {
     farmConnect: "KhetiSathi",
     tagline: "Seamlessly book farm workers and services to boost your harvest.",
-    getStarted: "Get Started",
+    getStarted: "Book Now",
     ourServices: "Our Services",
     custom: "Custom",
     popular: "Popular",
@@ -77,7 +77,7 @@ const translations = {
   hindi: {
     farmConnect: "KhetiSathi",
     tagline: "अपनी फसल बढ़ाने के लिए आसानी से खेत मजदूर और सेवाएं बुक करें।",
-    getStarted: "शुरू करें",
+    getStarted: "बुक करें",
     ourServices: "हमारी सेवाएं",
     custom: "कस्टम",
     popular: "लोकप्रिय",
@@ -152,7 +152,7 @@ const translations = {
   marathi: {
     farmConnect: "KhetiSathi",
     tagline: "तुमच्या पिकाला चालना देण्यासाठी सहजपणे शेतमजूर आणि सेवा बुक करा.",
-    getStarted: "सुरू करा",
+    getStarted: "बुक करा",
     ourServices: "आमच्या सेवा",
     custom: "कस्टम",
     popular: "लोकप्रिय",
