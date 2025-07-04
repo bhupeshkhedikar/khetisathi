@@ -26,7 +26,7 @@ export const SKILL_LABELS = {
   'farm-worker': {
     english: 'Farm Worker',
     hindi: 'खेती मजदूर',
-    marathi: 'शेतमजूर',
+    marathi: 'शेतमजूर(सर्व शेती कामे)',
   },
   'tractor-driver': {
     english: 'Tractor Driver (Only)',
@@ -53,7 +53,7 @@ export const SKILL_LABELS = {
     hindi: 'सिर्फ हार्वेस्टर चालक',
     marathi: 'फक्त हार्वेस्टर चालक',
   },
-  'harvester-owner-service': {
+  'owner-harvester': {
     english: 'Harvester Owner (Machine + Driver)',
     hindi: 'हार्वेस्टर मालिक (मशीन + चालक)',
     marathi: 'हार्वेस्टर मालक (मशीन व चालकासह)',
@@ -118,7 +118,7 @@ export const SKILL_LABELS = {
     hindi: 'गोबर साफ करने वाला',
     marathi: 'शेण साफ करणारा',
   },
-  'bullock-cart-owner-service': {
+  'bullockcart-owner': {
     english: 'Bullock Cart Owner (with Driver)',
     hindi: 'बैलगाड़ी मालिक (चालक सहित)',
     marathi: 'बैलगाडी मालक (चालकासह)',

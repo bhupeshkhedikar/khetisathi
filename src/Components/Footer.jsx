@@ -10,6 +10,7 @@ const Footer = ({ language, translations }) => {
       <div className="footer-content">
         <h3 className="footer-title">{t.farmConnect}</h3>
         <p className="footer-tagline">{t.trustedPartner}</p>
+        <p className="copyright">Copyright © 2025, KhetiSathi. All Rights Reserved</p>
         <div className="social-links">
           <a href="#" className="social-icon"><i className="fab fa-facebook-f"></i></a>
           <a href="#" className="social-icon"><i className="fab fa-twitter"></i></a>

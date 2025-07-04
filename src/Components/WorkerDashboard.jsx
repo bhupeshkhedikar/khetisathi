@@ -3,8 +3,9 @@ import { auth, db } from './firebaseConfig.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc, updateDoc, getDoc, getDocs, addDoc } from 'firebase/firestore';
 import { serverTimestamp } from 'firebase/firestore';
-import SKILLS from '../utils/skills.js';
-import { CheckCircleIcon, XCircleIcon, CalendarIcon, CashIcon, UserIcon, ChevronDownIcon, ChevronUpIcon, BanknotesIcon, BoltIcon } from '@heroicons/react/24/outline';
+import {SKILLS,SKILL_LABELS} from '../utils/skills.js';
+import translationsWorkerDashboard from './translationsWorkerDashboard.js';
+import { CheckCircleIcon, XCircleIcon, CalendarIcon, UserIcon, ChevronDownIcon, ChevronUpIcon, BanknotesIcon, BoltIcon } from '@heroicons/react/24/outline';
 
 const WorkerDashboard = () => {
   const [user, setUser] = useState(null);
@@ -25,6 +26,7 @@ const WorkerDashboard = () => {
   const [timerIntervals, setTimerIntervals] = useState({});
   const [paymentMethod, setPaymentMethod] = useState({});
   const [orderPincodes, setOrderPincodes] = useState({});
+  const [serviceFeeWallet, setServiceFeeWallet] = useState(0);
   const [showPendingTasks, setShowPendingTasks] = useState(true);
   const [showRejectedTasks, setShowRejectedTasks] = useState(false);
   const [showEarnings, setShowEarnings] = useState(false);
@@ -32,11 +34,15 @@ const WorkerDashboard = () => {
   const [showSkills, setShowSkills] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [allSectionsOpen, setAllSectionsOpen] = useState(false);
+  const [language, setLanguage] = useState('marathi'); // Default to Marathi
 
-  // Format date as "DD MMMM YYYY"
+  const t = translationsWorkerDashboard[language];
+
+  // Format date based on language
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', {
+    const locale = language === 'en' ? 'en-GB' : language === 'hi' ? 'hi-IN' : 'mr-IN';
+    return date.toLocaleDateString(locale, {
       day: 'numeric',
       month: 'long',
       year: 'numeric'
@@ -46,18 +52,45 @@ const WorkerDashboard = () => {
   // Send WhatsApp message
   const sendWhatsAppMessage = async (mobile, message) => {
     try {
-      if (!mobile) return false;
+      if (!mobile) {
+        console.warn('[WorkerDashboard] No mobile number provided for WhatsApp message.');
+        return false;
+      }
       const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: `+91${mobile}`, message }),
       });
-      return response.ok;
+      if (!response.ok) {
+        console.error('[WorkerDashboard] Failed to send WhatsApp message:', await response.text());
+        return false;
+      }
+      return true;
     } catch (err) {
-      console.error(`[WorkerDashboard] Error sending WhatsApp message to ${mobile}`, err);
+      console.error(`[WorkerDashboard] Error sending WhatsApp message to ${mobile}:`, err);
       return false;
     }
   };
+
+  // Load Razorpay script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => {
+      console.log('[WorkerDashboard] Razorpay script loaded successfully');
+    };
+    script.onerror = () => {
+      console.error('[WorkerDashboard] Failed to load Razorpay script');
+      setError(t.errorPaymentGatewayNotLoaded);
+    };
+    document.body.appendChild(script);
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, [t]);
 
   // Toggle all sections
   const toggleAllSections = () => {
@@ -73,8 +106,8 @@ const WorkerDashboard = () => {
 
   // Effect for authentication and data fetching
   useEffect(() => {
-    if (!auth) {
-      setError('Firebase Authentication not initialized.');
+    if (!auth || !db) {
+      setError(t.errorFirebaseNotInitialized);
       return;
     }
 
@@ -84,17 +117,18 @@ const WorkerDashboard = () => {
           const userRef = doc(db, 'users', user.uid);
           const userDoc = await getDoc(userRef);
           if (!userDoc.exists()) {
-            setError('User document does not exist.');
+            setError(t.errorUserDocumentNotExist);
             return;
           }
           const userData = userDoc.data();
           if (userData.role !== 'worker') {
-            setError('Access restricted to workers.');
+            setError(t.errorAccessRestricted);
             return;
           }
           setUser(user);
           setStatus(userData.status || 'pending');
           setWorkerStatus(userData.workerStatus || 'ready');
+          setServiceFeeWallet(userData.serviceFeeWallet || 0);
           setProfile({
             name: userData.name || '',
             pincode: userData.pincode || '',
@@ -137,7 +171,7 @@ const WorkerDashboard = () => {
             await fetchOrderPincodes(singleOrders);
           }, (err) => {
             console.error('[WorkerDashboard] Error fetching single worker orders:', err);
-            setError(`Error fetching orders: ${err.message}`);
+            setError(`${t.errorFetchingOrders}: ${err.message}`);
           });
 
           const unsubscribeArrayWorker = onSnapshot(arrayWorkerQuery, async (snapshot) => {
@@ -149,7 +183,7 @@ const WorkerDashboard = () => {
             await fetchOrderPincodes(arrayOrders);
           }, (err) => {
             console.error('[WorkerDashboard] Error fetching array worker orders:', err);
-            setError(`Error fetching orders: ${err.message}`);
+            setError(`${t.errorFetchingOrders}: ${err.message}`);
           });
 
           const unsubscribeSingleRejected = onSnapshot(singleRejectedQuery, async (snapshot) => {
@@ -161,7 +195,7 @@ const WorkerDashboard = () => {
             await fetchOrderPincodes(singleRejected);
           }, (err) => {
             console.error('[WorkerDashboard] Error fetching single rejected orders:', err);
-            setError(`Error fetching rejected orders: ${err.message}`);
+            setError(`${t.errorFetchingRejectedOrders}: ${err.message}`);
           });
 
           const unsubscribeArrayRejected = onSnapshot(arrayRejectedQuery, async (snapshot) => {
@@ -173,7 +207,7 @@ const WorkerDashboard = () => {
             await fetchOrderPincodes(arrayRejected);
           }, (err) => {
             console.error('[WorkerDashboard] Error fetching array rejected orders:', err);
-            setError(`Error fetching rejected orders: ${err.message}`);
+            setError(`${t.errorFetchingRejectedOrders}: ${err.message}`);
           });
 
           const fetchOrderPincodes = async (orders) => {
@@ -183,7 +217,7 @@ const WorkerDashboard = () => {
               const farmerRef = doc(db, 'users', order.farmerId);
               const farmerDoc = await getDoc(farmerRef);
               if (farmerDoc.exists()) {
-                newOrderPincodes[order.id] = farmerDoc.data().pincode || '';
+                newOrderPincodes[order.id] = farmerDoc.data().pincode || t.none;
               }
             }
             setOrderPincodes(newOrderPincodes);
@@ -203,16 +237,18 @@ const WorkerDashboard = () => {
           };
         } catch (err) {
           console.error('[WorkerDashboard] Error initializing worker dashboard:', err);
-          setError(`Initialization error: ${err.message}`);
+          setError(`${t.errorInitialization}: ${err.message}`);
         }
+      } else {
+        setError(t.errorPleaseLogIn);
       }
     }, (err) => {
       console.error('[WorkerDashboard] Auth state change error:', err);
-      setError(`Authentication error: ${err.message}`);
+      setError(`${t.errorAuthStateChange}: ${err.message}`);
     });
 
     return () => unsubscribeAuth();
-  }, []);
+  }, [t]);
 
   const handleTimeoutOrder = async (orderId) => {
     setLoading(true);
@@ -221,6 +257,7 @@ const WorkerDashboard = () => {
       const orderDoc = await getDoc(orderRef);
       if (!orderDoc.exists()) {
         console.warn(`[WorkerDashboard] Order ${orderId} does not exist.`);
+        setError(t.errorOrderNotFound.replace('{orderId}', orderId));
         return;
       }
       const orderData = orderDoc.data();
@@ -265,7 +302,7 @@ const WorkerDashboard = () => {
       setProfile(prev => ({ ...prev, workerStatus: 'ready' }));
     } catch (err) {
       console.error('[WorkerDashboard] Error handling timeout order:', err);
-      setError(`Error handling timeout: ${err.message}`);
+      setError(`${t.errorHandlingTimeout}: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -316,21 +353,36 @@ const WorkerDashboard = () => {
       Object.values(timerIntervals).forEach(clearInterval);
       setTimerIntervals({});
     };
-  }, [orders, user]);
+  }, [orders, user, t]);
 
   const handleAcceptOrder = async (orderId) => {
+    if (serviceFeeWallet >= 100) {
+      setError(t.serviceFeeWarning.replace('{amount}', serviceFeeWallet.toFixed(2)));
+      return;
+    }
     setLoading(true);
     try {
       const orderRef = doc(db, 'orders', orderId);
       const orderDoc = await getDoc(orderRef);
+      if (!orderDoc.exists()) {
+        throw new Error(t.errorOrderNotFound.replace('{orderId}', orderId));
+      }
       const orderData = orderDoc.data();
 
-      const messageSent = await sendWhatsAppMessage(
-        orderData.contactNumber,
-        `I am ${profile.name} and ${profile.mobile} your today's worker, I will arrive soon at ${orderData.address}. If any query call Contact: ${profile.mobile}. Regards Khetisathi`
-      );
+      const serviceName = orderData.serviceType
+        ? t[orderData.serviceType] || orderData.serviceType.replace('-', ' ')
+        : t.service;
+
+      const message = t.orderAccepted
+        .replace('{name}', profile.name)
+        .replace('{mobile}', profile.mobile)
+        .replace('{service}', serviceName)
+        .replace('{address}', orderData.address || t.none);
+
+      const messageSent = await sendWhatsAppMessage(orderData.contactNumber, message);
       if (!messageSent && orderData.contactNumber) {
-        alert('Failed to send WhatsApp notification to farmer.');
+        console.warn('[WorkerDashboard] Failed to send WhatsApp notification to farmer.');
+        alert(t.orderAcceptedFailedWhatsApp);
       }
 
       let updateData = {};
@@ -364,10 +416,10 @@ const WorkerDashboard = () => {
       setWorkerStatus('busy');
       setProfile(prev => ({ ...prev, workerStatus: 'busy' }));
 
-      alert('Order accepted!');
+      alert(t.successOrderAccepted);
     } catch (err) {
       console.error('[WorkerDashboard] Error accepting order:', err);
-      setError(`Error accepting order: ${err.message}`);
+      setError(`${t.errorCompletingOrder}: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -378,6 +430,9 @@ const WorkerDashboard = () => {
     try {
       const orderRef = doc(db, 'orders', orderId);
       const orderDoc = await getDoc(orderRef);
+      if (!orderDoc.exists()) {
+        throw new Error(t.errorOrderNotFound.replace('{orderId}', orderId));
+      }
       const orderData = orderDoc.data();
 
       let updateData = {};
@@ -419,10 +474,10 @@ const WorkerDashboard = () => {
       setWorkerStatus('ready');
       setProfile(prev => ({ ...prev, workerStatus: 'ready' }));
 
-      alert('Order rejected! It is now pending reassignment by the admin.');
+      alert(t.successOrderRejected);
     } catch (err) {
       console.error('[WorkerDashboard] Error rejecting order:', err);
-      setError(`Error rejecting order: ${err.message}`);
+      setError(`${t.errorRejectingOrder}: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -430,14 +485,31 @@ const WorkerDashboard = () => {
 
   const handleCompleteOrder = async (orderId) => {
     if (!paymentMethod[orderId]) {
-      setError('Please select a payment method.');
+      setError(t.errorSelectPaymentMethod);
       return;
     }
     setLoading(true);
     try {
       const orderRef = doc(db, 'orders', orderId);
       const orderDoc = await getDoc(orderRef);
+      if (!orderDoc.exists()) {
+        throw new Error(t.errorOrderNotFound.replace('{orderId}', orderId));
+      }
       const orderData = orderDoc.data();
+
+      if (!orderData.cost || isNaN(orderData.cost) || orderData.cost <= 0) {
+        throw new Error(t.errorInvalidOrderCost);
+      }
+
+      const workerCount = Array.isArray(orderData.workerId) ? orderData.workerId.length : 1;
+      if (workerCount <= 0) {
+        throw new Error(t.errorInvalidWorkerCount);
+      }
+
+      const grossEarnings = orderData.cost / workerCount;
+      const serviceFeeRate = 0.02;
+      const serviceFee = grossEarnings * serviceFeeRate;
+      const netEarnings = grossEarnings - serviceFee;
 
       let updateData = {};
       if (Array.isArray(orderData.workerId)) {
@@ -471,25 +543,116 @@ const WorkerDashboard = () => {
 
       await updateDoc(orderRef, updateData);
 
-      const workerCount = Array.isArray(orderData.workerId) ? orderData.workerId.length : 1;
       await addDoc(collection(db, `users/${user.uid}/earnings`), {
         orderId,
         serviceType: orderData.serviceType,
-        cost: orderData.cost / workerCount,
+        cost: netEarnings,
+        serviceFee: serviceFee,
         completedAt: serverTimestamp(),
         paymentMethod: paymentMethod[orderId],
       });
 
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, { workerStatus: 'ready' });
+      const newServiceFeeWallet = (serviceFeeWallet || 0) + serviceFee;
+      await updateDoc(userRef, {
+        serviceFeeWallet: newServiceFeeWallet,
+        workerStatus: 'ready'
+      });
+      setServiceFeeWallet(newServiceFeeWallet);
       setWorkerStatus('ready');
-      setProfile(prev => ({ ...prev, capitalworkerStatus: 'ready' }));
+      setProfile(prev => ({ ...prev, workerStatus: 'ready' }));
       setPaymentMethod(prev => ({ ...prev, [orderId]: undefined }));
-      alert('Task marked as completed and payment recorded!');
+
+      const adminWhatsAppNumber = '8788647637';
+      const serviceName = orderData.serviceType
+        ? t[orderData.serviceType] || orderData.serviceType.replace('-', ' ')
+        : t.service;
+      const paymentMethodName = t[paymentMethod[orderId]] || (paymentMethod[orderId].charAt(0).toUpperCase() + paymentMethod[orderId].slice(1));
+      const completedDate = formatDate(new Date());
+
+      const message = t.orderCompleted
+        .replace('{name}', profile.name)
+        .replace('{mobile}', profile.mobile)
+        .replace('{service}', serviceName)
+        .replace('{grossEarnings}', grossEarnings.toFixed(2))
+        .replace('{serviceFee}', serviceFee.toFixed(2))
+        .replace('{netEarnings}', netEarnings.toFixed(2))
+        .replace('{completedDate}', completedDate)
+        .replace('{address}', orderData.address || t.none)
+        .replace('{paymentMethod}', paymentMethodName)
+        .replace('{orderId}', orderId);
+
+      await sendWhatsAppMessage(adminWhatsAppNumber, message);
+
+      alert(t.successOrderCompleted);
     } catch (err) {
       console.error('[WorkerDashboard] Error completing order:', err);
-      setError(`Error completing order: ${err.message}`);
+      setError(`${t.errorCompletingOrder}: ${err.message}`);
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePayServiceFee = async () => {
+    if (!window.Razorpay) {
+      setError(t.errorPaymentGatewayNotLoaded);
+      return;
+    }
+    if (serviceFeeWallet < 100) {
+      setError(t.errorServiceFeeLow);
+      return;
+    }
+    setLoading(true);
+    try {
+      const options = {
+        key: 'rzp_test_ty410dtUIacM8N',
+        amount: Math.round(serviceFeeWallet * 100),
+        currency: 'INR',
+        name: 'KhetiSathi',
+        description: t.earnings,
+        handler: async (response) => {
+          try {
+            await addDoc(collection(db, `users/${user.uid}/serviceFeePayments`), {
+              amount: serviceFeeWallet,
+              paymentId: response.razorpay_payment_id,
+              paidAt: serverTimestamp(),
+              status: 'paid'
+            });
+            await updateDoc(doc(db, 'users', user.uid), { serviceFeeWallet: 0 });
+            setServiceFeeWallet(0);
+            setError('');
+            alert(t.successServiceFeePaid);
+          } catch (err) {
+            console.error('[WorkerDashboard] Error saving service fee payment:', err);
+            setError(`${t.errorSavingPayment}: ${err.message}`);
+          } finally {
+            setLoading(false);
+          }
+        },
+        prefill: {
+          name: profile.name || t.name,
+          contact: profile.mobile || '',
+        },
+        theme: {
+          color: '#F59E0B',
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+            setError(t.paymentCancelled);
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', (response) => {
+        setError(`${t.paymentFailed}: ${response.error.description}`);
+        setLoading(false);
+      });
+      razorpay.open();
+    } catch (err) {
+      console.error('[WorkerDashboard] Error initiating service fee payment:', err);
+      setError(`${t.errorInitiatingPayment}: ${err.message}`);
       setLoading(false);
     }
   };
@@ -497,7 +660,7 @@ const WorkerDashboard = () => {
   const handleAddAvailability = async (e) => {
     e.preventDefault();
     if (!newAvailabilityDate) {
-      setError('Please select a date.');
+      setError(t.errorSelectDate);
       return;
     }
     setLoading(true);
@@ -517,10 +680,10 @@ const WorkerDashboard = () => {
       await updateDoc(doc(db, 'users', user.uid), { availability: updatedAvailability });
       setAvailability(updatedAvailability);
       setNewAvailabilityDate('');
-      alert('Availability updated!');
+      alert(t.successAvailabilityUpdated);
     } catch (err) {
       console.error('[WorkerDashboard] Error updating availability:', err);
-      setError(`Error updating availability: ${err.message}`);
+      setError(`${t.errorUpdatingAvailability}: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -529,16 +692,16 @@ const WorkerDashboard = () => {
   const handleUpdateSkills = async (e) => {
     e.preventDefault();
     if (skills.length === 0) {
-      setError('Please select at least one skill.');
+      setError(t.errorSelectSkill);
       return;
     }
     setLoading(true);
     try {
       await updateDoc(doc(db, 'users', user.uid), { skills });
-      alert('Skills updated!');
+      alert(t.successSkillsUpdated);
     } catch (err) {
       console.error('[WorkerDashboard] Error updating skills:', err);
-      setError(`Error updating skills: ${err.message}`);
+      setError(`${t.errorUpdatingSkills}: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -549,23 +712,23 @@ const WorkerDashboard = () => {
     setLoading(true);
     try {
       if (!/^\d{6}$/.test(profile.pincode)) {
-        setError('Pincode must be a 6-digit number.');
+        setError(t.errorInvalidPincode);
         setLoading(false);
         return;
       }
       if (!/^\d{10}$/.test(profile.mobile)) {
-        setError('Mobile number must be a 10-digit number.');
+        setError(t.errorInvalidMobile);
         setLoading(false);
         return;
       }
       if (!['busy', 'ready'].includes(profile.workerStatus)) {
-        setError('Invalid worker status selected.');
+        setError(t.errorInvalidWorkerStatus);
         setLoading(false);
         return;
       }
 
       const updatedProfile = {
-        name: profile.name,
+        name: profile.name.trim(),
         pincode: profile.pincode,
         gender: profile.gender,
         mobile: profile.mobile,
@@ -575,10 +738,10 @@ const WorkerDashboard = () => {
       await updateDoc(doc(db, 'users', user.uid), updatedProfile);
       setWorkerStatus(profile.workerStatus);
       setError('');
-      alert('Profile updated successfully!');
+      alert(t.successProfileUpdated);
     } catch (err) {
       console.error('[WorkerDashboard] Error updating profile:', err);
-      setError(`Error updating profile: ${err.message}`);
+      setError(`${t.errorUpdatingProfile}: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -589,12 +752,12 @@ const WorkerDashboard = () => {
     setSkills(selectedSkills);
   };
 
-  if (!user || error.includes('Access restricted') || error.includes('Please log in')) {
+  if (!user || error.includes(t.errorAccessRestricted) || error.includes(t.errorPleaseLogIn)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-4">
         <div className="max-w-md w-full p-6 bg-white rounded-xl shadow-2xl text-center transform transition-all hover:scale-105">
           <XCircleIcon className="w-12 h-12 mx-auto mb-4 text-red-500 animate-pulse" />
-          <p className="text-xl font-semibold text-red-600">{error || 'Please log in as a worker.'}</p>
+          <p className="text-xl font-semibold text-red-600">{error || t.errorPleaseLogIn}</p>
         </div>
       </div>
     );
@@ -603,12 +766,26 @@ const WorkerDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
+        {/* Language Selector */}
+        <div className="mb-6 flex justify-end">
+          <select
+            value={language}
+            onChange={e => setLanguage(e.target.value)}
+            className="p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
+            aria-label={t.selectLanguage}
+          >
+            <option value="english">English</option>
+            <option value="hindi">हिन्दी </option>
+            <option value="marathi">मराठी </option>
+          </select>
+        </div>
+
         {/* Header */}
         <header className="bg-gradient-to-r from-green-800 to-green-300 rounded-xl shadow-lg mb-6 p-6 transform transition-all hover:shadow-2xl">
           <div className="flex flex-col sm:flex-row justify-between items-center">
             <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center">
               <UserIcon className="w-8 h-8 mr-2 text-white" />
-              Welcome, {profile.name || 'Worker'}!
+              {t.welcome}, {profile.name || t.name}!
             </h1>
             <div className="flex flex-col sm:flex-row items-center gap-4 mt-4 sm:mt-0">
               <span
@@ -616,22 +793,22 @@ const WorkerDashboard = () => {
                   status === 'approved' ? 'bg-green-700' : 'bg-yellow-500'
                 } shadow-md`}
               >
-                Approval: {status.charAt(0).toUpperCase() + status.slice(1)}
+                {t.approval}: {t[status] || status.charAt(0).toUpperCase() + status.slice(1)}
               </span>
               <span
                 className={`px-4 py-1 rounded-full text-sm font-medium text-white ${
                   workerStatus === 'busy' ? 'bg-blue-700' : 'bg-green-700'
                 } shadow-md`}
               >
-                Status: {workerStatus.charAt(0).toUpperCase() + workerStatus.slice(1)}
+                {t.status}: {t[workerStatus] || workerStatus.charAt(0).toUpperCase() + workerStatus.slice(1)}
               </span>
               <button
                 onClick={toggleAllSections}
                 className="px-4 py-2 bg-white text-green-600 rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-2 shadow-md hover:shadow-lg"
-                aria-label={allSectionsOpen ? "Collapse all sections" : "Expand all sections"}
+                aria-label={allSectionsOpen ? t.collapseAll : t.expandAll}
               >
                 <BoltIcon className="w-5 h-5" />
-                {allSectionsOpen ? 'Collapse All' : 'Expand All'}
+                {allSectionsOpen ? t.collapseAll : t.expandAll}
               </button>
             </div>
           </div>
@@ -642,23 +819,23 @@ const WorkerDashboard = () => {
           <div className="bg-gradient-to-br from-green-400 to-green-600 rounded-xl shadow-lg p-6 flex items-center gap-4 transform transition-all hover:scale-105">
             <BanknotesIcon className="w-12 h-12 text-white" />
             <div>
-              <p className="text-lg font-medium text-white">Total Earnings</p>
+              <p className="text-lg font-medium text-white">{t.totalEarnings}</p>
               <p className="text-3xl font-bold text-white">
                 ₹{(earnings.reduce((sum, e) => sum + (e.cost || 0), 0)).toFixed(2)}
               </p>
             </div>
           </div>
-<div className="bg-gradient-to-br from-blue-400 to-indigo-600 rounded-xl shadow-lg p-6 flex items-center gap-4 transform transition-all hover:scale-105">
+          <div className="bg-gradient-to-br from-blue-400 to-indigo-600 rounded-xl shadow-lg p-6 flex items-center gap-4 transform transition-all hover:scale-105">
             <CheckCircleIcon className="w-12 h-12 text-white" />
             <div>
-              <p className="text-lg font-medium text-white">Completed Tasks</p>
+              <p className="text-lg font-medium text-white">{t.completedTasks}</p>
               <p className="text-3xl font-bold text-white">{earnings.length}</p>
             </div>
           </div>
           <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl shadow-lg p-6 flex items-center gap-4 transform transition-all hover:scale-105">
             <CalendarIcon className="w-12 h-12 text-white" />
             <div>
-              <p className="text-lg font-medium text-white">Pending Tasks</p>
+              <p className="text-lg font-medium text-white">{t.pendingTasks}</p>
               <p className="text-3xl font-bold text-white">{orders.length}</p>
             </div>
           </div>
@@ -682,20 +859,26 @@ const WorkerDashboard = () => {
           <button
             onClick={() => setShowPendingTasks(!showPendingTasks)}
             className="w-full p-4 flex items-center justify-between text-xl font-semibold text-gray-800 hover:bg-gray-50 rounded-t-xl focus:outline-none"
-            aria-label="Toggle Pending Tasks"
+            aria-label={t.pendingTasks}
           >
             <span className="flex items-center">
               <CheckCircleIcon className="w-6 h-6 mr-2 text-green-600" />
-              Pending Tasks
+              {t.pendingTasks}
             </span>
             {showPendingTasks ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
           </button>
           {showPendingTasks && (
             <div className="p-6">
+              {serviceFeeWallet >= 100 && (
+                <div className="mb-4 p-4 bg-yellow-100 text-yellow-700 rounded-lg flex items-center">
+                  <XCircleIcon className="w-6 h-6 mr-2" />
+                  <p>{t.serviceFeeWarning.replace('{amount}', serviceFeeWallet.toFixed(2))}</p>
+                </div>
+              )}
               {orders.length === 0 ? (
                 <p className="text-center text-gray-600 flex items-center justify-center py-4">
                   <CalendarIcon className="w-6 h-6 mr-2" />
-                  No tasks assigned yet.
+                  {t.noTasksAssigned}
                 </p>
               ) : (
                 <div className="grid grid-cols-1 gap-6">
@@ -722,10 +905,14 @@ const WorkerDashboard = () => {
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                           <div>
                             <h4 className="text-lg font-semibold text-gray-800">
-                              {services.find(s => s.type === order.serviceType)?.name || order.serviceType.replace('-', ' ').toUpperCase()}
+                              {services.find(s => s.type === order.serviceType)?.name ||
+                                t[order.serviceType] || order.serviceType.replace('-', ' ').toUpperCase()}
                             </h4>
                             <p className="text-sm text-gray-600">
-                              Earnings: ₹{(order.cost / (Array.isArray(order.workerId) ? order.workerId.length : 1)).toFixed(2)}
+                              {t.earningsAfterFee.replace(
+                                '{amount}',
+                                ((order.cost / (Array.isArray(order.workerId) ? order.workerId.length : 1)) * 0.98).toFixed(2)
+                              )}
                             </p>
                           </div>
                           {workerAcceptance === 'pending' && (
@@ -746,7 +933,7 @@ const WorkerDashboard = () => {
                               </div>
                             ) : (
                               <span className="mt-2 sm:mt-0 px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                                Timeout
+                                {t.timeout}
                               </span>
                             )
                           )}
@@ -756,37 +943,37 @@ const WorkerDashboard = () => {
                             <>
                               {order.bundleDetails ? (
                                 <p>
-                                  <span className="font-medium">Bundle:</span> {order.bundleDetails.name} (
-                                  {order.bundleDetails.maleWorkers} Male + {order.bundleDetails.femaleWorkers} Female)
+                                  <span className="font-medium">{t.bundle}:</span> {order.bundleDetails.name} (
+                                  {order.bundleDetails.maleWorkers} {t.maleWorkers} + {order.bundleDetails.femaleWorkers} {t.femaleWorkers})
                                 </p>
                               ) : (
                                 <>
-                                  <p><span className="font-medium">Male Workers:</span> {order.maleWorkers || 0}</p>
-                                  <p><span className="font-medium">Female Workers:</span> {order.femaleWorkers || 0}</p>
+                                  <p><span className="font-medium">{t.maleWorkers}:</span> {order.maleWorkers || 0}</p>
+                                  <p><span className="font-medium">{t.femaleWorkers}:</span> {order.femaleWorkers || 0}</p>
                                 </>
                               )}
                             </>
                           )}
                           {order.serviceType === 'ownertc' && (
-                            <p><span className="font-medium">Hours:</span> {order.hours || 'N/A'}</p>
+                            <p><span className="font-medium">{t.hours}:</span> {order.hours || t.none}</p>
                           )}
-                          <p><span className="font-medium">Days:</span> {order.numberOfDays || 1} Day{order.numberOfDays > 1 ? 's' : ''}</p>
-                          <p><span className="font-medium">Start Date:</span> {formatDate(order.startDate)}</p>
-                          <p><span className="font-medium">End Date:</span> {formatDate(order.endDate)}</p>
-                          <p><span className="font-medium">Start Time:</span> {order.startTime || 'N/A'}</p>
-                          <p><span className="font-medium">Address:</span> {order.address || 'N/A'}</p>
+                          <p><span className="font-medium">{t.days}:</span> {order.numberOfDays || 1} {t.days}{order.numberOfDays > 1 ? 's' : ''}</p>
+                          <p><span className="font-medium">{t.startDate}:</span> {formatDate(order.startDate)}</p>
+                          <p><span className="font-medium">{t.endDate}:</span> {formatDate(order.endDate)}</p>
+                          <p><span className="font-medium">{t.startTime}:</span> {order.startTime || t.none}</p>
+                          <p><span className="font-medium">{t.address}:</span> {order.address || t.none}</p>
                           <p>
-                            <span className="font-medium">Pincode:</span> {orderPincodes[order.id] || 'N/A'}
+                            <span className="font-medium">{t.pincode}:</span> {orderPincodes[order.id] || t.none}
                             {!orderPincodes[order.id] && (
-                              <span className="text-yellow-600 text-xs ml-1">[Missing]</span>
+                              <span className="text-yellow-600 text-xs ml-1">{t.pincodeMissing}</span>
                             )}
                           </p>
-                          <p><span className="font-medium">Contact:</span> {order.contactNumber || 'N/A'}</p>
+                          <p><span className="font-medium">{t.contact}:</span> {order.contactNumber || t.none}</p>
                           <p>
-                            <span className="font-medium">Payment Method:</span>{' '}
-                            {order.paymentMethod ? order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1) : 'N/A'}
+                            <span className="font-medium">{t.paymentMethod}:</span>{' '}
+                            {order.paymentMethod ? t[order.paymentMethod] || (order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1)) : t.none}
                           </p>
-                          <p><span className="font-medium">Note:</span> {order.additionalNote || 'None'}</p>
+                          <p><span className="font-medium">{t.note}:</span> {order.additionalNote || t.none}</p>
                         </div>
                         {workerAcceptance === 'pending' && (
                           <>
@@ -795,26 +982,26 @@ const WorkerDashboard = () => {
                                 <button
                                   onClick={() => handleAcceptOrder(order.id)}
                                   className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-all flex items-center justify-center gap-2 transform hover:scale-105"
-                                  disabled={loading || status !== 'approved'}
-                                  aria-label="Accept task"
+                                  disabled={loading || status !== 'approved' || serviceFeeWallet >= 100}
+                                  aria-label={t.accept}
                                 >
                                   <CheckCircleIcon className="w-5 h-5" />
-                                  Accept (₹{(order.cost / (Array.isArray(order.workerId) ? order.workerId.length : 1)).toFixed(2)})
+                                  {t.accept} (₹{((order.cost / (Array.isArray(order.workerId) ? order.workerId.length : 1)) * 0.98).toFixed(2)})
                                 </button>
                                 <button
                                   onClick={() => handleRejectOrder(order.id)}
                                   className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 transition-all flex items-center justify-center gap-2 transform hover:scale-105"
                                   disabled={loading || status !== 'approved'}
-                                  aria-label="Reject task"
+                                  aria-label={t.reject}
                                 >
                                   <XCircleIcon className="w-5 h-5" />
-                                  Reject
+                                  {t.reject}
                                 </button>
                               </div>
                             ) : (
                               <p className="mt-4 text-red-600 flex items-center">
                                 <XCircleIcon className="w-5 h-5 mr-2" />
-                                You cannot accept this task now.
+                                {t.cannotAcceptTask}
                               </p>
                             )}
                           </>
@@ -826,20 +1013,20 @@ const WorkerDashboard = () => {
                               onChange={e => setPaymentMethod(prev => ({ ...prev, [order.id]: e.target.value }))}
                               className="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
                               required
-                              aria-label="Select payment method"
+                              aria-label={t.selectPaymentMethod}
                             >
-                              <option value="">Select Payment Method</option>
-                              <option value="cash">Cash</option>
-                              <option value="online">Online</option>
+                              <option value="">{t.selectPaymentMethod}</option>
+                              <option value="cash">{t.paymentMethodCash}</option>
+                              <option value="online">{t.paymentMethodOnline}</option>
                             </select>
                             <button
                               onClick={() => handleCompleteOrder(order.id)}
                               className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-all flex items-center justify-center gap-2 transform hover:scale-105"
                               disabled={loading || !paymentMethod[order.id] || status !== 'approved'}
-                              aria-label="Mark task as completed"
+                              aria-label={t.markAsCompleted}
                             >
                               <CheckCircleIcon className="w-5 h-5" />
-                              Mark as Completed
+                              {t.markAsCompleted}
                             </button>
                           </div>
                         )}
@@ -857,11 +1044,11 @@ const WorkerDashboard = () => {
           <button
             onClick={() => setShowRejectedTasks(!showRejectedTasks)}
             className="w-full p-4 flex items-center justify-between text-xl font-semibold text-gray-800 hover:bg-gray-50 rounded-t-xl focus:outline-none"
-            aria-label="Toggle Rejected Tasks"
+            aria-label={t.rejectedTasks}
           >
             <span className="flex items-center">
               <XCircleIcon className="w-6 h-6 mr-2 text-red-600" />
-              Rejected Tasks
+              {t.rejectedTasks}
             </span>
             {showRejectedTasks ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
           </button>
@@ -870,7 +1057,7 @@ const WorkerDashboard = () => {
               {rejectedOrders.length === 0 ? (
                 <p className="text-center text-gray-600 flex items-center justify-center py-4">
                   <XCircleIcon className="w-6 h-6 mr-2" />
-                  No tasks rejected.
+                  {t.noTasksRejected}
                 </p>
               ) : (
                 <div className="grid grid-cols-1 gap-6">
@@ -879,29 +1066,30 @@ const WorkerDashboard = () => {
                       <div className="flex justify-between items-start">
                         <div>
                           <h4 className="text-lg font-semibold text-gray-800">
-                            {services.find(s => s.type === order.serviceType)?.name || order.serviceType.replace('-', ' ').toUpperCase()}
+                            {services.find(s => s.type === order.serviceType)?.name ||
+                              t[order.serviceType] || order.serviceType.replace('-', ' ').toUpperCase()}
                           </h4>
-                          <p className="text-sm text-gray-600">Order ID: {order.id}</p>
+                          <p className="text-sm text-gray-600">{t.orderId}: {order.id}</p>
                           <p className="text-sm text-gray-600">
-                            Earnings: ₹{(order.cost / (Array.isArray(order.workerId) ? order.workerId.length : 1)).toFixed(2)}
+                            {t.potentialEarnings}: ₹{((order.cost / (Array.isArray(order.workerId) ? order.workerId.length : 1)) * 0.98).toFixed(2)}
                           </p>
                         </div>
                         <span className="px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-                          Pending Reassignment
+                          {t.pendingReassignment}
                         </span>
                       </div>
                       <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                        <p><span className="font-medium">Start Date:</span> {formatDate(order.startDate)}</p>
+                        <p><span className="font-medium">{t.startDate}:</span> {formatDate(order.startDate)}</p>
                         <p>
-                          <span className="font-medium">Pincode:</span> {orderPincodes[order.id] || 'N/A'}
+                          <span className="font-medium">{t.pincode}:</span> {orderPincodes[order.id] || t.none}
                           {!orderPincodes[order.id] && (
-                            <span className="text-yellow-600 text-xs ml-1">[Missing]</span>
+                            <span className="text-yellow-600 text-xs ml-1">{t.pincodeMissing}</span>
                           )}
                         </p>
                       </div>
                       <p className="mt-4 text-red-600 flex items-center text-sm">
                         <XCircleIcon className="w-5 h-5 mr-2" />
-                        This task was rejected and is pending reassignment.
+                        {t.taskRejectedPendingReassignment}
                       </p>
                     </div>
                   ))}
@@ -916,33 +1104,59 @@ const WorkerDashboard = () => {
           <button
             onClick={() => setShowEarnings(!showEarnings)}
             className="w-full p-4 flex items-center justify-between text-xl font-semibold text-gray-800 hover:bg-gray-50 rounded-t-xl focus:outline-none"
-            aria-label="Toggle Earnings"
+            aria-label={t.earnings}
           >
             <span className="flex items-center">
               <BanknotesIcon className="w-6 h-6 mr-2 text-green-600" />
-              Earnings
+              {t.earnings}
             </span>
             {showEarnings ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
           </button>
           {showEarnings && (
             <div className="p-6">
-              <p className="text-lg font-semibold text-green-600 mb-4">
-                Total Earnings: ₹{(earnings.reduce((sum, e) => sum + (e.cost || 0), 0)).toFixed(2)}
-              </p>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                <p className="text-lg font-semibold text-green-600">
+                  {t.totalEarnings}: ₹{(earnings.reduce((sum, e) => sum + (e.cost || 0), 0)).toFixed(2)}
+                </p>
+                <div className="flex items-center gap-4">
+                  <p className="text-lg font-semibold text-yellow-600">
+                    {t.serviceFeeWallet}: ₹{serviceFeeWallet.toFixed(2)}
+                  </p>
+                  {serviceFeeWallet >= 100 && (
+                    <button
+                      onClick={handlePayServiceFee}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-all flex items-center gap-2 transform hover:scale-105"
+                      disabled={loading}
+                      aria-label={t.payServiceFee}
+                    >
+                      <BanknotesIcon className="w-5 h-5" />
+                      {t.payServiceFee}
+                    </button>
+                  )}
+                </div>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {earnings.length === 0 ? (
                   <p className="text-center text-gray-600 col-span-full flex items-center justify-center py-4">
                     <BanknotesIcon className="w-6 h-6 mr-2" />
-                    No earnings recorded yet.
+                    {t.noEarningsRecorded}
                   </p>
                 ) : (
                   earnings.map(earning => (
                     <div key={earning.id} className="p-4 bg-gray-50 rounded-lg hover:shadow-md transition-all">
-                      <p className="text-sm"><strong>Order ID:</strong> {earning.orderId}</p>
-                      <p className="text-sm"><strong>Service:</strong> {services.find(s => s.type === earning.serviceType)?.name || earning.serviceType.replace('-', ' ').toUpperCase()}</p>
-                      <p className="text-sm"><strong>Earnings:</strong> ₹{(earning.cost || 0).toFixed(2)}</p>
-                      <p className="text-sm"><strong>Payment Method:</strong> {earning.paymentMethod ? earning.paymentMethod.charAt(0).toUpperCase() + earning.paymentMethod.slice(1) : 'N/A'}</p>
-                      <p className="text-sm"><strong>Completed:</strong> {earning.completedAt ? formatDate(earning.completedAt.toDate()) : 'N/A'}</p>
+                      <p className="text-sm"><strong>{t.orderId}:</strong> {earning.orderId}</p>
+                      <p className="text-sm">
+                        <strong>{t.service}:</strong>{' '}
+                        {services.find(s => s.type === earning.serviceType)?.name ||
+                          t[earning.serviceType] || earning.serviceType.replace('-', ' ').toUpperCase()}
+                      </p>
+                      <p className="text-sm"><strong>{t.earnings}:</strong> ₹{(earning.cost || 0).toFixed(2)}</p>
+                      <p className="text-sm"><strong>{t.serviceFee} (2%):</strong> ₹{(earning.serviceFee || 0).toFixed(2)}</p>
+                      <p className="text-sm">
+                        <strong>{t.paymentMethod}:</strong>{' '}
+                        {t[earning.paymentMethod] || (earning.paymentMethod?.charAt(0).toUpperCase() + earning.paymentMethod?.slice(1)) || t.none}
+                      </p>
+                      <p className="text-sm"><strong>{t.completed}:</strong> {earning.completedAt ? formatDate(earning.completedAt.toDate()) : t.none}</p>
                     </div>
                   ))
                 )}
@@ -956,11 +1170,11 @@ const WorkerDashboard = () => {
           <button
             onClick={() => setShowAvailability(!showAvailability)}
             className="w-full p-4 flex items-center justify-between text-xl font-semibold text-gray-800 hover:bg-gray-50 rounded-t-xl focus:outline-none"
-            aria-label="Toggle Set Availability"
+            aria-label={t.setAvailability}
           >
             <span className="flex items-center">
               <CalendarIcon className="w-6 h-6 mr-2 text-green-600" />
-              Set Availability
+              {t.setAvailability}
             </span>
             {showAvailability ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
           </button>
@@ -968,7 +1182,7 @@ const WorkerDashboard = () => {
             <div className="p-6">
               <form onSubmit={handleAddAvailability} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.date}</label>
                   <input
                     type="date"
                     value={newAvailabilityDate}
@@ -976,37 +1190,37 @@ const WorkerDashboard = () => {
                     className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
                     required
                     min={new Date().toISOString().split('T')[0]}
-                    aria-label="Select availability date"
+                    aria-label={t.selectAvailabilityDate}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.type}</label>
                   <select
                     value={availabilityType}
                     onChange={e => setAvailabilityType(e.target.value)}
                     className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
                     required
-                    aria-label="Select availability type"
+                    aria-label={t.selectAvailabilityType}
                   >
-                    <option value="working">Working Day</option>
-                    <option value="off">Off Day</option>
+                    <option value="working">{t.workingDay}</option>
+                    <option value="off">{t.offDay}</option>
                   </select>
                 </div>
                 <button
                   type="submit"
                   className="col-span-full bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-all flex items-center justify-center gap-2 transform hover:scale-105"
                   disabled={loading}
-                  aria-label="Update availability"
+                  aria-label={t.updateAvailability}
                 >
                   <CalendarIcon className="w-5 h-5" />
-                  Update Availability
+                  {t.updateAvailability}
                 </button>
               </form>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-sm font-semibold text-gray-700 mb-2">Working Days:</p>
+                  <p className="text-sm font-semibold text-gray-700 mb-2">{t.workingDays}:</p>
                   {availability.workingDays.length === 0 ? (
-                    <p className="text-sm text-gray-600">No working days set.</p>
+                    <p className="text-sm text-gray-600">{t.noWorkingDays}</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {availability.workingDays.sort((a, b) => new Date(a) - new Date(b)).map(date => (
@@ -1021,9 +1235,9 @@ const WorkerDashboard = () => {
                   )}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-700 mb-2">Off Days:</p>
+                  <p className="text-sm font-semibold text-gray-700 mb-2">{t.offDays}:</p>
                   {availability.offDays.length === 0 ? (
-                    <p className="text-sm text-gray-600">No off days set.</p>
+                    <p className="text-sm text-gray-600">{t.noOffDays}</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {availability.offDays.sort((a, b) => new Date(a) - new Date(b)).map(date => (
@@ -1047,11 +1261,11 @@ const WorkerDashboard = () => {
           <button
             onClick={() => setShowSkills(!showSkills)}
             className="w-full p-4 flex items-center justify-between text-xl font-semibold text-gray-800 hover:bg-gray-50 rounded-t-xl focus:outline-none"
-            aria-label="Toggle Manage Skills"
+            aria-label={t.manageSkills}
           >
             <span className="flex items-center">
               <UserIcon className="w-6 h-6 mr-2 text-green-600" />
-              Manage Skills
+              {t.manageSkills}
             </span>
             {showSkills ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
           </button>
@@ -1059,36 +1273,36 @@ const WorkerDashboard = () => {
             <div className="p-6">
               <form onSubmit={handleUpdateSkills}>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Select Skills</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.selectSkills}</label>
                   <select
                     multiple
                     value={skills}
                     onChange={handleSkillsChange}
                     className="w-full p-2 border rounded-lg h-32 focus:ring-2 focus:ring-green-600 bg-white"
-                    aria-label="Select skills"
+                    aria-label={t.selectSkills}
                   >
-                    {SKILLS.map(skill => (
+                    {SKILLS.map((skill) => (
                       <option key={skill} value={skill}>
-                        {skill.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                        {SKILL_LABELS[skill]?.[language] || skill}
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">Hold Ctrl (Cmd on Mac) to select multiple skills.</p>
+                  <p className="text-xs text-gray-500 mt-1">{t.skillsInstruction}</p>
                 </div>
                 <button
                   type="submit"
                   className="w-full bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-all flex items-center justify-center gap-2 transform hover:scale-105"
                   disabled={loading}
-                  aria-label="Update skills"
+                  aria-label={t.updateSkills}
                 >
                   <CheckCircleIcon className="w-5 h-5" />
-                  Update Skills
+                  {t.updateSkills}
                 </button>
               </form>
               <div className="mt-4">
-                <p className="text-sm font-semibold text-gray-700 mb-2">Current Skills:</p>
+                <p className="text-sm font-semibold text-gray-700 mb-2">{t.currentSkills}:</p>
                 {skills.length === 0 ? (
-                  <p className="text-sm text-gray-600">No skills selected.</p>
+                  <p className="text-sm text-gray-600">{t.noSkillsSelected}</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {skills.map(skill => (
@@ -1096,7 +1310,7 @@ const WorkerDashboard = () => {
                         key={skill}
                         className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
                       >
-                        {skill.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                        {t[skill] || skill.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       </span>
                     ))}
                   </div>
@@ -1111,11 +1325,11 @@ const WorkerDashboard = () => {
           <button
             onClick={() => setShowProfile(!showProfile)}
             className="w-full p-4 flex items-center justify-between text-xl font-semibold text-white hover:bg-opacity-10 hover:bg-white rounded-t-xl focus:outline-none"
-            aria-label="Toggle Edit Profile"
+            aria-label={t.editProfile}
           >
             <span className="flex items-center">
               <UserIcon className="w-6 h-6 mr-2 text-white" />
-              Edit Profile
+              {t.editProfile}
             </span>
             {showProfile ? <ChevronUpIcon className="w-6 h-6 text-white" /> : <ChevronDownIcon className="w-6 h-6 text-white" />}
           </button>
@@ -1124,18 +1338,18 @@ const WorkerDashboard = () => {
               <form onSubmit={handleUpdateProfile} noValidate>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t.name}</label>
                     <input
                       type="text"
                       value={profile.name || ''}
                       onChange={e => setProfile(prev => ({ ...prev, name: e.target.value }))}
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
                       required
-                      aria-label="Enter name"
+                      aria-label={t.enterName}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t.pincode}</label>
                     <input
                       type="text"
                       value={profile.pincode || ''}
@@ -1143,52 +1357,52 @@ const WorkerDashboard = () => {
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
                       required
                       pattern="\d{6}"
-                      title="Enter a 6-digit pincode"
-                      aria-label="Enter 6-digit pincode"
+                      title={t.errorInvalidPincode}
+                      aria-label={t.enterPincode}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t.mobileNumber}</label>
                     <input
                       type="tel"
                       inputMode="numeric"
-                      placeholder="Enter 10-digit mobile number"
+                      placeholder={t.mobilePlaceholder}
                       value={profile.mobile || ''}
                       onChange={e => setProfile(prev => ({ ...prev, mobile: e.target.value }))}
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
                       required
                       pattern="\d{10}"
-                      title="Enter a 10-digit mobile number"
+                      title={t.errorInvalidMobile}
                       maxLength="10"
-                      aria-label="Enter 10-digit mobile number"
+                      aria-label={t.enterMobileNumber}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t.gender}</label>
                     <select
                       value={profile.gender || ''}
                       onChange={e => setProfile(prev => ({ ...prev, gender: e.target.value }))}
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
                       required
-                      aria-label="Select gender"
+                      aria-label={t.selectGender}
                     >
-                      <option value="">Select Gender</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
+                      <option value="">{t.selectGender}</option>
+                      <option value="male">{t.male}</option>
+                      <option value="female">{t.female}</option>
+                      <option value="other">{t.other}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Worker Status</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t.workerStatusLabel}</label>
                     <select
                       value={profile.workerStatus || 'ready'}
                       onChange={e => setProfile(prev => ({ ...prev, workerStatus: e.target.value }))}
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
                       required
-                      aria-label="Select worker status"
+                      aria-label={t.selectWorkerStatus}
                     >
-                      <option value="ready">Ready</option>
-                      <option value="busy">Busy</option>
+                      <option value="ready">{t.ready}</option>
+                      <option value="busy">{t.busy}</option>
                     </select>
                   </div>
                 </div>
@@ -1196,10 +1410,10 @@ const WorkerDashboard = () => {
                   type="submit"
                   className="mt-4 w-full bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-all flex items-center justify-center gap-2 transform hover:scale-105"
                   disabled={loading}
-                  aria-label="Update profile"
+                  aria-label={t.updateProfile}
                 >
                   <CheckCircleIcon className="w-5 h-5" />
-                  Update Profile
+                  {t.updateProfile}
                 </button>
               </form>
             </div>

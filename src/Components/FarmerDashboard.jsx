@@ -3,6 +3,7 @@ import { auth, db } from './firebaseConfig.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import { CheckCircleIcon, XCircleIcon, CalendarIcon, MapPinIcon, PhoneIcon, CurrencyRupeeIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import translationsFarmerDashboard from './translationsFarmerDashboard.js';
 
 const FarmerDashboard = () => {
   const [user, setUser] = useState(null);
@@ -13,6 +14,19 @@ const FarmerDashboard = () => {
   const [messagesSent, setMessagesSent] = useState({});
   const [loadingCancel, setLoadingCancel] = useState({});
   const [timeLeft, setTimeLeft] = useState({});
+  const [language, setLanguage] = useState('mr'); // Default to Marathi
+  const t = translationsFarmerDashboard[language];
+
+  // Format date and time based on language
+  const formatDate = (date) => {
+    const locale = language === 'en' ? 'en-GB' : language === 'hi' ? 'hi-IN' : 'mr-IN';
+    return new Date(date).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  const formatDateTime = (date) => {
+    const locale = language === 'en' ? 'en-GB' : language === 'hi' ? 'hi-IN' : 'mr-IN';
+    return new Date(date).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
+  };
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
@@ -21,7 +35,7 @@ const FarmerDashboard = () => {
           const userRef = doc(db, 'users', user.uid);
           const userDoc = await getDoc(userRef);
           if (!userDoc.exists() || userDoc.data().role !== 'farmer') {
-            setError('Access restricted to farmers.');
+            setError(t.errorAccessRestricted);
             return;
           }
           setUser(user);
@@ -56,7 +70,7 @@ const FarmerDashboard = () => {
             setWorkers(newWorkers);
           }, (err) => {
             console.error('Error fetching orders:', err);
-            setError(`Error fetching orders: ${err.message}`);
+            setError(t.errorFetchingOrders.replace('{message}', err.message));
           });
 
           const servicesSnapshot = await getDocs(collection(db, 'services'));
@@ -65,16 +79,18 @@ const FarmerDashboard = () => {
           return () => unsubscribeOrders();
         } catch (err) {
           console.error('Error initializing farmer dashboard:', err);
-          setError(`Initialization error: ${err.message}`);
+          setError(t.errorInitialization.replace('{message}', err.message));
         }
+      } else {
+        setError(t.errorPleaseLogIn);
       }
     }, (err) => {
       console.error('Auth state change error:', err);
-      setError(`Authentication error: ${err.message}`);
+      setError(t.errorAuthentication.replace('{message}', err.message));
     });
 
     return () => unsubscribeAuth();
-  }, [workers]);
+  }, [workers, t]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -101,6 +117,7 @@ const FarmerDashboard = () => {
   const sendWhatsAppMessage = async (farmerPhone, message) => {
     if (!farmerPhone || farmerPhone === 'N/A') {
       console.error('Farmer phone number is missing or invalid');
+      setError(t.errorInvalidPhone);
       return;
     }
 
@@ -122,7 +139,7 @@ const FarmerDashboard = () => {
       console.log('WhatsApp message sent successfully');
     } catch (err) {
       console.error('Error sending WhatsApp message:', err);
-      setError(`Failed to send notification: ${err.message}`);
+      setError(t.errorSendingWhatsApp.replace('{message}', err.message));
     }
   };
 
@@ -135,9 +152,10 @@ const FarmerDashboard = () => {
         cancelledAt: new Date()
       });
       console.log(`Order ${orderId} cancelled successfully`);
+      alert(t.successOrderCancelled);
     } catch (err) {
       console.error('Error cancelling order:', err);
-      setError(`Failed to cancel order: ${err.message}`);
+      setError(t.errorCancellingOrder.replace('{message}', err.message));
     } finally {
       setLoadingCancel(prev => ({ ...prev, [orderId]: false }));
     }
@@ -151,12 +169,12 @@ const FarmerDashboard = () => {
     return timeDiffSeconds <= 600;
   };
 
-  if (!user || error) {
+  if (!user || error.includes(t.errorAccessRestricted) || error.includes(t.errorPleaseLogIn)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-100 to-amber-100 p-4">
         <div className="max-w-md w-full p-6 bg-white rounded-xl shadow-2xl text-center transform transition-all hover:scale-105">
           <XCircleIcon className="w-12 h-12 mx-auto mb-4 text-red-500 animate-pulse" />
-          <p className="text-xl font-semibold text-red-600">{error || 'Please log in as a farmer.'}</p>
+          <p className="text-xl font-semibold text-red-600">{error || t.errorPleaseLogIn}</p>
         </div>
       </div>
     );
@@ -165,12 +183,24 @@ const FarmerDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 to-amber-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* <header className="bg-gradient-to-r from-green-600 to-green-600 rounded-xl shadow-lg p-6 mb-8 transform transition-all hover:shadow-2xl">
-          <h5 className="text-1xl font-bold text-white text-center flex items-center justify-center gap-2">
-            <CalendarIcon className="w-8 h-8" />
-            Your Orders
-          </h5>
-        </header> */}
+        {/* Language Selector */}
+        <div className="mb-6 flex justify-end">
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
+            aria-label={t.selectLanguage}
+          >
+            <option value="en">{t.english}</option>
+            <option value="hi">{t.hindi}</option>
+            <option value="mr">{t.marathi}</option>
+          </select>
+        </div>
+
+        {/* <h2 className="text-3xl md:text-4xl font-bold mb-6 text-green-700 flex items-center justify-center gap-2">
+          <UserCircleIcon className="w-8 h-8" />
+          {t.yourOrders}
+        </h2> */}
 
         {error && (
           <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-xl flex items-center shadow-md">
@@ -182,14 +212,14 @@ const FarmerDashboard = () => {
         <section className="mb-8">
           <h3 className="text-2xl font-semibold mb-3 text-green-700 text-center flex items-center justify-center gap-2">
             <CheckCircleIcon className="w-6 h-6" />
-            Your Orders
+            {t.yourOrders}
           </h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {orders.length === 0 ? (
               <div className="bg-white rounded-xl shadow-lg p-6 text-center">
                 <p className="text-gray-600 flex items-center justify-center gap-2">
                   <CalendarIcon className="w-6 h-6" />
-                  No orders placed yet.
+                  {t.noOrdersPlaced}
                 </p>
               </div>
             ) : (
@@ -207,8 +237,8 @@ const FarmerDashboard = () => {
                       : order.accepted || 'pending';
                     return {
                       id,
-                      name: workers[id]?.name || 'Unknown',
-                      mobile: workers[id]?.mobile || 'N/A',
+                      name: workers[id]?.name || t.unknown,
+                      mobile: workers[id]?.mobile || t.na,
                       acceptanceStatus
                     };
                   });
@@ -219,7 +249,9 @@ const FarmerDashboard = () => {
 
                 if (allWorkersAccepted && !messagesSent[order.id] && order.status !== 'completed') {
                   const workerDetails = assignedWorkers.map(worker => `${worker.name} (${worker.mobile})`).join(', ');
-                  const message = `All workers have accepted your order and will arrive at your location soon. You can contact: ${workerDetails}. Regards, Khetisathi`;
+                  const message = t.workerAcceptedMessage
+                    .replace('{workerDetails}', workerDetails)
+                    .replace('{location}', order.address || t.na);
                   sendWhatsAppMessage(order.contactNumber, message);
                   setMessagesSent(prev => ({ ...prev, [order.id]: true }));
                 }
@@ -235,7 +267,7 @@ const FarmerDashboard = () => {
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="text-xl font-bold text-green-700 flex items-center gap-2">
                         <CheckCircleIcon className="w-6 h-6" />
-                        {services.find(s => s.type === order.serviceType)?.name || order.serviceType.replace('-', ' ').toUpperCase()}
+                        {services.find(s => s.type === order.serviceType)?.name || t[order.serviceType] || order.serviceType.replace('-', ' ').toUpperCase()}
                       </h4>
                       <div className="flex flex-col items-end space-y-2">
                         <span
@@ -246,12 +278,12 @@ const FarmerDashboard = () => {
                               order.status === 'cancelled' ? 'bg-gray-500' :
                               'bg-red-600'}`}
                         >
-                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          {t[order.status] || order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                         </span>
                         {isCancellable && (
                           <div className="text-sm text-gray-600 flex items-center gap-2">
                             <CalendarIcon className="w-5 h-5 text-red-600" />
-                            Cancel within{' '}
+                            {t.cancelWithin}{' '}
                             <span className="font-semibold text-red-600">
                               {remainingTime.minutes}:{remainingTime.seconds.toString().padStart(2, '0')}
                             </span>
@@ -264,7 +296,7 @@ const FarmerDashboard = () => {
                             disabled={loadingCancel[order.id]}
                           >
                             <XCircleIcon className="w-5 h-5" />
-                            {loadingCancel[order.id] ? 'Cancelling...' : 'Cancel Order'}
+                            {loadingCancel[order.id] ? t.cancelling : t.cancelOrder}
                           </button>
                         )}
                       </div>
@@ -273,7 +305,7 @@ const FarmerDashboard = () => {
                     <div className="mb-6">
                       <p className="text-gray-700 font-semibold flex items-center gap-2">
                         <UserCircleIcon className="w-5 h-5 text-green-600" />
-                        Worker{workerIds.length > 1 ? 's' : ''}:
+                        {t.worker}{workerIds.length > 1 ? t.plural : ''}:
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {assignedWorkers.length > 0 ? (
@@ -287,7 +319,7 @@ const FarmerDashboard = () => {
                                   'bg-yellow-100 text-yellow-800'}`}
                             >
                               {worker.name} (
-                              {worker.mobile === 'N/A' ? (
+                              {worker.mobile === t.na ? (
                                 <span>{worker.mobile}</span>
                               ) : (
                                 <a
@@ -297,11 +329,11 @@ const FarmerDashboard = () => {
                                   {worker.mobile}
                                 </a>
                               )}
-                              ) - {worker.acceptanceStatus.charAt(0).toUpperCase() + worker.acceptanceStatus.slice(1)}
+                              ) - {t[worker.acceptanceStatus] || worker.acceptanceStatus.charAt(0).toUpperCase() + worker.acceptanceStatus.slice(1)}
                             </span>
                           ))
                         ) : (
-                          <p className="text-gray-600">Unassigned</p>
+                          <p className="text-gray-600">{t.unassigned}</p>
                         )}
                       </div>
                     </div>
@@ -309,24 +341,24 @@ const FarmerDashboard = () => {
                     <div className="border-t border-green-200 pt-4 mb-4">
                       <h5 className="text-gray-700 font-semibold mb-2 flex items-center gap-2">
                         <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                        Order Details
+                        {t.orderDetails}
                       </h5>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         {order.serviceType === 'farm-workers' && (
                           <>
                             {order.bundleDetails ? (
                               <p>
-                                <span className="text-gray-700 font-semibold">Bundle: </span>
-                                <span className="text-gray-900">{order.bundleDetails.name} ({order.bundleDetails.maleWorkers} Male + {order.bundleDetails.femaleWorkers} Female)</span>
+                                <span className="text-gray-700 font-semibold">{t.bundle}: </span>
+                                <span className="text-gray-900">{order.bundleDetails.name} ({order.bundleDetails.maleWorkers} {t.maleWorkers} + {order.bundleDetails.femaleWorkers} {t.femaleWorkers})</span>
                               </p>
                             ) : (
                               <>
                                 <p>
-                                  <span className="text-gray-700 font-semibold">Male Workers: </span>
+                                  <span className="text-gray-700 font-semibold">{t.maleWorkers}: </span>
                                   <span className="text-gray-900">{order.maleWorkers || 0}</span>
                                 </p>
                                 <p>
-                                  <span className="text-gray-700 font-semibold">Female Workers: </span>
+                                  <span className="text-gray-700 font-semibold">{t.femaleWorkers}: </span>
                                   <span className="text-gray-900">{order.femaleWorkers || 0}</span>
                                 </p>
                               </>
@@ -335,29 +367,29 @@ const FarmerDashboard = () => {
                         )}
                         {order.serviceType === 'ownertc' && (
                           <p>
-                            <span className="text-gray-700 font-semibold">Hours: </span>
-                            <span className="text-gray-900">{order.hours || 'N/A'}</span>
+                            <span className="text-gray-700 font-semibold">{t.hours}: </span>
+                            <span className="text-gray-900">{order.hours || t.na}</span>
                           </p>
                         )}
                         <p>
-                          <span className="text-gray-700 font-semibold">Days: </span>
-                          <span className="text-gray-900">{order.numberOfDays || 1} Day{order.numberOfDays > 1 ? 's' : ''}</span>
+                          <span className="text-gray-700 font-semibold">{t.days}: </span>
+                          <span className="text-gray-900">{order.numberOfDays || 1} {t.day}{order.numberOfDays > 1 ? t.plural : ''}</span>
                         </p>
                         <p>
-                          <span className="text-gray-700 font-semibold">Start Date: </span>
-                          <span className="text-gray-900">{new Date(order.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                          <span className="text-gray-700 font-semibold">{t.startDate}: </span>
+                          <span className="text-gray-900">{formatDate(order.startDate)}</span>
                         </p>
                         <p>
-                          <span className="text-gray-700 font-semibold">End Date: </span>
-                          <span className="text-gray-900">{new Date(order.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                          <span className="text-gray-700 font-semibold">{t.endDate}: </span>
+                          <span className="text-gray-900">{formatDate(order.endDate)}</span>
                         </p>
                         <p>
-                          <span className="text-gray-700 font-semibold">Start Time: </span>
-                          <span className="text-gray-900">{order.startTime || 'N/A'}</span>
+                          <span className="text-gray-700 font-semibold">{t.startTime}: </span>
+                          <span className="text-gray-900">{order.startTime || t.na}</span>
                         </p>
                         <p>
-                          <span className="text-gray-700 font-semibold">Estimated Completion: </span>
-                          <span className="text-gray-900">{estimatedCompletion.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                          <span className="text-gray-700 font-semibold">{t.estimatedCompletion}: </span>
+                          <span className="text-gray-900">{formatDateTime(estimatedCompletion)}</span>
                         </p>
                       </div>
                     </div>
@@ -365,50 +397,50 @@ const FarmerDashboard = () => {
                     <div className="border-t border-green-200 pt-4 mb-4">
                       <h5 className="text-gray-700 font-semibold mb-2 flex items-center gap-2">
                         <MapPinIcon className="w-5 h-5 text-green-600" />
-                        Location & Contact
+                        {t.locationAndContact}
                       </h5>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         <p>
-                          <span className="text-gray-700 font-semibold">Address: </span>
-                          <span className="text-gray-900">{order.address || 'N/A'}</span>
+                          <span className="text-gray-700 font-semibold">{t.address}: </span>
+                          <span className="text-gray-900">{order.address || t.na}</span>
                         </p>
                         <p>
-                          <span className="text-gray-700 font-semibold">Contact: </span>
-                          <span className="text-gray-900">{order.contactNumber || 'N/A'}</span>
+                          <span className="text-gray-700 font-semibold">{t.contact}: </span>
+                          <span className="text-gray-900">{order.contactNumber || t.na}</span>
                         </p>
-                        <p>
-                          <span className="text-gray-700 font-semibold">Location: </span>
+                        {/* <p>
+                          <span className="text-gray-700 font-semibold">{t.location}: </span>
                           <span className="text-gray-900 text-sm">
-                            ({order.location?.latitude || 'N/A'}, {order.location?.longitude || 'N/A'})
+                            ({order.location?.latitude || t.na}, {order.location?.longitude || t.na})
                           </span>
-                        </p>
+                        </p> */}
                       </div>
                     </div>
 
                     <div className="border-t border-green-200 pt-4 mb-4">
                       <h5 className="text-gray-700 font-semibold mb-2 flex items-center gap-2">
                         <CurrencyRupeeIcon className="w-5 h-5 text-green-600" />
-                        Payment Info
+                        {t.paymentInfo}
                       </h5>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         <p>
-                          <span className="text-gray-700 font-semibold">Cost: </span>
-                          <span className="text-green-600 font-semibold">₹{order.cost?.toFixed(2) || 'N/A'}</span>
+                          <span className="text-gray-700 font-semibold">{t.cost}: </span>
+                          <span className="text-green-600 font-semibold">₹{order.cost?.toFixed(2) || t.na}</span>
                         </p>
                         <p>
-                          <span className="text-gray-700 font-semibold">Payment Method: </span>
-                          <span className="text-gray-900">{order.paymentMethod ? order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1) : 'N/A'}</span>
+                          <span className="text-gray-700 font-semibold">{t.paymentMethod}: </span>
+                          <span className="text-gray-900">{order.paymentMethod ? t[order.paymentMethod] || order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1) : t.na}</span>
                         </p>
                         <p>
-                          <span className="text-gray-700 font-semibold">Payment Status: </span>
+                          <span className="text-gray-700 font-semibold">{t.paymentStatus}: </span>
                           <span className={`font-semibold ${order.status === 'completed' ? 'text-green-600' : 'text-yellow-600'}`}>
                             {order.status === 'completed'
                               ? order.paymentStatus
-                                ? `Paid (${order.paymentStatus.method.charAt(0).toUpperCase() + order.paymentStatus.method.slice(1)})`
-                                : 'Paid (Unknown Method)'
+                                ? `${t.paid} (${t[order.paymentStatus.method] || order.paymentStatus.method.charAt(0).toUpperCase() + order.paymentStatus.method.slice(1)})`
+                                : t.paidUnknown
                               : order.paymentStatus
-                                ? `${order.paymentStatus.status.charAt(0).toUpperCase() + order.paymentStatus.status.slice(1)} (${order.paymentStatus.method})`
-                                : 'Not Paid'}
+                                ? `${t[order.paymentStatus.status] || order.paymentStatus.status.charAt(0).toUpperCase() + order.paymentStatus.status.slice(1)} (${t[order.paymentStatus.method] || order.paymentStatus.method})`
+                                : t.notPaid}
                           </span>
                         </p>
                       </div>
@@ -417,11 +449,11 @@ const FarmerDashboard = () => {
                     <div className="border-t border-green-200 pt-4">
                       <h5 className="text-gray-700 font-semibold mb-2 flex items-center gap-2">
                         <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                        Additional Info
+                        {t.additionalInfo}
                       </h5>
                       <p>
-                        <span className="text-gray-700 font-semibold">Note: </span>
-                        <span className="text-gray-900 text-sm">{order.additionalNote || 'None'}</span>
+                        <span className="text-gray-700 font-semibold">{t.note}: </span>
+                        <span className="text-gray-900 text-sm">{order.additionalNote || t.none}</span>
                       </p>
                     </div>
                   </div>

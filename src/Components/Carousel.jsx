@@ -11,19 +11,19 @@ const Carousel = ({ language, setLanguage, translations }) => {
       image: "https://i.ibb.co/QjN4wPpK/e34dbc15-18c9-4481-910f-dc89d372c7f0-removebg-preview-1.png",
     },
     {
+      title: language === 'english' ? "Advanced Booking Now Open" : language === 'hindi' ? "ऍडव्हान्स बुकिंग शुरू हो चुकी है" : "ऍडव्हान्स बुकिंग सुरू झाली आहे",
+      subtitle: language === 'english' ? "Book skilled farm workers in advance for your upcoming tasks." : language === 'hindi' ? "अपने कामों के लिए अभी कुशल खेत मजदूर बुक करें।" : "तुमच्या कामांसाठी कुशल शेतमजूर आधीच बुक करा.",
+      image: "https://i.ibb.co/Kx2Cdw7F/10a1c9e9-d8db-4b38-880b-5e14c2a3c753-removebg-preview-1.png"
+    },
+    {
       title: language === 'english' ? "Book at Lowest Price" : language === 'hindi' ? "सबसे कम कीमत पर बुक करें" : "सर्वात कमी किमतीत बुक करा",
-      subtitle: language === 'english' ? "Affordable rates for all farming needs." : language === 'hindi' ? "सभी खेती जरूरतों के लिए किफायती दरें।" : "सर्व खेती गरजांसाठी परवडणाऱ्या किमती.",
+      subtitle: language === 'english' ? "Affordable rates for all farming needs." : language === 'hindi' ? "सभी खेती जरूरतों के लिए किफायती दरें।" : "सर्व शेती गरजांसाठी परवडणाऱ्या किमती.",
       image: "https://i.ibb.co/zTHQBm4B/image-2-removebg-preview-1.png",
     },
     {
       title: language === 'english' ? "Book When You Want, When You Need" : language === 'hindi' ? "जब चाहें, जब जरूरत हो, बुक करें" : "जेव्हा हवे, जेव्हा गरज असेल तेव्हा बुक करा",
-      subtitle: language === 'english' ? "Flexible scheduling for your convenience." : language === 'hindi' ? "आपकी सुविधा के लिए लचीला शेड्यूलिंग।" : "तुमच्या सोयीसाठी लवचिक वेळापत्रक.",
+      subtitle: language === 'english' ? "Flexible scheduling for your convenience." : language === 'hindi' ? "आपकी सुविधा के अनुसार बुक करे ।" : "तुमच्या सोयीनुसार बुक करा.",
       image: "https://i.ibb.co/NhJ5RWc/image-4-removebg-preview-1.png",
-    },
-    {
-      title: language === 'english' ? "Advanced Booking Now Open" : language === 'hindi' ? "ऍडव्हान्स बुकिंग शुरू हो चुकी है" : "ऍडव्हान्स बुकिंग सुरू झाली आहे",
-      subtitle: language === 'english' ? "Book skilled farm workers in advance for your upcoming tasks." : language === 'hindi' ? "अपने कामों के लिए अभी कुशल खेत मजदूर बुक करें।" : "तुमच्या कामांसाठी कुशल शेतमजूर आधीच बुक करा.",
-      image: "https://i.ibb.co/Kx2Cdw7F/10a1c9e9-d8db-4b38-880b-5e14c2a3c753-removebg-preview-1.png"
     },
     {
       title: language === 'english' ? "Book Bundles Now & Save Up to 50%" : language === 'hindi' ? "अभी बंडल बुक करें और पाएं 50% तक की बचत" : "आता बंडल बुक करा आणि मिळवा ५०% पर्यंत बचत",

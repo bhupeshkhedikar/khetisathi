@@ -17,6 +17,7 @@ import Terms from './Components/pages/Terms.jsx';
 import RefundPolicy from './Components/pages/RefundPolicy.jsx';
 import PrivacyPolicy from './Components/pages/PrivacyPolicy.jsx';
 import DriverDashboard from './Components/DriverDashboard.js';
+import TermsAndConditions from './Components/TermsAndConditions.js';
 const App = () => {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState('');
@@ -234,7 +235,7 @@ const App = () => {
         <Route path="/farmer-dashboard" element={<FarmerDashboard />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<ContactUs />} />
-        <Route path="/terms" element={<Terms />} />
+        <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/refund" element={<RefundPolicy />} />
       </Routes>

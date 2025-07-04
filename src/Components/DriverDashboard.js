@@ -5,7 +5,9 @@ import {
   collection, query, where, onSnapshot, doc, updateDoc, getDoc, getDocs, addDoc, or,
 } from 'firebase/firestore';
 import { serverTimestamp } from 'firebase/firestore';
-import { VEHICLE_SKILLS, ASSIGNMENT_TIMEOUT, MOBILE_REGEX, PINCODE_REGEX, STATUS_COLORS } from '../Components/pages/constants.js';
+import { ASSIGNMENT_TIMEOUT, MOBILE_REGEX, PINCODE_REGEX, STATUS_COLORS } from '../Components/pages/constants.js';
+import translationsDriverDashboard from './translationsDriverDashboard.js';
+import {VEHICLE_SKILLS,VEHICLE_SKILL_LABELS} from '../utils/skills.js';
 import { ChevronDownIcon, ChevronUpIcon, CheckCircleIcon, XCircleIcon, ClockIcon, CashIcon, TruckIcon, CalendarIcon, UserIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 
 const DriverDashboard = () => {
@@ -27,12 +29,40 @@ const DriverDashboard = () => {
   const [timers, setTimers] = useState({});
   const [paymentMethod, setPaymentMethod] = useState({});
   const [workerDetails, setWorkerDetails] = useState({});
+  const [serviceFeeWallet, setServiceFeeWallet] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
   const [showAvailability, setShowAvailability] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
+  const [showEarnings, setShowEarnings] = useState(false);
+  const [language, setLanguage] = useState('marathi'); // Default to Marathi
   const timerRef = useRef({});
+  const t = translationsDriverDashboard[language];
+
+  // Format date based on language
+  const formatDate = (date) => {
+    const locale = language === 'en' ? 'en-GB' : language === 'hi' ? 'hi-IN' : 'mr-IN';
+    return new Date(date).toLocaleDateString(locale);
+  };
 
   const logError = useCallback((message, error) => console.error(`[DriverDashboard] ${message}`, error), []);
+
+  // Load Razorpay script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => console.log('[DriverDashboard] Razorpay script loaded successfully');
+    script.onerror = () => {
+      console.error('[DriverDashboard] Failed to load Razorpay script');
+      setError(t.errorPaymentGatewayNotLoaded);
+    };
+    document.body.appendChild(script);
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, [t]);
 
   const sendWhatsAppMessage = async (mobile, message) => {
     try {
@@ -57,7 +87,7 @@ const DriverDashboard = () => {
       const workerDocs = await getDocs(workersQuery);
       const workerMap = workerDocs.docs.reduce((acc, doc) => {
         const data = doc.data();
-        acc[doc.id] = { workerId: doc.id, name: data.name || 'Unnamed', mobile: data.mobile || 'N/A' };
+        acc[doc.id] = { workerId: doc.id, name: data.name || t.none, mobile: data.mobile || t.none };
         return acc;
       }, {});
       setWorkerDetails(assignments.reduce((acc, a) => {
@@ -65,31 +95,32 @@ const DriverDashboard = () => {
         return acc;
       }, {}));
     } catch (err) {
-      setError('Failed to load worker details.');
+      setError(t.errorFetchingWorkerDetails);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!auth || !db) {
-      setError('Firebase not initialized.');
+      setError(t.errorFirebaseNotInitialized);
       return;
     }
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (authState) => {
       if (!authState) {
-        setError('Please log in as a driver.');
+        setError(t.errorPleaseLogIn);
         return;
       }
       const userRef = doc(db, 'users', authState.uid);
       const userDoc = await getDoc(userRef);
       if (!userDoc.exists() || userDoc.data().role !== 'driver') {
-        setError('Access restricted to drivers.');
+        setError(t.errorAccessRestricted);
         return;
       }
       const userData = userDoc.data();
       setUser(authState);
       setStatus(userData.status || 'pending');
       setDriverStatus(userData.driverStatus || 'available');
+      setServiceFeeWallet(userData.serviceFeeWallet || 0);
       setProfile({
         name: userData.name || '',
         mobile: userData.mobile || '',
@@ -114,7 +145,7 @@ const DriverDashboard = () => {
         }));
         setAssignments(assignmentsData);
         await fetchWorkerDetails(assignmentsData);
-      }, (err) => setError('Failed to fetch assignments.'));
+      }, (err) => setError(t.errorFetchingAssignments));
 
       const taskHistoryQuery = query(
         collection(db, 'assignments'),
@@ -127,7 +158,7 @@ const DriverDashboard = () => {
         const taskHistoryData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         setTaskHistory(taskHistoryData.sort((a, b) => new Date(b.startDate) - new Date(a.startDate)));
         await fetchWorkerDetails(taskHistoryData);
-      }, (err) => setError('Failed to fetch task history.'));
+      }, (err) => setError(t.errorFetchingTaskHistory));
 
       const earningsSnapshot = await getDocs(collection(db, `users/${authState.uid}/earnings`));
       const earningsData = earningsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -138,10 +169,10 @@ const DriverDashboard = () => {
         unsubscribeAssignments();
         unsubscribeTaskHistory();
       };
-    }, (err) => setError('Authentication failed.'));
+    }, (err) => setError(t.errorPleaseLogIn));
 
     return () => unsubscribeAuth();
-  }, [fetchWorkerDetails]);
+  }, [fetchWorkerDetails, t]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -178,65 +209,64 @@ const DriverDashboard = () => {
       setProfile((prev) => ({ ...prev, driverStatus: 'available' }));
       setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'available' }));
     } catch (err) {
-      setError('Failed to handle timeout.');
+      logError('Error handling timeout assignment', err);
+      setError(t.errorHandlingTimeout);
     } finally {
       setLoading(false);
     }
   };
 
-const handleAcceptAssignment = async (assignmentId) => {
-  try {
-    setLoading(true);
-    const assignment = assignments.find((a) => a.id === assignmentId);
-    if (!assignment || !assignment.location) {
-      setError('Invalid assignment details.');
+  const handleAcceptAssignment = async (assignmentId) => {
+    if (serviceFeeWallet >= 100) {
+      setError(t.serviceFeeWarning.replace('{amount}', serviceFeeWallet.toFixed(2)));
       return;
     }
+    try {
+      setLoading(true);
+      const assignment = assignments.find((a) => a.id === assignmentId);
+      if (!assignment || !assignment.location) {
+        setError(t.errorInvalidAssignment);
+        return;
+      }
 
-    await updateDoc(doc(db, 'assignments', assignmentId), {
-      status: 'accepted',
-      updatedAt: serverTimestamp(),
-    });
+      await updateDoc(doc(db, 'assignments', assignmentId), {
+        status: 'accepted',
+        updatedAt: serverTimestamp(),
+      });
 
-    await updateDoc(doc(db, 'users', user.uid), {
-      driverStatus: 'busy',
-    });
+      await updateDoc(doc(db, 'users', user.uid), {
+        driverStatus: 'busy',
+      });
 
-    setDriverStatus('busy');
-    setProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
-    setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
+      setDriverStatus('busy');
+      setProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
+      setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
 
-    // Send WhatsApp message to workers
-    const workerMessages = (workerDetails[assignmentId] || []).map((worker) =>
-      sendWhatsAppMessage(
-        worker.mobile,
-        `👋 Hello ${worker.name},
+      // Send WhatsApp message to workers
+      const workerMessages = (workerDetails[assignmentId] || []).map((worker) =>
+        sendWhatsAppMessage(
+          worker.mobile,
+          t.workerMessage
+            .replace('{workerName}', worker.name)
+            .replace('{driverName}', profile.name)
+            .replace('{driverMobile}', profile.mobile)
+            .replace('{location}', assignment.location)
+        )
+      );
 
-I am ${profile.name} (${profile.mobile}), your assigned driver for today.
+      const results = await Promise.all(workerMessages);
+      if (workerMessages.length > 0 && results.every((r) => !r)) {
+        setError(t.errorAcceptingAssignment);
+      }
 
-📍 I’ll be arriving soon at: ${assignment.location}
-
-📞 For any questions, feel free to contact me directly.
-
-Regards,  
-Khetisathi 🚜`
-      )
-    );
-
-    const results = await Promise.all(workerMessages);
-    if (workerMessages.length > 0 && results.every((r) => !r)) {
-      setError('Failed to send notifications to workers.');
+      alert(t.successAssignmentAccepted);
+    } catch (err) {
+      logError('Error accepting assignment', err);
+      setError(t.errorAcceptingAssignment);
+    } finally {
+      setLoading(false);
     }
-
-    alert('Assignment accepted!');
-  } catch (err) {
-    logError('Error accepting assignment', err);
-    setError('Failed to accept assignment.');
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handleRejectAssignment = async (assignmentId) => {
     try {
@@ -252,43 +282,147 @@ Khetisathi 🚜`
       setDriverStatus('available');
       setProfile((prev) => ({ ...prev, driverStatus: 'available' }));
       setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'available' }));
-      alert('Assignment rejected.');
+      alert(t.successAssignmentRejected);
     } catch (err) {
       logError('Error rejecting assignment', err);
-      setError('Failed to reject assignment.');
+      setError(t.errorRejectingAssignment);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCompleteAssignment = async (assignmentId) => {
-    if (!paymentMethod[assignmentId]) return setError('Select a payment method.');
+    if (!paymentMethod[assignmentId]) {
+      setError(t.errorSelectPaymentMethod);
+      return;
+    }
     try {
       setLoading(true);
       const assignment = assignments.find((a) => a.id === assignmentId);
+      if (!assignment) {
+        throw new Error(`Assignment ${assignmentId} not found.`);
+      }
+      if (!assignment.customPrice || isNaN(assignment.customPrice) || assignment.customPrice <= 0) {
+        throw new Error(t.errorInvalidAssignmentCost);
+      }
+
+      const grossEarnings = assignment.customPrice;
+      const serviceFeeRate = 0.02; // 2% service fee
+      const serviceFee = grossEarnings * serviceFeeRate;
+      const netEarnings = grossEarnings - serviceFee;
+
       await updateDoc(doc(db, 'assignments', assignmentId), {
         status: 'completed',
         completedAt: serverTimestamp(),
         paymentStatus: { method: paymentMethod[assignmentId], status: 'paid' },
         updatedAt: serverTimestamp(),
       });
+
       await addDoc(collection(db, `users/${user.uid}/earnings`), {
         assignmentId,
         serviceType: assignment.vehicleType,
-        cost: assignment.customPrice || 0,
+        cost: netEarnings,
+        serviceFee: serviceFee,
         completedAt: serverTimestamp(),
         paymentMethod: paymentMethod[assignmentId],
       });
-      await updateDoc(doc(db, 'users', user.uid), { driverStatus: 'available' });
+
+      const newServiceFeeWallet = (serviceFeeWallet || 0) + serviceFee;
+      await updateDoc(doc(db, 'users', user.uid), {
+        driverStatus: 'available',
+        serviceFeeWallet: newServiceFeeWallet,
+      });
+
       setDriverStatus('available');
       setProfile((prev) => ({ ...prev, driverStatus: 'available' }));
       setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'available' }));
+      setServiceFeeWallet(newServiceFeeWallet);
       setPaymentMethod((prev) => ({ ...prev, [assignmentId]: undefined }));
-      alert('Task completed!');
+
+      // Notify admin via WhatsApp
+      const adminWhatsAppNumber = '+918788647637';
+      const message = t.adminMessage
+        .replace('{driverName}', profile.name)
+        .replace('{driverMobile}', profile.mobile)
+        .replace('{vehicleType}', assignment.vehicleType.replace('-', ' '))
+        .replace('{grossEarnings}', grossEarnings.toFixed(2))
+        .replace('{serviceFee}', serviceFee.toFixed(2))
+        .replace('{netEarnings}', netEarnings.toFixed(2))
+        .replace('{completedDate}', formatDate(new Date()))
+        .replace('{location}', assignment.location || t.none)
+        .replace('{paymentMethod}', paymentMethod[assignmentId].charAt(0).toUpperCase() + paymentMethod[assignmentId].slice(1))
+        .replace('{assignmentId}', assignmentId);
+      await sendWhatsAppMessage(adminWhatsAppNumber, message);
+
+      alert(t.successAssignmentCompleted);
     } catch (err) {
       logError('Error completing assignment', err);
-      setError('Failed to complete assignment.');
+      setError(t.errorCompletingAssignment.replace('{message}', err.message));
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePayServiceFee = async () => {
+    if (!window.Razorpay) {
+      setError(t.errorPaymentGatewayNotLoaded);
+      return;
+    }
+    if (serviceFeeWallet < 100) {
+      setError(t.errorServiceFeeLow);
+      return;
+    }
+    try {
+      setLoading(true);
+      const options = {
+        key: 'rzp_test_ty410dtUIacM8N',
+        amount: Math.round(serviceFeeWallet * 100),
+        currency: 'INR',
+        name: 'KhetiSathi',
+        description: t.payServiceFee,
+        handler: async (response) => {
+          try {
+            await addDoc(collection(db, `users/${user.uid}/serviceFeePayments`), {
+              amount: serviceFeeWallet,
+              paymentId: response.razorpay_payment_id,
+              paidAt: serverTimestamp(),
+              status: 'paid',
+            });
+            await updateDoc(doc(db, 'users', user.uid), { serviceFeeWallet: 0 });
+            setServiceFeeWallet(0);
+            setError('');
+            alert(t.successServiceFeePaid);
+          } catch (err) {
+            logError('Error saving service fee payment', err);
+            setError(t.errorSavingPayment.replace('{message}', err.message));
+          } finally {
+            setLoading(false);
+          }
+        },
+        prefill: {
+          name: profile.name || t.name,
+          contact: profile.mobile || '',
+        },
+        theme: {
+          color: '#F59E0B',
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+            setError(t.paymentCancelled);
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', (response) => {
+        setError(t.paymentFailed.replace('{description}', response.error.description));
+        setLoading(false);
+      });
+      razorpay.open();
+    } catch (err) {
+      logError('Error initiating service fee payment', err);
+      setError(t.errorInitiatingPayment.replace('{message}', err.message));
       setLoading(false);
     }
   };
@@ -296,7 +430,7 @@ Khetisathi 🚜`
   const handleAddAvailability = async (e) => {
     e.preventDefault();
     if (!newAvailabilityDate || new Date(newAvailabilityDate) < new Date().setHours(0, 0, 0, 0)) {
-      setError('Select a future date for working day.');
+      setError(t.errorSelectWorkingDay);
       return;
     }
     try {
@@ -310,10 +444,10 @@ Khetisathi 🚜`
       await updateDoc(doc(db, 'users', user.uid), { availability: updatedAvailability });
       setAvailability(updatedAvailability);
       setNewAvailabilityDate('');
-      alert('Working day added!');
+      alert(t.successWorkingDayAdded);
     } catch (err) {
       logError('Error adding working day', err);
-      setError('Failed to update availability.');
+      setError(t.errorUpdatingAvailability);
     } finally {
       setLoading(false);
     }
@@ -322,7 +456,7 @@ Khetisathi 🚜`
   const handleAddOffDay = async (e) => {
     e.preventDefault();
     if (!newOffDayDate || new Date(newOffDayDate) < new Date().setHours(0, 0, 0, 0)) {
-      setError('Select a future date for off day.');
+      setError(t.errorSelectOffDay);
       return;
     }
     try {
@@ -336,10 +470,10 @@ Khetisathi 🚜`
       await updateDoc(doc(db, 'users', user.uid), { availability: updatedAvailability });
       setAvailability(updatedAvailability);
       setNewOffDayDate('');
-      alert('Off day added!');
+      alert(t.successOffDayAdded);
     } catch (err) {
       logError('Error adding off day', err);
-      setError('Failed to add off day.');
+      setError(t.errorAddingOffDay);
     } finally {
       setLoading(false);
     }
@@ -354,10 +488,10 @@ Khetisathi 🚜`
       };
       await updateDoc(doc(db, 'users', user.uid), { availability: updatedAvailability });
       setAvailability(updatedAvailability);
-      alert('Working day removed!');
+      alert(t.successWorkingDayRemoved);
     } catch (err) {
       logError('Error removing working day', err);
-      setError('Failed to remove working day.');
+      setError(t.errorRemovingWorkingDay);
     } finally {
       setLoading(false);
     }
@@ -372,10 +506,10 @@ Khetisathi 🚜`
       };
       await updateDoc(doc(db, 'users', user.uid), { availability: updatedAvailability });
       setAvailability(updatedAvailability);
-      alert('Off day removed!');
+      alert(t.successOffDayRemoved);
     } catch (err) {
       logError('Error removing off day', err);
-      setError('Failed to remove off day.');
+      setError(t.errorRemovingOffDay);
     } finally {
       setLoading(false);
     }
@@ -383,14 +517,14 @@ Khetisathi 🚜`
 
   const handleUpdateVehicleSkills = async (e) => {
     e.preventDefault();
-    if (!vehicleSkills.length) return setError('Select at least one vehicle skill.');
+    if (!vehicleSkills.length) return setError(t.errorSelectSkill);
     try {
       setLoading(true);
       await updateDoc(doc(db, 'users', user.uid), { vehicleSkills });
-      alert('Vehicle skills updated!');
+      alert(t.successSkillsUpdated);
     } catch (err) {
       logError('Error updating vehicle skills', err);
-      setError('Failed to update vehicle skills.');
+      setError(t.errorUpdatingSkills);
     } finally {
       setLoading(false);
     }
@@ -398,6 +532,22 @@ Khetisathi 🚜`
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
+    if (!updatedProfile.name.trim()) {
+      setError(t.errorEmptyName);
+      return;
+    }
+    if (!MOBILE_REGEX.test(updatedProfile.mobile)) {
+      setError(t.errorInvalidMobile);
+      return;
+    }
+    if (!PINCODE_REGEX.test(updatedProfile.pincode)) {
+      setError(t.errorInvalidPincode);
+      return;
+    }
+    if (!['available', 'busy'].includes(updatedProfile.driverStatus)) {
+      setError(t.errorInvalidDriverStatus);
+      return;
+    }
     try {
       setLoading(true);
       await updateDoc(doc(db, 'users', user.uid), {
@@ -408,20 +558,21 @@ Khetisathi 🚜`
       });
       setProfile(updatedProfile);
       setDriverStatus(updatedProfile.driverStatus);
-      alert('Profile updated successfully!');
+      alert(t.successProfileUpdated);
     } catch (err) {
       logError('Error updating profile', err);
-      setError('Failed to update profile.');
+      setError(t.errorUpdatingProfile);
     } finally {
       setLoading(false);
     }
   };
 
-  if (!user || error.includes('Access restricted') || error.includes('Please log in')) {
+  if (!user || error.includes(t.errorAccessRestricted) || error.includes(t.errorPleaseLogIn)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="max-w-md mx-auto p-6 bg-red-50 text-red-700 rounded-xl shadow-lg text-center">
-          {error || 'Please log in as a driver.'}
+        <div className="max-w-md mx-auto p-6 bg-red-50 text-red-700 rounded-xl shadow-lg text-center flex items-center">
+          <XCircleIcon className="w-6 h-6 mr-2" />
+          {error || t.errorPleaseLogIn}
         </div>
       </div>
     );
@@ -430,9 +581,23 @@ Khetisathi 🚜`
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-gray-100 p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
+        {/* Language Selector */}
+        <div className="mb-6 flex justify-end">
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="p-2 border rounded-lg focus:ring-2 focus:ring-green-600 bg-white"
+            aria-label={t.selectLanguage}
+          >
+            <option value="english">{t.english}</option>
+            <option value="hindi">{t.hindi}</option>
+            <option value="marathi">{t.marathi}</option>
+          </select>
+        </div>
+
         <h2 className="text-3xl md:text-4xl font-bold mb-6 text-green-700 flex items-center">
           <UserIcon className="w-8 h-8 mr-2" />
-          Welcome, {profile.name || 'Driver'}!
+          {t.welcome}, {profile.name || t.name}!
         </h2>
         {error && (
           <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-xl shadow flex items-center">
@@ -449,37 +614,42 @@ Khetisathi 🚜`
         <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
           <h3 className="text-xl md:text-2xl font-semibold mb-4 text-green-700 flex items-center">
             <UserIcon className="w-6 h-6 mr-2" />
-            Driver Information
+            {t.driverInformation}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="flex items-center">
-              <span className="font-medium text-gray-700 mr-2">Profile:</span>
+              <span className="font-medium text-gray-700 mr-2">{t.profile}:</span>
               <span className={`px-3 py-1 rounded-full text-sm font-semibold ${status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                {status.charAt(0).toUpperCase() + status.slice(1)}
+                {t[status] || status.charAt(0).toUpperCase() + status.slice(1)}
               </span>
             </div>
             <div className="flex items-center">
-              <span className="font-medium text-gray-700 mr-2">Status:</span>
+              <span className="font-medium text-gray-700 mr-2">{t.status}:</span>
               <span className={`px-3 py-1 rounded-full text-sm font-semibold ${driverStatus === 'available' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {driverStatus.charAt(0).toUpperCase() + driverStatus.slice(1)}
+                {t[driverStatus] || driverStatus.charAt(0).toUpperCase() + driverStatus.slice(1)}
               </span>
             </div>
             <div className="flex items-center">
               <BanknotesIcon className="w-5 h-5 mr-2 text-green-600" />
-              <span className="font-medium text-gray-700">Total Earnings: ₹{totalEarnings.toFixed(2)}</span>
+              <span className="font-medium text-gray-700">{t.totalEarnings}: ₹{totalEarnings.toFixed(2)}</span>
             </div>
           </div>
         </div>
-
         <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
           <h3 className="text-xl md:text-2xl font-semibold mb-4 text-green-700 flex items-center">
             <TruckIcon className="w-6 h-6 mr-2" />
-            Active Tasks
+            {t.activeTasks}
           </h3>
+          {serviceFeeWallet >= 100 && (
+            <div className="mb-4 p-4 bg-yellow-100 text-yellow-700 rounded-lg flex items-center">
+              <XCircleIcon className="w-6 h-6 mr-2" />
+              <p>{t.serviceFeeWarning.replace('{amount}', serviceFeeWallet.toFixed(2))}</p>
+            </div>
+          )}
           {assignments.length === 0 ? (
             <p className="text-gray-600 flex items-center">
               <ClockIcon className="w-5 h-5 mr-2" />
-              No active tasks assigned.
+              {t.noTasksAssigned}
             </p>
           ) : (
             <div className="space-y-4">
@@ -488,42 +658,42 @@ Khetisathi 🚜`
                 return (
                   <div key={assignment.id} className="border border-gray-200 p-4 rounded-lg hover:shadow-md transition-shadow">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <p><strong>Type:</strong> {assignment.vehicleType.replace('-', ' ').toUpperCase()}</p>
-                      <p><strong>Date:</strong> {new Date(assignment.startDate).toLocaleDateString('en-GB')}</p>
-                      <p><strong>Location:</strong> {assignment.location}</p>
-                      <p><strong>Earnings:</strong> ₹{(assignment.customPrice || 0).toFixed(2)}</p>
+                      <p><strong>{t.type}:</strong> {t[assignment.vehicleType] || assignment.vehicleType.replace('-', ' ').toUpperCase()}</p>
+                      <p><strong>{t.date}:</strong> {formatDate(assignment.startDate)}</p>
+                      <p><strong>{t.location}:</strong> {assignment.location}</p>
+                      <p><strong>{t.earnings}:</strong> ₹{((assignment.customPrice || 0) * 0.98).toFixed(2)} (after 2% service fee)</p>
                       <p>
-                        <strong>Workers:</strong>{' '}
+                        <strong>{t.workers}:</strong>{' '}
                         {(workerDetails[assignment.id]?.length > 0)
                           ? workerDetails[assignment.id].map((w) => `${w.name} (${w.mobile})`).join(', ')
-                          : 'None'}
+                          : t.none}
                       </p>
-                      <p><strong>Status:</strong> <span className={`px-3 py-1 rounded-full text-sm ${STATUS_COLORS[assignment.status] || 'bg-gray-100 text-gray-600'}`}>{assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}</span></p>
+                      <p><strong>{t.status}:</strong> <span className={`px-3 py-1 rounded-full text-sm ${STATUS_COLORS[assignment.status] || 'bg-gray-100 text-gray-600'}`}>{t[assignment.status] || assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}</span></p>
                     </div>
                     {assignment.status === 'pending' && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button
                           onClick={() => handleAcceptAssignment(assignment.id)}
                           className="flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors"
-                          disabled={loading || timers[assignment.id] === 0 || status !== 'approved'}
-                          title="Accept this task"
+                          disabled={loading || timers[assignment.id] === 0 || status !== 'approved' || serviceFeeWallet >= 100}
+                          title={t.accept}
                         >
                           <CheckCircleIcon className="w-5 h-5 mr-2" />
-                          Accept
+                          {t.accept}
                         </button>
                         <button
                           onClick={() => handleRejectAssignment(assignment.id)}
                           className="flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 transition-colors"
                           disabled={loading || timers[assignment.id] === 0 || status !== 'approved'}
-                          title="Reject this task"
+                          title={t.reject}
                         >
                           <XCircleIcon className="w-5 h-5 mr-2" />
-                          Reject
+                          {t.reject}
                         </button>
                         {timers[assignment.id] > 0 && (
                           <span className="flex items-center text-red-600">
                             <ClockIcon className="w-5 h-5 mr-2" />
-                            Time Left: {Math.floor(timers[assignment.id] / 60)}:{(timers[assignment.id] % 60).toString().padStart(2, '0')}
+                            {t.timeLeft}: {Math.floor(timers[assignment.id] / 60)}:{(timers[assignment.id] % 60).toString().padStart(2, '0')}
                           </span>
                         )}
                       </div>
@@ -534,19 +704,20 @@ Khetisathi 🚜`
                           value={paymentMethod[assignment.id] || ''}
                           onChange={(e) => setPaymentMethod((prev) => ({ ...prev, [assignment.id]: e.target.value }))}
                           className="p-2 border rounded-lg focus:ring-2 focus:ring-green-600"
+                          aria-label={t.selectPaymentMethod}
                         >
-                          <option value="" disabled>Select Payment</option>
-                          <option value="cash">Cash</option>
-                          <option value="online">Online</option>
+                          <option value="" disabled>{t.selectPaymentMethod}</option>
+                          <option value="cash">{t.paymentMethodCash}</option>
+                          <option value="online">{t.paymentMethodOnline}</option>
                         </select>
                         <button
                           onClick={() => handleCompleteAssignment(assignment.id)}
                           className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
-                          disabled={loading || !paymentMethod[assignment.id]}
-                          title="Mark task as completed"
+                          disabled={loading || !paymentMethod[assignment.id] || status !== 'approved'}
+                          title={t.markAsCompleted}
                         >
                           <CheckCircleIcon className="w-5 h-5 mr-2" />
-                          Complete
+                          {t.complete}
                         </button>
                       </div>
                     )}
@@ -556,40 +727,101 @@ Khetisathi 🚜`
             </div>
           )}
         </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
+   <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
           <h3 className="text-xl md:text-2xl font-semibold mb-2 text-green-700 flex items-center">
             <TruckIcon className="w-6 h-6 mr-2" />
-            Task History
+            {t.taskHistory}
           </h3>
-          <p className="text-sm text-gray-500 mb-4">Sorted: Newest First</p>
+          <p className="text-sm text-gray-500 mb-4">{t.sortedNewestFirst}</p>
           {taskHistory.length === 0 ? (
             <p className="text-gray-600 flex items-center">
               <ClockIcon className="w-5 h-5 mr-2" />
-              No task history available.
+              {t.noTaskHistory}
             </p>
           ) : (
             <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-green-500 scrollbar-track-gray-100">
               {taskHistory.map((assignment) => (
                 <div key={assignment.id} className="border border-gray-200 p-4 rounded-lg hover:shadow-md transition-shadow mb-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <p><strong>Type:</strong> {assignment.vehicleType.replace('-', ' ').toUpperCase()}</p>
-                    <p><strong>Date:</strong> {new Date(assignment.startDate).toLocaleDateString('en-GB')}</p>
-                    <p><strong>Location:</strong> {assignment.location}</p>
-                    <p><strong>Earnings:</strong> ₹{(assignment.status === 'completed' ? (assignment.customPrice || 0) : 0).toFixed(2)}</p>
+                    <p><strong>{t.type}:</strong> {t[assignment.vehicleType] || assignment.vehicleType.replace('-', ' ').toUpperCase()}</p>
+                    <p><strong>{t.date}:</strong> {formatDate(assignment.startDate)}</p>
+                    <p><strong>{t.location}:</strong> {assignment.location}</p>
+                    <p><strong>{t.earnings}:</strong> ₹{((assignment.status === 'completed' ? (assignment.customPrice || 0) : 0) * 0.98).toFixed(2)}</p>
                     <p>
-                      <strong>Workers:</strong>{' '}
+                      <strong>{t.workers}:</strong>{' '}
                       {(workerDetails[assignment.id]?.length > 0)
                         ? workerDetails[assignment.id].map((w) => `${w.name} (${w.mobile})`).join(', ')
-                        : 'None'}
+                        : t.none}
                     </p>
-                    <p><strong>Status:</strong> <span className={`px-3 py-1 rounded-full text-sm ${STATUS_COLORS[assignment.status] || 'bg-gray-100 text-gray-600'}`}>{assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}</span></p>
+                    <p><strong>{t.status}:</strong> <span className={`px-3 py-1 rounded-full text-sm ${STATUS_COLORS[assignment.status] || 'bg-gray-100 text-gray-600'}`}>{t[assignment.status] || assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}</span></p>
+                    {assignment.status === 'completed' && (
+                      <p><strong>{t.serviceFee}:</strong> ₹{((assignment.customPrice || 0) * 0.02).toFixed(2)}</p>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+        
+        <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
+          <button
+            onClick={() => setShowEarnings(!showEarnings)}
+            className="w-full flex items-center justify-between text-xl md:text-2xl font-semibold text-green-700 mb-4 focus:outline-none"
+          >
+            <span className="flex items-center">
+              <BanknotesIcon className="w-6 h-6 mr-2" />
+              {t.earnings}
+            </span>
+            {showEarnings ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
+          </button>
+          {showEarnings && (
+            <div>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                <p className="text-lg font-semibold text-green-600">
+                  {t.totalEarnings}: ₹{totalEarnings.toFixed(2)}
+                </p>
+                <div className="flex items-center gap-4">
+                  <p className="text-lg font-semibold text-yellow-600">
+                    {t.serviceFeeWallet}: ₹{serviceFeeWallet.toFixed(2)}
+                  </p>
+                  {serviceFeeWallet >= 100 && (
+                    <button
+                      onClick={handlePayServiceFee}
+                      className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                      disabled={loading}
+                      title={t.payServiceFee}
+                    >
+                      <BanknotesIcon className="w-5 h-5 mr-2" />
+                      {t.payServiceFee}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {earnings.length === 0 ? (
+                <p className="text-gray-600 flex items-center">
+                  <BanknotesIcon className="w-5 h-5 mr-2" />
+                  {t.noEarningsRecorded}
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {earnings.map((earning) => (
+                    <div key={earning.id} className="border border-gray-200 p-4 rounded-lg hover:shadow-md transition-shadow">
+                      <p><strong>{t.assignmentId}:</strong> {earning.assignmentId}</p>
+                      <p><strong>{t.vehicleType}:</strong> {t[earning.serviceType] || earning.serviceType.replace('-', ' ').toUpperCase()}</p>
+                      <p><strong>{t.earnings}:</strong> ₹{(earning.cost || 0).toFixed(2)}</p>
+                      <p><strong>{t.serviceFee}:</strong> ₹{(earning.serviceFee || 0).toFixed(2)}</p>
+                      <p><strong>{t.paymentMethod}:</strong> {t[earning.paymentMethod] || (earning.paymentMethod ? earning.paymentMethod.charAt(0).toUpperCase() + earning.paymentMethod.slice(1) : t.none)}</p>
+                      <p><strong>{t.completed}:</strong> {earning.completedAt ? formatDate(earning.completedAt.toDate()) : t.none}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+     
 
         <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
           <button
@@ -598,64 +830,80 @@ Khetisathi 🚜`
           >
             <span className="flex items-center">
               <UserIcon className="w-6 h-6 mr-2" />
-              Profile
+              {t.profile}
             </span>
             {showProfile ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
           </button>
           {showProfile && (
             <form onSubmit={handleUpdateProfile} className="grid grid-cols-1 gap-4">
               <div>
-                <label htmlFor="name" className="block text-gray-700 font-medium mb-2">Name</label>
+                <label htmlFor="name" className="block text-gray-700 font-medium mb-2">{t.name}</label>
                 <input
                   id="name"
                   type="text"
                   value={updatedProfile.name}
                   onChange={(e) => setUpdatedProfile({ ...updatedProfile, name: e.target.value })}
-                  placeholder="Enter your name"
+                  placeholder={t.enterName}
                   className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                  required
+                  aria-label={t.enterName}
                 />
               </div>
               <div>
-                <label htmlFor="mobile" className="block text-gray-700 font-medium mb-2">Mobile</label>
+                <label htmlFor="mobile" className="block text-gray-700 font-medium mb-2">{t.mobile}</label>
                 <input
                   id="mobile"
-                  type="text"
+                  type="tel"
+                  inputMode="numeric"
                   value={updatedProfile.mobile}
                   onChange={(e) => setUpdatedProfile({ ...updatedProfile, mobile: e.target.value })}
-                  placeholder="Enter 10-digit mobile number"
+                  placeholder={t.enterMobileNumber}
                   className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                  required
+                  pattern="\d{10}"
+                  title={t.errorInvalidMobile}
+                  maxLength="10"
+                  aria-label={t.enterMobileNumber}
                 />
               </div>
               <div>
-                <label htmlFor="pincode" className="block text-gray-700 font-medium mb-2">Pincode</label>
+                <label htmlFor="pincode" className="block text-gray-700 font-medium mb-2">{t.pincode}</label>
                 <input
                   id="pincode"
                   type="text"
                   value={updatedProfile.pincode}
                   onChange={(e) => setUpdatedProfile({ ...updatedProfile, pincode: e.target.value })}
-                  placeholder="Enter 6-digit pincode"
+                  placeholder={t.enterPincode}
                   className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                  required
+                  pattern="\d{6}"
+                  title={t.errorInvalidPincode}
+                  maxLength="6"
+                  aria-label={t.enterPincode}
                 />
               </div>
               <div>
-                <label htmlFor="driverStatus" className="block text-gray-700 font-medium mb-2">Status</label>
+                <label htmlFor="driverStatus" className="block text-gray-700 font-medium mb-2">{t.driverStatusLabel}</label>
                 <select
                   id="driverStatus"
                   value={updatedProfile.driverStatus}
                   onChange={(e) => setUpdatedProfile({ ...updatedProfile, driverStatus: e.target.value })}
                   className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                  required
+                  aria-label={t.selectDriverStatus}
                 >
-                  <option value="available">Available</option>
-                  <option value="busy">Busy</option>
+                  <option value="available">{t.available}</option>
+                  <option value="busy">{t.busy}</option>
                 </select>
               </div>
               <button
                 type="submit"
                 className="flex items-center justify-center bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors"
                 disabled={loading}
+                aria-label={t.updateProfile}
               >
                 <CheckCircleIcon className="w-5 h-5 mr-2" />
-                Update Profile
+                {t.updateProfile}
               </button>
             </form>
           )}
@@ -668,17 +916,17 @@ Khetisathi 🚜`
           >
             <span className="flex items-center">
               <CalendarIcon className="w-6 h-6 mr-2" />
-              Availability
+              {t.availability}
             </span>
             {showAvailability ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
           </button>
           {showAvailability && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h4 className="text-lg font-semibold mb-2 text-gray-700">Working Days</h4>
+                <h4 className="text-lg font-semibold mb-2 text-gray-700">{t.workingDays}</h4>
                 <form onSubmit={handleAddAvailability} className="grid grid-cols-1 gap-4 mb-4">
                   <div>
-                    <label htmlFor="availability-date" className="block text-gray-700 font-medium mb-2">Add Working Day</label>
+                    <label htmlFor="availability-date" className="block text-gray-700 font-medium mb-2">{t.addWorkingDay}</label>
                     <input
                       id="availability-date"
                       type="date"
@@ -686,31 +934,35 @@ Khetisathi 🚜`
                       onChange={(e) => setNewAvailabilityDate(e.target.value)}
                       min={new Date().toISOString().split('T')[0]}
                       className="p-3 border rounded-lg focus:ring-2 focus:ring-green-600 w-full"
+                      required
+                      aria-label={t.selectWorkingDay}
                     />
                   </div>
                   <button
                     type="submit"
                     className="flex items-center justify-center bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors"
                     disabled={loading || !newAvailabilityDate}
+                    aria-label={t.addWorkingDay}
                   >
                     <CalendarIcon className="w-5 h-5 mr-2" />
-                    Add Working Day
+                    {t.addWorkingDay}
                   </button>
                 </form>
                 <div>
-                  <p className="font-semibold mb-2 text-gray-700">Current Working Days:</p>
+                  <p className="font-semibold mb-2 text-gray-700">{t.workingDays}:</p>
                   {availability.workingDays.length === 0 ? (
-                    <p className="text-gray-600">No working days set.</p>
+                    <p className="text-gray-600">{t.noWorkingDays}</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {availability.workingDays.sort((a, b) => new Date(a) - new Date(b)).map((date) => (
                         <div key={date} className="flex items-center bg-green-100 text-green-800 rounded-lg px-3 py-1">
-                          <span>{new Date(date).toLocaleDateString('en-GB')}</span>
+                          <span>{formatDate(date)}</span>
                           <button
                             onClick={() => handleRemoveAvailability(date)}
                             className="ml-2 bg-red-600 text-white text-sm px-2 py-1 rounded-lg hover:bg-red-700"
                             disabled={loading}
-                            title="Remove working day"
+                            title={t.removeWorkingDay}
+                            aria-label={t.removeWorkingDay}
                           >
                             <XCircleIcon className="w-4 h-4" />
                           </button>
@@ -721,10 +973,10 @@ Khetisathi 🚜`
                 </div>
               </div>
               <div>
-                <h4 className="text-lg font-semibold mb-2 text-gray-700">Off Days</h4>
+                <h4 className="text-lg font-semibold mb-2 text-gray-700">{t.offDays}</h4>
                 <form onSubmit={handleAddOffDay} className="grid grid-cols-1 gap-4 mb-4">
                   <div>
-                    <label htmlFor="off-day-date" className="block text-gray-700 font-medium mb-2">Add Off Day</label>
+                    <label htmlFor="off-day-date" className="block text-gray-700 font-medium mb-2">{t.addOffDay}</label>
                     <input
                       id="off-day-date"
                       type="date"
@@ -732,31 +984,35 @@ Khetisathi 🚜`
                       onChange={(e) => setNewOffDayDate(e.target.value)}
                       min={new Date().toISOString().split('T')[0]}
                       className="p-3 border rounded-lg focus:ring-2 focus:ring-green-600 w-full"
+                      required
+                      aria-label={t.selectOffDay}
                     />
                   </div>
                   <button
                     type="submit"
                     className="flex items-center justify-center bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors"
                     disabled={loading || !newOffDayDate}
+                    aria-label={t.addOffDay}
                   >
                     <CalendarIcon className="w-5 h-5 mr-2" />
-                    Add Off Day
+                    {t.addOffDay}
                   </button>
                 </form>
                 <div>
-                  <p className="font-semibold mb-2 text-gray-700">Current Off Days:</p>
+                  <p className="font-semibold mb-2 text-gray-700">{t.offDays}:</p>
                   {availability.offDays.length === 0 ? (
-                    <p className="text-gray-600">No off days set.</p>
+                    <p className="text-gray-600">{t.noOffDays}</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {availability.offDays.sort((a, b) => new Date(a) - new Date(b)).map((date) => (
                         <div key={date} className="flex items-center bg-red-100 text-red-800 rounded-lg px-3 py-1">
-                          <span>{new Date(date).toLocaleDateString('en-GB')}</span>
+                          <span>{formatDate(date)}</span>
                           <button
                             onClick={() => handleRemoveOffDay(date)}
                             className="ml-2 bg-red-600 text-white text-sm px-2 py-1 rounded-lg hover:bg-red-700"
                             disabled={loading}
-                            title="Remove off day"
+                            title={t.removeOffDay}
+                            aria-label={t.removeOffDay}
                           >
                             <XCircleIcon className="w-4 h-4" />
                           </button>
@@ -777,7 +1033,7 @@ Khetisathi 🚜`
           >
             <span className="flex items-center">
               <TruckIcon className="w-6 h-6 mr-2" />
-              Vehicle Skills
+              {t.vehicleSkills}
             </span>
             {showSkills ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
           </button>
@@ -787,29 +1043,34 @@ Khetisathi 🚜`
                 multiple
                 value={vehicleSkills}
                 onChange={(e) => setVehicleSkills(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
-                className="w-full p-3 border rounded-lg h-32 mb-4"
+                className="w-full p-3 border rounded-lg h-32 mb-4 focus:ring-2 focus:ring-green-600"
+                aria-label={t.selectSkills}
               >
-                {VEHICLE_SKILLS.map((skill) => (
-                  <option key={skill} value={skill}>{skill.replace('-', ' ').toUpperCase()}</option>
-                ))}
+              {VEHICLE_SKILLS.map((skill) => (
+                <option key={skill} value={skill}>
+                  {VEHICLE_SKILL_LABELS[skill]?.[language] || skill}
+                </option>
+              ))}
               </select>
+              <p className="text-sm text-gray-500 mb-4">{t.skillsInstruction}</p>
               <button
                 type="submit"
                 className="flex items-center justify-center bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors"
                 disabled={loading || vehicleSkills.length === 0}
+                aria-label={t.updateSkills}
               >
                 <CheckCircleIcon className="w-5 h-5 mr-2" />
-                Update Skills
+                {t.updateSkills}
               </button>
               <div className="mt-4">
-                <p className="font-semibold text-gray-700">Current Skills:</p>
+                <p className="font-semibold text-gray-700">{t.currentSkills}:</p>
                 {vehicleSkills.length === 0 ? (
-                  <p className="text-gray-600">No skills selected.</p>
+                  <p className="text-gray-600">{t.noSkillsSelected}</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {vehicleSkills.map((skill) => (
                       <span key={skill} className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-lg">
-                        {skill.replace('-', ' ').toUpperCase()}
+                        {t[skill] || skill.replace('-', ' ').toUpperCase()}
                       </span>
                     ))}
                   </div>
