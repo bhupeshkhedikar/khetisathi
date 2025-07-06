@@ -660,7 +660,7 @@ const handleBookService = async () => {
     setVehicleType('');
     setVehicleCost(0);
     setShowCashModal(false);
-
+    window.location.href = '/farmer-dashboard';
   };
 
   const generateTimeOptions = () => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
 import { collection, getDocs, addDoc, where, query, doc, getDoc } from 'firebase/firestore';
 import { auth, db, onAuthStateChanged } from './Components/firebaseConfig.js';
 import TrackOrder from './Components/TrackOrder.jsx';
@@ -18,6 +18,7 @@ import RefundPolicy from './Components/pages/RefundPolicy.jsx';
 import PrivacyPolicy from './Components/pages/PrivacyPolicy.jsx';
 import DriverDashboard from './Components/DriverDashboard.js';
 import TermsAndConditions from './Components/TermsAndConditions.js';
+
 const App = () => {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState('');
@@ -67,36 +68,44 @@ const App = () => {
       <nav className="bg-gradient-to-r from-green-700 to-green-900 text-white shadow-lg sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo */}
             <Link to="/" className="flex items-center space-x-2">
-             <img src='https://i.ibb.co/QjN4wPpK/e34dbc15-18c9-4481-910f-dc89d372c7f0-removebg-preview-1.png' height='100px' width={45}/>
+              <img src='https://i.ibb.co/QjN4wPpK/e34dbc15-18c9-4481-910f-dc89d372c7f0-removebg-preview-1.png' height='100px' width={45}/>
               <span className="text-2xl font-extrabold tracking-tight text-white font-poppins">खेतीसाथी</span>
             </Link>
 
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center space-x-6">
-              <Link to="/" className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:bg-green-800/50">
-                Home
-              </Link>
-              <Link to="/register" className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:bg-green-800/50">
-                Register
-              </Link>
+              {(role === 'farmer' || !user) && (
+                <Link to="/" className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:bg-green-800/50">
+                  Home
+                </Link>
+              )}
+              {!user && (
+                <Link to="/register" className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:bg-green-800/50">
+                  Register
+                </Link>
+              )}
               {user && role === 'farmer' && (
                 <>
-                  <Link to="/track-order" className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:bg-green-800/50">
+                  {/* <Link to="/track-order" className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:bg-green-800/50">
                     Track Orders
-                  </Link>
+                  </Link> */}
                   <Link to="/profile" className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:bg-green-800/50">
                     Profile
                   </Link>
                   <Link to="/farmer-dashboard" className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:bg-green-800/50">
-                    Farmer Dashboard
+                    Track Orders
                   </Link>
                 </>
               )}
               {user && role === 'worker' && (
                 <Link to="/worker-dashboard" className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:bg-green-800/50">
                   Worker Dashboard
+                </Link>
+              )}
+              {user && role === 'driver' && (
+                <Link to="/driver-dashboard" className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:bg-green-800/50">
+                  Driver Dashboard
                 </Link>
               )}
               {user && role === 'admin' && (
@@ -136,77 +145,51 @@ const App = () => {
           {isMenuOpen && (
             <div className="md:hidden bg-green-800/95 backdrop-blur-sm">
               <div className="flex flex-col space-y-2 py-4 px-4">
-                <Link
-                  to="/"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg transition duration-300 ease-in-out hover:bg-green-700/50"
-                >
-                  Home
-                </Link>
-                <Link
-                  to="/register"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg transition duration-300 ease-in-out hover:bg-green-700/50"
-                >
-                  Register
-                </Link>
+                {(role === 'farmer' || !user) && (
+                  <Link to="/" onClick={() => setIsMenuOpen(false)} className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg hover:bg-green-700/50">
+                    Home
+                  </Link>
+                )}
+                {!user && (
+                  <Link to="/register" onClick={() => setIsMenuOpen(false)} className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg hover:bg-green-700/50">
+                    Register
+                  </Link>
+                )}
                 {user && role === 'farmer' && (
                   <>
-                    <Link
-                      to="/track-order"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg transition duration-300 ease-in-out hover:bg-green-700/50"
-                    >
+                    {/* <Link to="/track-order" onClick={() => setIsMenuOpen(false)} className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg hover:bg-green-700/50">
                       Track Orders
-                    </Link>
-                    <Link
-                      to="/profile"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg transition duration-300 ease-in-out hover:bg-green-700/50"
-                    >
+                    </Link> */}
+                    <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg hover:bg-green-700/50">
                       Profile
                     </Link>
-                    <Link
-                      to="/farmer-dashboard"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg transition duration-300 ease-in-out hover:bg-green-700/50"
-                    >
-                      Farmer Dashboard
+                    <Link to="/farmer-dashboard" onClick={() => setIsMenuOpen(false)} className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg hover:bg-green-700/50">
+                    Track Orders
                     </Link>
                   </>
                 )}
                 {user && role === 'worker' && (
-                  <Link
-                    to="/worker-dashboard"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg transition duration-300 ease-in-out hover:bg-green-700/50"
-                  >
+                  <Link to="/worker-dashboard" onClick={() => setIsMenuOpen(false)} className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg hover:bg-green-700/50">
                     Worker Dashboard
                   </Link>
                 )}
+                {user && role === 'driver' && (
+                  <Link to="/driver-dashboard" onClick={() => setIsMenuOpen(false)} className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg hover:bg-green-700/50">
+                    Driver Dashboard
+                  </Link>
+                )}
                 {user && role === 'admin' && (
-                  <Link
-                    to="/admin-panel"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg transition duration-300 ease-in-out hover:bg-green-700/50"
-                  >
+                  <Link to="/admin-panel" onClick={() => setIsMenuOpen(false)} className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg hover:bg-green-700/50">
                     Admin Panel
                   </Link>
                 )}
                 {user ? (
-                  <button
-                    onClick={handleLogout}
-                    className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg transition duration-300 ease-in-out hover:bg-green-700/50 text-left flex items-center space-x-2"
-                  >
+                  <button onClick={handleLogout} className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg hover:bg-green-700/50 text-left flex items-center space-x-2">
                     <i className="fas fa-sign-out-alt"></i>
                     <span>Logout</span>
                   </button>
                 ) : (
-                  <Link
-                    to="/login"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg transition duration-300 ease-in-out hover:bg-green-700/50 flex items-center space-x-2"
-                  >
+                  <Link to="/login" onClick={() => setIsMenuOpen(false)} className="text-white hover:text-green-300 font-medium text-sm px-3 py-2 rounded-lg hover:bg-green-700/50 flex items-center space-x-2">
                     <i className="fas fa-sign-in-alt"></i>
                     <span>Login</span>
                   </Link>
