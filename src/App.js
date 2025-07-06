@@ -18,6 +18,7 @@ import RefundPolicy from './Components/pages/RefundPolicy.jsx';
 import PrivacyPolicy from './Components/pages/PrivacyPolicy.jsx';
 import DriverDashboard from './Components/DriverDashboard.js';
 import TermsAndConditions from './Components/TermsAndConditions.js';
+import SendWhatsAppMessage from './Components/SendWhatsAppMessage.jsx';
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -221,6 +222,7 @@ const App = () => {
         <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/refund" element={<RefundPolicy />} />
+        <Route path="/whatsapp" element={<SendWhatsAppMessage />} />
       </Routes>
     </Router>
   );
