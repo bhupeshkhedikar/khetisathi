@@ -102,7 +102,7 @@ const Home = () => {
         ? bundles.find(b => b.id === selectedBundle)?.maleWorkers + bundles.find(b => b.id === selectedBundle)?.femaleWorkers
         : maleWorkers + femaleWorkers;
 
-      if (totalWorkers >= 1 && totalWorkers <= 3) {
+      if (totalWorkers >= 1 && totalWorkers <= 4) {
         setVehicleType('Bike');
         setVehicleCost(totalWorkers * 20);
       } else if (totalWorkers >= 5 && totalWorkers <= 6) {
@@ -184,8 +184,8 @@ const Home = () => {
         setError('Please fill in all date and time fields.');
         return false;
       }
-      if (new Date(startDate) < new Date().setHours(0, 0, 0, 0)) {
-        setError('Start date cannot be in the past.');
+      if (new Date(startDate) < new Date('2025-07-20')) {
+        setError('Start date must be on or after July 20, 2025.');
         return false;
       }
     } else if (currentStep === 2) {
@@ -900,7 +900,7 @@ const handleBookService = async () => {
                 className="input-field"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                min="2025-07-20"
                 required
               />
             </div>

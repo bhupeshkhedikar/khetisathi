@@ -11,8 +11,8 @@ const Carousel = ({ language, setLanguage, translations }) => {
       image: "https://i.ibb.co/QjN4wPpK/e34dbc15-18c9-4481-910f-dc89d372c7f0-removebg-preview-1.png",
     },
     {
-      title: language === 'english' ? "Advanced Booking Now Open" : language === 'hindi' ? "ऍडव्हान्स बुकिंग शुरू हो चुकी है" : "ऍडव्हान्स बुकिंग सुरू झाली आहे",
-      subtitle: language === 'english' ? "Book skilled farm workers in advance for your upcoming tasks." : language === 'hindi' ? "अपने कामों के लिए अभी कुशल खेत मजदूर बुक करें।" : "तुमच्या कामांसाठी कुशल शेतमजूर आधीच बुक करा.",
+      title: language === 'english' ? "Advanced Booking Now Open From 20 Jully 2025" : language === 'hindi' ? "२० जुलै २०२५ से ऍडव्हान्स बुकिंग शुरू हो चुकी है" : "२० जुलै २०२५ पासून ऍडव्हान्स बुकिंग सुरू झाली आहे",
+      subtitle: language === 'english' ? "Book skilled farm workers in advance for your upcoming tasks." : language === 'hindi' ? "अपने कामों के लिए अभी कुशल खेत मजदूर बुक करें।" : "तुमच्या कामांसाठी कुशल शेतमजूर २० जुलै २०२५ आधीच बुक करा.",
       image: "https://i.ibb.co/Kx2Cdw7F/10a1c9e9-d8db-4b38-880b-5e14c2a3c753-removebg-preview-1.png"
     },
     {
