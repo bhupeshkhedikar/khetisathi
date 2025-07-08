@@ -1022,8 +1022,8 @@ const handleBookService = async () => {
                 <p><span className="review-label">{t.contact}:</span> {contactNumber}</p>
                 <p><span className="review-label">{t.payment}:</span> {t[paymentMethod] || 'Razorpay'} {paymentMethod === 'cash' ? `(${t.serviceFee} ${t.payOnline}, ${t.workersCost} ${t.payOffline})` : ''}</p>
                 <p><span className="review-label">{t.note}:</span> {additionalNote || 'None'}</p>
-                {renderCostBreakdown()}
               </div>
+               <div>{renderCostBreakdown()}</div>
             </div>
             <button
               className="submit-button"
