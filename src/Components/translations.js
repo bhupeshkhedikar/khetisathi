@@ -174,7 +174,7 @@ const translations = {
     selectService: "सेवा निवडा",
     selectBundle: "बंडल निवडा",
     noBundle: "कोणताही बंडल नाही (कस्टम)",
-    maleWorkers: "पुरुष मजूर",
+    maleWorkers: "पुरुष मजूर (पेंडकर)",
     femaleWorkers: "महिला मजूर",
     otherWorkers: "कामगारांची संख्या",
     hours: "तास",

@@ -101,34 +101,37 @@ const Home = () => {
 
   useEffect(() => {
     // Combine district, tahsil, and village into address
-    const addressComponents = [village,tahsil,district].filter(Boolean).join(', ');
+    const addressComponents = [village, tahsil, district].filter(Boolean).join(', ');
     setAddress(addressComponents);
-  }, [village,tahsil,district]);
+  }, [village, tahsil, district]);
 
   useEffect(() => {
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
-      const totalWorkers = selectedBundle
-        ? bundles.find(b => b.id === selectedBundle)?.maleWorkers + bundles.find(b => b.id === selectedBundle)?.femaleWorkers
-        : maleWorkers + femaleWorkers;
-
-      if (totalWorkers >= 1 && totalWorkers <= 4) {
-        setVehicleType('Bike');
-        setVehicleCost(totalWorkers * 30);
-      } else if (totalWorkers >= 5 && totalWorkers <= 6) {
-        setVehicleType('UV Auto');
-        setVehicleCost(150);
-      } else if (totalWorkers >= 7 && totalWorkers <= 10) {
-        setVehicleType('Omni');
-        setVehicleCost(300);
-      } else if (totalWorkers >= 11 && totalWorkers <= 20) {
-        setVehicleType('Tata Magic');
-        setVehicleCost(400);
-      } else if (totalWorkers > 20) {
-        setVehicleType('Bolero');
-        setVehicleCost(400);
-      } else {
+      if (selectedBundle) {
+        // Exclude vehicle cost when a bundle is selected
         setVehicleType('');
         setVehicleCost(0);
+      } else {
+        const totalWorkers = maleWorkers + femaleWorkers;
+        if (totalWorkers >= 1 && totalWorkers <= 4) {
+          setVehicleType('Bike');
+          setVehicleCost(totalWorkers * 30);
+        } else if (totalWorkers >= 5 && totalWorkers <= 6) {
+          setVehicleType('UV Auto');
+          setVehicleCost(150);
+        } else if (totalWorkers >= 7 && totalWorkers <= 10) {
+          setVehicleType('Omni');
+          setVehicleCost(300);
+        } else if (totalWorkers >= 11 && totalWorkers <= 20) {
+          setVehicleType('Tata Magic');
+          setVehicleCost(400);
+        } else if (totalWorkers > 20) {
+          setVehicleType('Bolero');
+          setVehicleCost(400);
+        } else {
+          setVehicleType('');
+          setVehicleCost(0);
+        }
       }
     } else {
       setVehicleType('');
@@ -288,9 +291,7 @@ const Home = () => {
             <strong>{t.serviceFee} (5%):</strong> ₹{serviceFee.toFixed(2)} ({t.payOnline})
           </p>
           <p>
-            <strong>{t.workersCost}:</strong> ₹{workersCost.toFixed(2)}
-            {vehicleCost > 0 && ` + ${t.vehicleCost}: ₹${(vehicleCost * days).toFixed(2)}`}
-            {' '}{t.payOffline}
+            <strong>{t.workersCost}:</strong> ₹{workersCost.toFixed(2)} ({t.payOffline})
           </p>
           <button className="modal-button" onClick={closeCashModal}>
             {t.understood}
@@ -300,375 +301,373 @@ const Home = () => {
     );
   };
 
-const sendAdminWhatsAppMessage = async () => {
-  const service = services.find(s => s.type === selectedService);
-  const days = parseInt(numberOfDays || 0);
-  let workersCost = 0;
-  let serviceFee = 0;
-  const serviceFeeRate = 0.05;
-  let totalCost = 0;
-  let maleWorkersCount = 0;
-  let femaleWorkersCount = 0;
-
-  if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
-    if (selectedBundle) {
-      const bundle = bundles.find(b => b.id === selectedBundle);
-      workersCost = bundle.price * days;
-      serviceFee = workersCost * serviceFeeRate;
-      totalCost = (workersCost + vehicleCost) * days + serviceFee;
-      maleWorkersCount = bundle.maleWorkers;
-      femaleWorkersCount = bundle.femaleWorkers;
-    } else {
-      workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * days;
-      serviceFee = workersCost * serviceFeeRate;
-      totalCost = (workersCost + vehicleCost) * days + serviceFee;
-      maleWorkersCount = maleWorkers;
-      femaleWorkersCount = femaleWorkers;
-    }
-  } else if (selectedService === 'ownertc') {
-    workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * days;
-    serviceFee = workersCost * serviceFeeRate;
-    totalCost = workersCost + serviceFee;
-  } else {
-    workersCost = (service.cost || 0) * otherWorkers * days;
-    serviceFee = workersCost * serviceFeeRate;
-    totalCost = workersCost + serviceFee;
-  }
-
-  const farmerName = user.displayName || 'शेतकरी';
-  const serviceName = service ? (language === 'marathi' ? service.nameMarathi || service.name : service.name) : selectedService;
-  const pinCode = user.pinCode || 'प्रदान केले नाही';
-  const adminWhatsAppNumber = '+918788647637';
-
-  const contentVariables = {
-    "1": farmerName,
-    "2": serviceName,
-    "3": (maleWorkersCount + femaleWorkersCount).toString(),
-    "4": maleWorkersCount.toString(),
-    "5": femaleWorkersCount.toString(),
-    "6": vehicleType || 'काही नाही',
-    "7": vehicleCost.toString() || '0',
-    "8": workersCost.toFixed(2),
-    "9": serviceFee.toFixed(2),
-    "10": totalCost.toFixed(2),
-    "11": startDate || 'प्रदान केले नाही',
-    "12": address || 'प्रदान केले नाही',
-    "13": pinCode,
-    "14": contactNumber || 'प्रदान केले नाही',
-    "15": paymentMethod === 'razorpay'
-      ? 'ऑनलाइन (Razorpay)'
-      : paymentMethod === 'cash'
-        ? 'रोख (सेवा शुल्क ऑनलाइन)'
-        : 'अज्ञात',
-    "16": paymentStatus === 'service_fee_paid'
-      ? 'सेवा शुल्क भरले'
-      : paymentStatus === 'paid'
-        ? 'पूर्ण भरले'
-        : paymentStatus === 'failed'
-          ? 'अयशस्वी'
-          : 'प्रलंबित'
-  };
-
-  try {
-    const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: adminWhatsAppNumber,
-        contentSid: 'HX3dfc5ca3689783b05c3c3e4522a289de',
-        contentVariables
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Failed to send WhatsApp to admin:', errorData);
-      setError('ऑर्डर बुक झाली, पण WhatsApp सूचना पाठवण्यात अयशस्वी.');
-    }
-  } catch (err) {
-    console.error('Error sending WhatsApp to admin:', err);
-    setError('ऑर्डर बुक झाली, पण WhatsApp सूचना पाठवण्यात अयशस्वी.');
-  }
-};
-
-const sendFarmerWhatsAppMessage = async () => {
-  const service = services.find(s => s.type === selectedService);
-  const days = parseInt(numberOfDays || 0);
-  let workersCost = 0;
-  let serviceFee = 0;
-  const serviceFeeRate = 0.05;
-  let totalCost = 0;
-  let maleWorkersCount = 0;
-  let femaleWorkersCount = 0;
-
-  if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
-    if (selectedBundle) {
-      const bundle = bundles.find(b => b.id === selectedBundle);
-      workersCost = bundle.price * days;
-      serviceFee = workersCost * serviceFeeRate;
-      totalCost = (workersCost + vehicleCost) * days + serviceFee;
-      maleWorkersCount = bundle.maleWorkers;
-      femaleWorkersCount = bundle.femaleWorkers;
-    } else {
-      workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * days;
-      serviceFee = workersCost * serviceFeeRate;
-      totalCost = (workersCost + vehicleCost) * days + serviceFee;
-      maleWorkersCount = maleWorkers;
-      femaleWorkersCount = femaleWorkers;
-    }
-  } else if (selectedService === 'ownertc') {
-    workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * days;
-    serviceFee = workersCost * serviceFeeRate;
-    totalCost = workersCost + serviceFee;
-  } else {
-    workersCost = (service.cost || 0) * otherWorkers * days;
-    serviceFee = workersCost * serviceFeeRate;
-    totalCost = workersCost + serviceFee;
-  }
-
-  const farmerName = user.displayName || 'शेतकरी';
-  const serviceName = service ? (language === 'marathi' ? service.nameMarathi || service.name : service.name) : selectedService;
-  const pinCode = user.pinCode || 'प्रदान केले नाही';
-
-  const contentVariables = {
-    "1": farmerName,
-    "2": serviceName,
-    "3": (maleWorkersCount + femaleWorkersCount).toString(),
-    "4": maleWorkersCount.toString(),
-    "5": femaleWorkersCount.toString(),
-    "6": vehicleType || 'काही नाही',
-    "7": vehicleCost.toString() || '0',
-    "8": workersCost.toFixed(2),
-    "9": serviceFee.toFixed(2),
-    "10": totalCost.toFixed(2),
-    "11": startDate || 'प्रदान केले नाही',
-    "12": endDate || 'प्रदान केले नाही',
-    "13": startTime || 'प्रदान केले नाही',
-    "14": address || 'प्रदान केले नाही',
-    "15": pinCode,
-    "16": contactNumber || 'प्रदान केले नाही',
-    "17": paymentMethod === 'razorpay'
-      ? 'ऑनलाइन (Razorpay)'
-      : paymentMethod === 'cash'
-        ? 'रोख (सेवा शुल्क ऑनलाइन)'
-        : 'अज्ञात',
-    "18": paymentStatus === 'service_fee_paid'
-      ? 'सेवा शुल्क भरले'
-      : paymentStatus === 'paid'
-        ? 'पूर्ण भरले'
-        : paymentStatus === 'failed'
-          ? 'अयशस्वी'
-          : 'प्रलंबित'
-  };
-
-  try {
-    const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: `+91${contactNumber}`,
-        contentSid: 'HXe4314b0088e9ef328b084ead9056ae9f',
-        contentVariables
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Failed to send WhatsApp to farmer:', errorData);
-      setError('ऑर्डर बुक झाली, पण शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
-    }
-  } catch (err) {
-    console.error('Error sending WhatsApp to farmer:', err);
-    setError('ऑर्डर बुक झाली, पण शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
-  }
-};
-
-const handleBookService = async () => {
-  if (!user) {
-    setError('Please log in to book a service.');
-    return;
-  }
-
-  setLoading(true);
-  let orderData = {
-    farmerId: user.uid,
-    serviceType: selectedService || 'unknown',
-    status: 'pending',
-    createdAt: new Date(),
-    address: address || '',
-    fullAddress: address || '',
-    contactNumber: contactNumber || '',
-    paymentMethod: paymentMethod || 'unknown',
-    additionalNote: additionalNote || '',
-    numberOfDays: parseInt(numberOfDays) || 1,
-    startDate: startDate || '',
-    endDate: endDate || '',
-    startTime: startTime || '',
-    workerId: null,
-    paymentStatus: { status: 'pending' },
-  };
-
-
-
-  try {
+  const sendAdminWhatsAppMessage = async () => {
     const service = services.find(s => s.type === selectedService);
-    if (!service) {
-      throw new Error('Selected service not found.');
-    }
-
+    const days = parseInt(numberOfDays || 0);
     let workersCost = 0;
-    const serviceFeeRate = 0.05;
     let serviceFee = 0;
+    const serviceFeeRate = 0.05;
     let totalCost = 0;
     let maleWorkersCount = 0;
     let femaleWorkersCount = 0;
 
-    orderData.serviceId = service.id;
+    if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
+      if (selectedBundle) {
+        const bundle = bundles.find(b => b.id === selectedBundle);
+        workersCost = bundle.price * days;
+        serviceFee = workersCost * serviceFeeRate;
+        totalCost = workersCost * days + serviceFee; // Exclude vehicleCost
+        maleWorkersCount = bundle.maleWorkers;
+        femaleWorkersCount = bundle.femaleWorkers;
+      } else {
+        workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * days;
+        serviceFee = workersCost * serviceFeeRate;
+        totalCost = (workersCost + vehicleCost) * days + serviceFee;
+        maleWorkersCount = maleWorkers;
+        femaleWorkersCount = femaleWorkers;
+      }
+    } else if (selectedService === 'ownertc') {
+      workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * days;
+      serviceFee = workersCost * serviceFeeRate;
+      totalCost = workersCost + serviceFee;
+    } else {
+      workersCost = (service.cost || 0) * otherWorkers * days;
+      serviceFee = workersCost * serviceFeeRate;
+      totalCost = workersCost + serviceFee;
+    }
+
+    const farmerName = user.displayName || 'शेतकरी';
+    const serviceName = service ? (language === 'marathi' ? service.nameMarathi || service.name : service.name) : selectedService;
+    const pinCode = user.pinCode || 'प्रदान केले नाही';
+    const adminWhatsAppNumber = '+918788647637';
+
+    const contentVariables = {
+      "1": farmerName,
+      "2": serviceName,
+      "3": (maleWorkersCount + femaleWorkersCount).toString(),
+      "4": maleWorkersCount.toString(),
+      "5": femaleWorkersCount.toString(),
+      "6": vehicleType || 'काही नाही',
+      "7": vehicleCost.toString() || '0',
+      "8": workersCost.toFixed(2),
+      "9": serviceFee.toFixed(2),
+      "10": totalCost.toFixed(2),
+      "11": startDate || 'प्रदान केले नाही',
+      "12": address || 'प्रदान केले नाही',
+      "13": pinCode,
+      "14": contactNumber || 'प्रदान केले नाही',
+      "15": paymentMethod === 'razorpay'
+        ? 'ऑनलाइन (Razorpay)'
+        : paymentMethod === 'cash'
+          ? 'रोख (सेवा शुल्क ऑनलाइन)'
+          : 'अज्ञात',
+      "16": paymentStatus === 'service_fee_paid'
+        ? 'सेवा शुल्क भरले'
+        : paymentStatus === 'paid'
+          ? 'पूर्ण भरले'
+          : paymentStatus === 'failed'
+            ? 'अयशस्वी'
+            : 'प्रलंबित'
+    };
+
+    try {
+      const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: adminWhatsAppNumber,
+          contentSid: 'HX3dfc5ca3689783b05c3c3e4522a289de',
+          contentVariables
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to send WhatsApp to admin:', errorData);
+        setError('ऑर्डर बुक झाली, पण WhatsApp सूचना पाठवण्यात अयशस्वी.');
+      }
+    } catch (err) {
+      console.error('Error sending WhatsApp to admin:', err);
+      setError('ऑर्डर बुक झाली, पण WhatsApp सूचना पाठवण्यात अयशस्वी.');
+    }
+  };
+
+  const sendFarmerWhatsAppMessage = async () => {
+    const service = services.find(s => s.type === selectedService);
+    const days = parseInt(numberOfDays || 0);
+    let workersCost = 0;
+    let serviceFee = 0;
+    const serviceFeeRate = 0.05;
+    let totalCost = 0;
+    let maleWorkersCount = 0;
+    let femaleWorkersCount = 0;
 
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       if (selectedBundle) {
         const bundle = bundles.find(b => b.id === selectedBundle);
-        if (!bundle) {
-          throw new Error('Selected bundle not found.');
-        }
-        orderData.bundleDetails = {
-          name: bundle.name,
-          maleWorkers: bundle.maleWorkers,
-          femaleWorkers: bundle.femaleWorkers,
-          price: bundle.price,
-        };
+        workersCost = bundle.price * days;
+        serviceFee = workersCost * serviceFeeRate;
+        totalCost = workersCost * days + serviceFee; // Exclude vehicleCost
         maleWorkersCount = bundle.maleWorkers;
         femaleWorkersCount = bundle.femaleWorkers;
-        orderData.totalWorkers = bundle.maleWorkers + bundle.femaleWorkers;
-        workersCost = bundle.price * parseInt(numberOfDays);
-        if (isNaN(workersCost) || workersCost <= 0) {
-          throw new Error('Invalid workers cost for bundle.');
-        }
-        serviceFee = workersCost * serviceFeeRate;
-        totalCost = (workersCost + vehicleCost) * parseInt(numberOfDays) + serviceFee;
       } else {
-        orderData.maleWorkers = maleWorkers;
-        orderData.femaleWorkers = femaleWorkers;
+        workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * days;
+        serviceFee = workersCost * serviceFeeRate;
+        totalCost = (workersCost + vehicleCost) * days + serviceFee;
         maleWorkersCount = maleWorkers;
         femaleWorkersCount = femaleWorkers;
-        orderData.totalWorkers = maleWorkers + femaleWorkers;
-        workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * parseInt(numberOfDays);
-        if (isNaN(workersCost) || workersCost <= 0) {
-          throw new Error('Invalid workers cost for individual workers.');
-        }
-        serviceFee = workersCost * serviceFeeRate;
-        totalCost = (workersCost + vehicleCost) * parseInt(numberOfDays) + serviceFee;
       }
-      orderData.vehicleType = vehicleType;
-      orderData.vehicleCost = vehicleCost;
+    } else if (selectedService === 'ownertc') {
+      workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * days;
+      serviceFee = workersCost * serviceFeeRate;
+      totalCost = workersCost + serviceFee;
     } else {
-      orderData.totalWorkers = otherWorkers;
-      if (selectedService === 'ownertc') {
-        orderData.hours = parseInt(hours);
-        workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * parseInt(numberOfDays);
-        if (isNaN(workersCost) || workersCost <= 0) {
-          throw new Error('Invalid workers cost for ownertc service.');
-        }
-        serviceFee = workersCost * serviceFeeRate;
-        totalCost = workersCost + serviceFee;
-      } else {
-        workersCost = (service.cost || 0) * otherWorkers * parseInt(numberOfDays);
-        if (isNaN(workersCost) || workersCost <= 0) {
-          throw new Error('Invalid workers cost for other service.');
-        }
-        serviceFee = workersCost * serviceFeeRate;
-        totalCost = workersCost + serviceFee;
-      }
+      workersCost = (service.cost || 0) * otherWorkers * days;
+      serviceFee = workersCost * serviceFeeRate;
+      totalCost = workersCost + serviceFee;
     }
 
-    orderData.cost = workersCost;
-    orderData.serviceFee = serviceFee;
-    orderData.workersCost = workersCost;
-    orderData.totalCost = totalCost;
+    const farmerName = user.displayName || 'शेतकरी';
+    const serviceName = service ? (language === 'marathi' ? service.nameMarathi || service.name : service.name) : selectedService;
+    const pinCode = user.pinCode || 'प्रदान केले नाही';
 
-    const paymentAmount = paymentMethod === 'cash' ? serviceFee : totalCost;
-
-    if (paymentMethod === 'razorpay' || paymentMethod === 'cash') {
-      const options = {
-        key: 'rzp_test_ty410dtUIacM8N',
-        amount: Math.round(paymentAmount * 100),
-        currency: 'INR',
-        name: 'KhetiSathi',
-        description: paymentMethod === 'cash' ? `Service fee payment for ${selectedService}` : `Payment for ${selectedService} with service fee`,
-        handler: async (response) => {
-          try {
-            orderData.paymentStatus = {
-              status: paymentMethod === 'cash' ? 'service_fee_paid' : 'paid',
-              razorpay_payment_id: response.razorpay_payment_id,
-            };
-            await addDoc(collection(db, 'orders'), orderData);
-            setSuccess('Service booked successfully!');
-            setPaymentStatus(paymentMethod === 'cash' ? 'service_fee_paid' : 'paid');
-            setError('');
-            handleNext();
-
-            // Send WhatsApp messages to admin and farmer
-            await sendAdminWhatsAppMessage();
-            await sendFarmerWhatsAppMessage();
-          } catch (err) {
-            setError(`Error saving order: ${err.message}`);
-            setPaymentStatus('failed');
-            orderData.paymentStatus = {
-              status: 'failed',
-              error: err.message,
-            };
-            await addDoc(collection(db, 'orders'), orderData);
-          } finally {
-            setLoading(false);
-          }
-        },
-        prefill: {
-          name: user.displayName || 'Farmer',
-          email: user.email || '',
-          contact: contactNumber,
-        },
-        theme: {
-          color: '#F59E0B',
-        },
-      };
-
-      const razorpay = new window.Razorpay(options);
-      razorpay.on('payment.failed', async (response) => {
-        setError(`Payment failed: ${response.error.description}`);
-        setPaymentStatus('failed');
-        orderData.paymentStatus = {
-          status: 'failed',
-          error: response.error.description,
-        };
-        try {
-          await addDoc(collection(db, 'orders'), orderData);
-        } catch (err) {
-          console.error('Error saving failed order:', err);
-        }
-        setLoading(false);
-      });
-      razorpay.open();
-    }
-  } catch (err) {
-    setError(`Error booking service: ${err.message}`);
-    setPaymentStatus('failed');
-    orderData.paymentStatus = {
-      status: 'failed',
-      error: err.message,
+    const contentVariables = {
+      "1": farmerName,
+      "2": serviceName,
+      "3": (maleWorkersCount + femaleWorkersCount).toString(),
+      "4": maleWorkersCount.toString(),
+      "5": femaleWorkersCount.toString(),
+      "6": vehicleType || 'काही नाही',
+      "7": vehicleCost.toString() || '0',
+      "8": workersCost.toFixed(2),
+      "9": serviceFee.toFixed(2),
+      "10": totalCost.toFixed(2),
+      "11": startDate || 'प्रदान केले नाही',
+      "12": endDate || 'प्रदान केले नाही',
+      "13": startTime || 'प्रदान केले नाही',
+      "14": address || 'प्रदान केले नाही',
+      "15": pinCode,
+      "16": contactNumber || 'प्रदान केले नाही',
+      "17": paymentMethod === 'razorpay'
+        ? 'ऑनलाइन (Razorpay)'
+        : paymentMethod === 'cash'
+          ? 'रोख (सेवा शुल्क ऑनलाइन)'
+          : 'अज्ञात',
+      "18": paymentStatus === 'service_fee_paid'
+        ? 'सेवा शुल्क भरले'
+        : paymentStatus === 'paid'
+          ? 'पूर्ण भरले'
+          : paymentStatus === 'failed'
+            ? 'अयशस्वी'
+            : 'प्रलंबित'
     };
+
     try {
-      await addDoc(collection(db, 'orders'), orderData);
-    } catch (saveErr) {
-      console.error('Error saving failed order:', saveErr);
+      const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: `+91${contactNumber}`,
+          contentSid: 'HXe4314b0088e9ef328b084ead9056ae9f',
+          contentVariables
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to send WhatsApp to farmer:', errorData);
+        setError('ऑर्डर बुक झाली, पण शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
+      }
+    } catch (err) {
+      console.error('Error sending WhatsApp to farmer:', err);
+      setError('ऑर्डर बुक झाली, पण शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
     }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
+  const handleBookService = async () => {
+    if (!user) {
+      setError('Please log in to book a service.');
+      return;
+    }
+
+    setLoading(true);
+    let orderData = {
+      farmerId: user.uid,
+      serviceType: selectedService || 'unknown',
+      status: 'pending',
+      createdAt: new Date(),
+      address: address || '',
+      fullAddress: address || '',
+      contactNumber: contactNumber || '',
+      paymentMethod: paymentMethod || 'unknown',
+      additionalNote: additionalNote || '',
+      numberOfDays: parseInt(numberOfDays) || 1,
+      startDate: startDate || '',
+      endDate: endDate || '',
+      startTime: startTime || '',
+      workerId: null,
+      paymentStatus: { status: 'pending' },
+    };
+
+    try {
+      const service = services.find(s => s.type === selectedService);
+      if (!service) {
+        throw new Error('Selected service not found.');
+      }
+
+      let workersCost = 0;
+      const serviceFeeRate = 0.05;
+      let serviceFee = 0;
+      let totalCost = 0;
+      let maleWorkersCount = 0;
+      let femaleWorkersCount = 0;
+
+      orderData.serviceId = service.id;
+
+      if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
+        if (selectedBundle) {
+          const bundle = bundles.find(b => b.id === selectedBundle);
+          if (!bundle) {
+            throw new Error('Selected bundle not found.');
+          }
+          orderData.bundleDetails = {
+            name: bundle.name,
+            maleWorkers: bundle.maleWorkers,
+            femaleWorkers: bundle.femaleWorkers,
+            price: bundle.price,
+          };
+          maleWorkersCount = bundle.maleWorkers;
+          femaleWorkersCount = bundle.femaleWorkers;
+          orderData.totalWorkers = bundle.maleWorkers + bundle.femaleWorkers;
+          workersCost = bundle.price * parseInt(numberOfDays);
+          if (isNaN(workersCost) || workersCost <= 0) {
+            throw new Error('Invalid workers cost for bundle.');
+          }
+          serviceFee = workersCost * serviceFeeRate;
+          totalCost = workersCost * parseInt(numberOfDays) + serviceFee; // Exclude vehicleCost
+        } else {
+          orderData.maleWorkers = maleWorkers;
+          orderData.femaleWorkers = femaleWorkers;
+          maleWorkersCount = maleWorkers;
+          femaleWorkersCount = femaleWorkers;
+          orderData.totalWorkers = maleWorkers + femaleWorkers;
+          workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * parseInt(numberOfDays);
+          if (isNaN(workersCost) || workersCost <= 0) {
+            throw new Error('Invalid workers cost for individual workers.');
+          }
+          serviceFee = workersCost * serviceFeeRate;
+          totalCost = (workersCost + vehicleCost) * parseInt(numberOfDays) + serviceFee;
+        }
+        orderData.vehicleType = vehicleType;
+        orderData.vehicleCost = vehicleCost;
+      } else {
+        orderData.totalWorkers = otherWorkers;
+        if (selectedService === 'ownertc') {
+          orderData.hours = parseInt(hours);
+          workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * parseInt(numberOfDays);
+          if (isNaN(workersCost) || workersCost <= 0) {
+            throw new Error('Invalid workers cost for ownertc service.');
+          }
+          serviceFee = workersCost * serviceFeeRate;
+          totalCost = workersCost + serviceFee;
+        } else {
+          workersCost = (service.cost || 0) * otherWorkers * parseInt(numberOfDays);
+          if (isNaN(workersCost) || workersCost <= 0) {
+            throw new Error('Invalid workers cost for other service.');
+          }
+          serviceFee = workersCost * serviceFeeRate;
+          totalCost = workersCost + serviceFee;
+        }
+      }
+
+      orderData.cost = workersCost;
+      orderData.serviceFee = serviceFee;
+      orderData.workersCost = workersCost;
+      orderData.totalCost = totalCost;
+
+      const paymentAmount = paymentMethod === 'cash' ? serviceFee : totalCost;
+
+      if (paymentMethod === 'razorpay' || paymentMethod === 'cash') {
+        const options = {
+          key: 'rzp_live_2dmmin7Uu7tyRI',
+          amount: Math.round(paymentAmount * 100),
+          currency: 'INR',
+          name: 'KhetiSathi',
+          description: paymentMethod === 'cash' ? `Service fee payment for ${selectedService}` : `Payment for ${selectedService} with service fee`,
+          handler: async (response) => {
+            try {
+              orderData.paymentStatus = {
+                status: paymentMethod === 'cash' ? 'service_fee_paid' : 'paid',
+                razorpay_payment_id: response.razorpay_payment_id,
+              };
+              await addDoc(collection(db, 'orders'), orderData);
+              setSuccess('Service booked successfully!');
+              setPaymentStatus(paymentMethod === 'cash' ? 'service_fee_paid' : 'paid');
+              setError('');
+              handleNext();
+
+              // Send WhatsApp messages to admin and farmer
+              await sendAdminWhatsAppMessage();
+              await sendFarmerWhatsAppMessage();
+            } catch (err) {
+              setError(`Error saving order: ${err.message}`);
+              setPaymentStatus('failed');
+              orderData.paymentStatus = {
+                status: 'failed',
+                error: err.message,
+              };
+              await addDoc(collection(db, 'orders'), orderData);
+            } finally {
+              setLoading(false);
+            }
+          },
+          prefill: {
+            name: user.displayName || 'Farmer',
+            email: user.email || '',
+            contact: contactNumber,
+          },
+          theme: {
+            color: '#F59E0B',
+          },
+        };
+
+        const razorpay = new window.Razorpay(options);
+        razorpay.on('payment.failed', async (response) => {
+          setError(`Payment failed: ${response.error.description}`);
+          setPaymentStatus('failed');
+          orderData.paymentStatus = {
+            status: 'failed',
+            error: response.error.description,
+          };
+          try {
+            await addDoc(collection(db, 'orders'), orderData);
+          } catch (err) {
+            console.error('Error saving failed order:', err);
+          }
+          setLoading(false);
+        });
+        razorpay.open();
+      }
+    } catch (err) {
+      setError(`Error booking service: ${err.message}`);
+      setPaymentStatus('failed');
+      orderData.paymentStatus = {
+        status: 'failed',
+        error: err.message,
+      };
+      try {
+        await addDoc(collection(db, 'orders'), orderData);
+      } catch (saveErr) {
+        console.error('Error saving failed order:', saveErr);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const resetForm = () => {
     setSelectedService('');
@@ -751,11 +750,10 @@ const handleBookService = async () => {
         if (bundle) {
           workersCost = bundle.price * days;
           serviceFee = workersCost * serviceFeeRate;
-          totalCost = (workersCost + vehicleCost) * days + serviceFee;
+          totalCost = workersCost * days + serviceFee; // Exclude vehicleCost
           return (
             <div className="cost-breakdown">
               <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({t.bundle}: ₹{bundle.price}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
-              <p><span className="review-label">{t.vehicleCost}:</span> ₹{(vehicleCost * days).toFixed(2)} ({vehicleType}: ₹{vehicleCost}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
               <p><span className="review-label">{t.serviceFee} (5%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
               <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
             </div>
@@ -862,16 +860,16 @@ const handleBookService = async () => {
                         min="0"
                       />
                     </div>
+                    {vehicleType && (
+                      <div className="input-wrapper">
+                        <label className="input-label">{t.vehicleType}</label>
+                        <div className="vehicle-info">
+                          <i className={`${getVehicleIcon(vehicleType)} vehicle-icon`}></i>
+                          <span>{vehicleType} (₹{vehicleCost}/{t.day})</span>
+                        </div>
+                      </div>
+                    )}
                   </>
-                )}
-                {vehicleType && (
-                  <div className="input-wrapper">
-                    <label className="input-label">{t.vehicleType}</label>
-                    <div className="vehicle-info">
-                      <i className={`${getVehicleIcon(vehicleType)} vehicle-icon`}></i>
-                      <span>{vehicleType} (₹{vehicleCost}/{t.day})</span>
-                    </div>
-                  </div>
                 )}
               </>
             )}
@@ -971,44 +969,43 @@ const handleBookService = async () => {
               <h3 className="section-title">{t.locationDetails}</h3>
               <div className="input-group">
                 <div style={{display:'flex',justifyContent:'space-between'}}>
-                <div className="input-wrapper" style={{margin:'5px'}}>
-                  <label className="input-label">{t.district}</label>
-                  <select
-                    className="select-field"
-                    value={district}
-                    onChange={(e) => setDistrict(e.target.value)}
-                    required
-                  >
-                    <option value="">{t.selectDistrict}</option>
-                    <option value="Bhandara">Bhandara</option>
-                  </select>
+                  <div className="input-wrapper" style={{margin:'5px'}}>
+                    <label className="input-label">{t.district}</label>
+                    <select
+                      className="select-field"
+                      value={district}
+                      onChange={(e) => setDistrict(e.target.value)}
+                      required
+                    >
+                      <option value="">{t.selectDistrict}</option>
+                      <option value="Bhandara">Bhandara</option>
+                    </select>
+                  </div>
+                  <div className="input-wrapper" style={{margin:'5px'}}>
+                    <label className="input-label">{t.tahsil}</label>
+                    <select
+                      className="select-field"
+                      value={tahsil}
+                      onChange={(e) => setTahsil(e.target.value)}
+                      required
+                    >
+                      <option value="">{t.selectTahsil}</option>
+                      <option value="Lakhani">Lakhani</option>
+                    </select>
+                  </div>
+                  <div className="input-wrapper" style={{margin:'5px'}}>
+                    <label className="input-label">{t.village}</label>
+                    <select
+                      className="select-field"
+                      value={village}
+                      onChange={(e) => setVillage(e.target.value)}
+                      required
+                    >
+                      <option value="">{t.selectVillage}</option>
+                      <option value="Lakhori">Lakhori</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="input-wrapper" style={{margin:'5px'}}>
-                  <label className="input-label">{t.tahsil}</label>
-                  <select
-                    className="select-field"
-                    value={tahsil}
-                    onChange={(e) => setTahsil(e.target.value)}
-                    required
-                  >
-                    <option value="">{t.selectTahsil}</option>
-                    <option value="Lakhani">Lakhani</option>
-                  </select>
-                </div>
-                <div className="input-wrapper" style={{margin:'5px'}}>
-                  <label className="input-label">{t.village}</label>
-                  <select
-                    className="select-field"
-                    value={village}
-                    onChange={(e) => setVillage(e.target.value)}
-                    required
-                  >
-                    <option value="">{t.selectVillage}</option>
-                    <option value="Lakhori">Lakhori</option>
-                  </select>
-                </div>
-                </div>
-
                 <div className="input-wrapper">
                   <label className="input-label">{t.fullAddress}</label>
                   <input
@@ -1079,7 +1076,7 @@ const handleBookService = async () => {
                         <p><span className="review-label">{t.femaleWorkers}:</span> {femaleWorkers}</p>
                       </>
                     )}
-                    {vehicleType && (
+                    {vehicleType && !selectedBundle && (
                       <p><span className="review-label">{t.vehicleType}:</span> <i className={`${getVehicleIcon(vehicleType)} vehicle-icon`}></i> {vehicleType}</p>
                     )}
                   </>
@@ -1097,7 +1094,7 @@ const handleBookService = async () => {
                 <p><span className="review-label">{t.payment}:</span> {t[paymentMethod] || 'Razorpay'} {paymentMethod === 'cash' ? `(${t.serviceFee} ${t.payOnline}, ${t.workersCost} ${t.payOffline})` : ''}</p>
                 <p><span className="review-label">{t.note}:</span> {additionalNote || 'None'}</p>
               </div>
-               <div>{renderCostBreakdown()}</div>
+              <div>{renderCostBreakdown()}</div>
             </div>
             <button
               className="submit-button"
@@ -1136,7 +1133,7 @@ const handleBookService = async () => {
                       <p><span className="review-label">{t.femaleWorkers}:</span> {femaleWorkers}</p>
                     </>
                   )}
-                  {vehicleType && (
+                  {vehicleType && !selectedBundle && (
                     <p><span className="review-label">{t.vehicleType}:</span> <i className={`${getVehicleIcon(vehicleType)} vehicle-icon`}></i> {vehicleType}</p>
                   )}
                 </>
@@ -1271,6 +1268,13 @@ const handleBookService = async () => {
                         <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
                           {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') ? t.custom : `₹${s.cost || 0}${s.type === 'ownertc' ? `/${t.hours.toLowerCase()}` : `/${t.day}`}`}
                         </span>
+                        {s.type === 'farm-workers' && (
+                          <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
+                            वेळ(स.९ ते सायं 5)
+                          </span>
+                        )}
+
+
                       </div>
                     </div>
                     {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (

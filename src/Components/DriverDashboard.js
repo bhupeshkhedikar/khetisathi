@@ -404,7 +404,7 @@ const handleCompleteAssignment = async (assignmentId) => {
     try {
       setLoading(true);
       const options = {
-        key: 'rzp_test_ty410dtUIacM8N',
+        key: 'rzp_live_2dmmin7Uu7tyRI',
         amount: Math.round(serviceFeeWallet * 100),
         currency: 'INR',
         name: 'KhetiSathi',
