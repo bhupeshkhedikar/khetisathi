@@ -1363,7 +1363,7 @@ const handleBookService = async () => {
       </section>
 
       <section id="app-download" className="app-download-section">
-        <div style={{display:'flex',justifyContent:'center'}}><img src='https://i.ibb.co/4nxw7GR/image-5-removebg-preview.png' height={50} width={150} alt='farmer'/></div>
+        <div style={{display:'flex',justifyContent:'center'}}><img src='https://i.ibb.co/4nxw7GR6/image-5-removebg-preview.png' height={50} width={150} alt='farmer'/></div>
         <h2 className="app-download-title">{t.downloadApp}</h2>
         <p className="app-download-description">{t.downloadAppDescription}</p>
         <div className="app-download-buttons">
