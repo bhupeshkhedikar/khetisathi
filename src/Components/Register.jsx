@@ -202,6 +202,7 @@ const Register = () => {
         role,
         pincode,
         mobile,
+        password,
         status: role === 'farmer' ? 'approved' : 'pending',
         createdAt: new Date().toISOString(),
       };
