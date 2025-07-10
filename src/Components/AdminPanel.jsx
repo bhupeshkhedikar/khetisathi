@@ -429,15 +429,14 @@ const autoAssignWorkers = async (orderId, order) => {
     if (order.serviceType === 'farm-workers') {
       if (maleNeeded > 0) {
         const availableMaleWorkers = workers
-          .filter(
-            (w) =>
-              w.gender === 'male' &&
-              w.status === 'approved' &&
-              w.workerStatus === 'ready' &&
-              w.skills.includes('farm-worker') &&
-              (!farmerPincode || w.pincode === farmerPincode) &&
-              !attemptedWorkers.includes(w.id) &&
-              isWorkerAvailable(w, order.startDate)
+          .filter((w) =>
+            w.gender === 'male' &&
+            w.status === 'approved' &&
+            w.workerStatus === 'ready' &&
+            w.skills.includes('farm-worker') &&
+            (!farmerPincode || w.pincode === farmerPincode) &&
+            !attemptedWorkers.includes(w.id) &&
+            isWorkerAvailable(w, order.startDate)
           )
           .map((w) => w.id);
 
@@ -449,15 +448,14 @@ const autoAssignWorkers = async (orderId, order) => {
 
       if (femaleNeeded > 0) {
         const availableFemaleWorkers = workers
-          .filter(
-            (w) =>
-              w.gender === 'female' &&
-              w.status === 'approved' &&
-              w.workerStatus === 'ready' &&
-              w.skills.includes('farm-worker') &&
-              (!farmerPincode || w.pincode === farmerPincode) &&
-              !attemptedWorkers.includes(w.id) &&
-              isWorkerAvailable(w, order.startDate)
+          .filter((w) =>
+            w.gender === 'female' &&
+            w.status === 'approved' &&
+            w.workerStatus === 'ready' &&
+            w.skills.includes('farm-worker') &&
+            (!farmerPincode || w.pincode === farmerPincode) &&
+            !attemptedWorkers.includes(w.id) &&
+            isWorkerAvailable(w, order.startDate)
           )
           .map((w) => w.id);
 
@@ -469,14 +467,13 @@ const autoAssignWorkers = async (orderId, order) => {
     } else {
       const skill = order.serviceType === 'ownertc' ? 'tractor-driver' : order.serviceType;
       const availableWorkers = workers
-        .filter(
-          (w) =>
-            w.status === 'approved' &&
-            w.workerStatus === 'ready' &&
-            w.skills.includes(skill) &&
-            (!farmerPincode || w.pincode === farmerPincode) &&
-            !attemptedWorkers.includes(w.id) &&
-            isWorkerAvailable(w, order.startDate)
+        .filter((w) =>
+          w.status === 'approved' &&
+          w.workerStatus === 'ready' &&
+          w.skills.includes(skill) &&
+          (!farmerPincode || w.pincode === farmerPincode) &&
+          !attemptedWorkers.includes(w.id) &&
+          isWorkerAvailable(w, order.startDate)
         )
         .map((w) => w.id);
 
@@ -486,7 +483,7 @@ const autoAssignWorkers = async (orderId, order) => {
       workerIds = availableWorkers.slice(0, totalNeeded);
     }
 
-    if (workerIds.length === 0 && (maleNeeded > 0 || femaleNeeded > 0 || totalNeeded > 0)) {
+    if (workerIds.length === 0) {
       throw new Error('योग्य कामगार सापडले नाहीत');
     }
 
@@ -509,57 +506,47 @@ const autoAssignWorkers = async (orderId, order) => {
       status: 'pending',
       workerAcceptances: [
         ...existingAcceptances,
-        ...workerIds.map((id) => ({ workerId: id, status: 'pending' })),
+        ...workerIds.map((id) => ({ workerId: id, status: 'pending' }))
       ],
       timeout: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       attemptedWorkers: [...attemptedWorkers, ...workerIds],
-      updatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
 
     const farmerName = farmerData.name || 'शेतकरी';
     const totalAssignedWorkers = (existingWorkerIds.length + workerIds.length) || 1;
     const earningsPerWorker = (order.cost || 0) / totalAssignedWorkers;
-    let totalWorkersMessage = `👥 एकूण कामगार: ${maleNeeded + femaleNeeded || totalNeeded}`;
-    if (order.serviceType === 'farm-workers') {
-      totalWorkersMessage += ` (👨 ${maleNeeded}, 👩 ${femaleNeeded})`;
-    }
+    const responseDeadline = new Date(Date.now() + 10 * 60 * 1000).toLocaleTimeString('mr-IN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
     for (const workerId of workerIds) {
       const worker = workers.find((w) => w.id === workerId);
       if (!worker || !worker.mobile) continue;
 
-      const serviceName = order.serviceType
-
-      const message = `🔔 खेतीसाथीवर नवीन ऑर्डर नियुक्ती! 🚜\n\n` +
-        `तुम्हाला नवीन ऑर्डर नियुक्त केली गेली आहे. कृपया 10 मिनिटांत प्रतिसाद द्या!\n\n` +
-        `• 📋 ऑर्डर आयडी: ${orderId.slice(0, 8)}\n` +
-        `• 👨‍🌾 शेतकरी: ${farmerName}\n` +
-        `• 🛠️ सेवा: ${serviceName}\n` +
-        `${totalWorkersMessage}\n` +
-        `• 📅 प्रारंभ तारीख: ${order.startDate || 'प्रदान केले नाही'}\n` +
-        `• 📍 पत्ता: ${order.address || 'प्रदान केले नाही'}\n` +
-        `• 💰 तुमचे कमाई: ₹${earningsPerWorker.toFixed(2)}\n\n` +
-        `📲 खालील लिंकवर क्लिक करून प्रतिसाद द्या:\n` +
-        `✅ स्वीकारा: https://khetisathi.com/worker-dashboard\n` +
-        `❌ नाकारा: https://khetisathi.com/worker-dashboard\n\n` +
-        `⏰ अंतिम मुदत: ${new Date(Date.now() + 10 * 60 * 1000).toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' })}`;
-
-      try {
-        const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: `+91${worker.mobile}`,
-            message,
-          }),
-        });
-
-        if (!response.ok) {
-          console.error(`WhatsApp failed for ${worker.id}:`, await response.json());
-        }
-      } catch (err) {
-        console.error(`Error sending WhatsApp to ${worker.id}:`, err);
-      }
+      await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: `+91${worker.mobile}`,
+          contentSid: 'HXf7eda5046a6aa7ecf802fd6cff47ad7d',
+          contentVariables: {
+            "1": orderId.slice(0, 8),
+            "2": farmerName,
+            "3": order.serviceType,
+            "4": `${maleNeeded + femaleNeeded || totalNeeded}`,
+            "5": `${order.serviceType === 'farm-workers' ? maleNeeded : totalNeeded}`,
+            "6": `${order.serviceType === 'farm-workers' ? femaleNeeded : 0}`,
+            "7": order.startDate || 'प्रदान केले नाही',
+            "8": order.address || 'प्रदान केले नाही',
+            "9": `₹${earningsPerWorker.toFixed(2)}`,
+            "10": 'https://khetisathi.com/driver-dashboard',
+            "11":'https://khetisathi.com/driver-dashboard',
+            "12": responseDeadline
+          }
+        })
+      });
     }
 
     alert(`${workerIds.length} कामगार यशस्वीपणे नियुक्त केले! सूचना पाठवल्या गेल्या.`);
@@ -570,18 +557,22 @@ const autoAssignWorkers = async (orderId, order) => {
   }
 };
 
+
 const handleAssignWorker = async (orderId, workerIds) => {
   if (!workerIds || workerIds.length === 0) {
     setError('कृपया किमान एक कामगार निवडा.');
     return;
   }
+
   setLoading(true);
   try {
     const order = orders.find((o) => o.id === orderId);
     if (!order) throw new Error('ऑर्डर सापडली नाही');
+
     const farmerDoc = await getDoc(doc(db, 'users', order.farmerId));
     if (!farmerDoc.exists()) throw new Error('शेतकरी सापडला नाही');
     const farmerData = farmerDoc.data();
+
     const orderRef = doc(db, 'orders', orderId);
     const existingWorkerIds = Array.isArray(order.workerId)
       ? order.workerId.filter((id) => {
@@ -601,62 +592,54 @@ const handleAssignWorker = async (orderId, workerIds) => {
       status: 'pending',
       workerAcceptances: [
         ...existingAcceptances,
-        ...workerIds.map((id) => ({ workerId: id, status: 'pending' })),
+        ...workerIds.map((id) => ({ workerId: id, status: 'pending' }))
       ],
       timeout: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       attemptedWorkers: [...(order.attemptedWorkers || []), ...workerIds],
-      updatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
 
     const farmerName = farmerData.name || 'शेतकरी';
     const totalAssignedWorkers = (existingWorkerIds.length + workerIds.length) || 1;
     const earningsPerWorker = (order.cost || 0) / totalAssignedWorkers;
-    let totalWorkersMessage = `👥 एकूण कामगार: ${workerIds.length}`;
-    if (order.serviceType === 'farm-workers') {
-      const maleAssigned = workerIds.reduce((count, id) => {
-        const worker = workers.find((w) => w.id === id);
-        return worker?.gender === 'male' ? count + 1 : count;
-      }, 0);
-      const femaleAssigned = workerIds.length - maleAssigned;
-      totalWorkersMessage += ` (👨 ${maleAssigned}, 👩 ${femaleAssigned})`;
-    }
+    const responseDeadline = new Date(Date.now() + 10 * 60 * 1000).toLocaleTimeString('mr-IN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const maleAssigned = workerIds.reduce((count, id) => {
+      const worker = workers.find((w) => w.id === id);
+      return worker?.gender === 'male' ? count + 1 : count;
+    }, 0);
+
+    const femaleAssigned = workerIds.length - maleAssigned;
 
     for (const workerId of workerIds) {
       const worker = workers.find((w) => w.id === workerId);
       if (!worker || !worker.mobile) continue;
 
-      const serviceName = order.serviceType
-
-      const message = `🔔 खेतीसाथीवर नवीन ऑर्डर नियुक्ती! 🚜\n\n` +
-        `तुम्हाला नवीन ऑर्डर नियुक्त केली गेली आहे. कृपया 10 मिनिटांत प्रतिसाद द्या!\n\n` +
-        `• 📋 ऑर्डर आयडी: ${orderId.slice(0, 8)}\n` +
-        `• 👨‍🌾 शेतकरी: ${farmerName}\n` +
-        `• 🛠️ सेवा: ${serviceName}\n` +
-        `${totalWorkersMessage}\n` +
-        `• 📅 प्रारंभ तारीख: ${order.startDate || 'प्रदान केले नाही'}\n` +
-        `• 📍 पत्ता: ${order.address || 'प्रदान केले नाही'}\n` +
-        `• 💰 तुमचे कमाई: ₹${earningsPerWorker.toFixed(2)}\n\n` +
-        `📲 खालील लिंकवर क्लिक करून प्रतिसाद द्या:\n` +
-        `✅ स्वीकारा: https://khetisathi.com/worker-dashboard\n` +
-        `❌ नाकारा: https://khetisathi.com/worker-dashboard\n\n` +
-        `⏰ अंतिम मुदत: ${new Date(Date.now() + 10 * 60 * 1000).toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' })}`;
-
-      try {
-        const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: `+91${worker.mobile}`,
-            message,
-          }),
-        });
-
-        if (!response.ok) {
-          console.error(`WhatsApp failed for ${worker.id}:`, await response.json());
-        }
-      } catch (err) {
-        console.error(`Error sending WhatsApp to ${worker.id}:`, err);
-      }
+      await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: `+91${worker.mobile}`,
+          contentSid: 'HXf7eda5046a6aa7ecf802fd6cff47ad7d',
+          contentVariables: {
+            "1": orderId.slice(0, 8),
+            "2": farmerName,
+            "3": order.serviceType,
+            "4": `${workerIds.length}`,
+            "5": `${maleAssigned}`,
+            "6": `${femaleAssigned}`,
+            "7": order.startDate || 'प्रदान केले नाही',
+            "8": order.address || 'प्रदान केले नाही',
+            "9": `₹${earningsPerWorker.toFixed(2)}`,
+            "10": 'https://khetisathi.com/driver-dashboard',
+            "11":'https://khetisathi.com/driver-dashboard',
+            "12":responseDeadline
+          }
+        })
+      });
     }
 
     setShowAssignModal(false);
@@ -670,6 +653,8 @@ const handleAssignWorker = async (orderId, workerIds) => {
     setLoading(false);
   }
 };
+
+
 const handleAssignDriver = async (orderId, driverIds) => {
   if (!driverIds || driverIds.length === 0) {
     setError('कृपया किमान एक ड्रायव्हर निवडा.');

@@ -288,7 +288,7 @@ const Home = () => {
     );
   };
 
-  const sendAdminWhatsAppMessage = async () => {
+const sendAdminWhatsAppMessage = async () => {
   const service = services.find(s => s.type === selectedService);
   const days = parseInt(numberOfDays || 0);
   let workersCost = 0;
@@ -297,7 +297,6 @@ const Home = () => {
   let totalCost = 0;
   let maleWorkersCount = 0;
   let femaleWorkersCount = 0;
-  let totalWorkersMessage = '';
 
   if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
     if (selectedBundle) {
@@ -307,48 +306,56 @@ const Home = () => {
       totalCost = (workersCost + vehicleCost) * days + serviceFee;
       maleWorkersCount = bundle.maleWorkers;
       femaleWorkersCount = bundle.femaleWorkers;
-      totalWorkersMessage = `• 👥 एकूण कामगार: ${bundle.maleWorkers + bundle.femaleWorkers} (👨 ${maleWorkersCount}, 👩 ${femaleWorkersCount})\n• 🚗 वाहन: ${vehicleType || 'काही नाही'} (₹${vehicleCost || 0})`;
     } else {
       workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * days;
       serviceFee = workersCost * serviceFeeRate;
       totalCost = (workersCost + vehicleCost) * days + serviceFee;
       maleWorkersCount = maleWorkers;
       femaleWorkersCount = femaleWorkers;
-      totalWorkersMessage = `• 👥 एकूण कामगार: ${maleWorkers + femaleWorkers} (👨 ${maleWorkersCount}, 👩 ${femaleWorkersCount})\n• 🚗 वाहन: ${vehicleType || 'काही नाही'} (₹${vehicleCost || 0})`;
     }
   } else if (selectedService === 'ownertc') {
     workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * days;
     serviceFee = workersCost * serviceFeeRate;
     totalCost = workersCost + serviceFee;
-    totalWorkersMessage = `• 👥 एकूण कामगार: ${otherWorkers}`;
   } else {
     workersCost = (service.cost || 0) * otherWorkers * days;
     serviceFee = workersCost * serviceFeeRate;
     totalCost = workersCost + serviceFee;
-    totalWorkersMessage = `• 👥 एकूण कामगार: ${otherWorkers}`;
   }
 
-  const pinCodeMatch = address.match(/\b\d{6}\b/);
-  const pinCode = user.pinCode || 'प्रदान केले नाही';
   const farmerName = user.displayName || 'शेतकरी';
   const serviceName = service ? (language === 'marathi' ? service.nameMarathi || service.name : service.name) : selectedService;
-
-  const adminMessage = `🎉 खेतीसाथीवर नवीन ऑर्डर बुक झाली! 🚜😀\n\n` +
-                     `• 👨‍🌾 शेतकरी: ${farmerName}\n` +
-                     `• 🛠️ सेवा: ${serviceName || 'अज्ञात'}\n` +
-                     `${totalWorkersMessage}\n` +
-                     `• 💰 कामगार खर्च: ₹${workersCost.toFixed(2)}\n` +
-                     `• 💵 सेवा शुल्क (10%): ₹${serviceFee.toFixed(2)}\n` +
-                     `• 💰 एकूण खर्च: ₹${totalCost.toFixed(2)}\n` +
-                     `• 📅 प्रारंभ तारीख: ${startDate || 'प्रदान केले नाही'}\n` +
-                     `• 📍 पत्ता: ${address || 'प्रदान केले नाही'}\n` +
-                     `• 📮 पिन कोड: ${pinCode}\n` +
-                     `• 📞 संपर्क: ${contactNumber || 'प्रदान केले नाही'}\n` +
-                     `• 💳 पेमेंट पद्धत: ${paymentMethod === 'razorpay' ? 'ऑनलाइन (Razorpay)' : paymentMethod === 'cash' ? 'रोख (सेवा शुल्क ऑनलाइन)' : 'अज्ञात'}\n` +
-                     `• 💳 पेमेंट स्थिती: ${paymentStatus === 'service_fee_paid' ? 'सेवा शुल्क भरले' : paymentStatus === 'paid' ? 'पूर्ण भरले' : paymentStatus === 'failed' ? 'अयशस्वी' : 'प्रलंबित'}\n\n` +
-                     `🌟 कृपया पुनरावलोकन करा आणि कामगार नियुक्त करा!`;
-
+  const pinCode = user.pinCode || 'प्रदान केले नाही';
   const adminWhatsAppNumber = '+918788647637';
+
+  const contentVariables = {
+    "1": farmerName,
+    "2": serviceName,
+    "3": (maleWorkersCount + femaleWorkersCount).toString(),
+    "4": maleWorkersCount.toString(),
+    "5": femaleWorkersCount.toString(),
+    "6": vehicleType || 'काही नाही',
+    "7": vehicleCost.toString() || '0',
+    "8": workersCost.toFixed(2),
+    "9": serviceFee.toFixed(2),
+    "10": totalCost.toFixed(2),
+    "11": startDate || 'प्रदान केले नाही',
+    "12": address || 'प्रदान केले नाही',
+    "13": pinCode,
+    "14": contactNumber || 'प्रदान केले नाही',
+    "15": paymentMethod === 'razorpay'
+      ? 'ऑनलाइन (Razorpay)'
+      : paymentMethod === 'cash'
+        ? 'रोख (सेवा शुल्क ऑनलाइन)'
+        : 'अज्ञात',
+    "16": paymentStatus === 'service_fee_paid'
+      ? 'सेवा शुल्क भरले'
+      : paymentStatus === 'paid'
+        ? 'पूर्ण भरले'
+        : paymentStatus === 'failed'
+          ? 'अयशस्वी'
+          : 'प्रलंबित'
+  };
 
   try {
     const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
@@ -358,20 +365,22 @@ const Home = () => {
       },
       body: JSON.stringify({
         to: adminWhatsAppNumber,
-        message: adminMessage,
+        contentSid: 'HX3dfc5ca3689783b05c3c3e4522a289de',
+        contentVariables
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Failed to send WhatsApp notification to admin:', errorData);
-      setError('ऑर्डर बुक झाली, परंतु प्रशासकाला WhatsApp सूचना पाठवण्यात अयशस्वी.');
+      console.error('Failed to send WhatsApp to admin:', errorData);
+      setError('ऑर्डर बुक झाली, पण WhatsApp सूचना पाठवण्यात अयशस्वी.');
     }
   } catch (err) {
-    console.error('Error sending WhatsApp notification to admin:', err);
-    setError('ऑर्डर बुक झाली, परंतु प्रशासकाला WhatsApp सूचना पाठवण्यात अयशस्वी.');
+    console.error('Error sending WhatsApp to admin:', err);
+    setError('ऑर्डर बुक झाली, पण WhatsApp सूचना पाठवण्यात अयशस्वी.');
   }
 };
+
 
 const sendFarmerWhatsAppMessage = async () => {
   const service = services.find(s => s.type === selectedService);
@@ -382,7 +391,6 @@ const sendFarmerWhatsAppMessage = async () => {
   let totalCost = 0;
   let maleWorkersCount = 0;
   let femaleWorkersCount = 0;
-  let totalWorkersMessage = '';
 
   if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
     if (selectedBundle) {
@@ -392,48 +400,57 @@ const sendFarmerWhatsAppMessage = async () => {
       totalCost = (workersCost + vehicleCost) * days + serviceFee;
       maleWorkersCount = bundle.maleWorkers;
       femaleWorkersCount = bundle.femaleWorkers;
-      totalWorkersMessage = `• 👥 एकूण कामगार: ${bundle.maleWorkers + bundle.femaleWorkers} (👨 ${maleWorkersCount}, 👩 ${femaleWorkersCount})\n• 🚗 वाहन: ${vehicleType || 'काही नाही'} (₹${vehicleCost || 0})`;
     } else {
       workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * days;
       serviceFee = workersCost * serviceFeeRate;
       totalCost = (workersCost + vehicleCost) * days + serviceFee;
       maleWorkersCount = maleWorkers;
       femaleWorkersCount = femaleWorkers;
-      totalWorkersMessage = `• 👥 एकूण कामगार: ${maleWorkers + femaleWorkers} (👨 ${maleWorkersCount}, 👩 ${femaleWorkersCount})\n• 🚗 वाहन: ${vehicleType || 'काही नाही'} (₹${vehicleCost || 0})`;
     }
   } else if (selectedService === 'ownertc') {
     workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * days;
     serviceFee = workersCost * serviceFeeRate;
     totalCost = workersCost + serviceFee;
-    totalWorkersMessage = `• 👥 एकूण कामगार: ${otherWorkers}`;
   } else {
     workersCost = (service.cost || 0) * otherWorkers * days;
     serviceFee = workersCost * serviceFeeRate;
     totalCost = workersCost + serviceFee;
-    totalWorkersMessage = `• 👥 एकूण कामगार: ${otherWorkers}`;
   }
 
-  const pinCodeMatch = address.match(/\b\d{6}\b/);
-  const pinCode = user.pinCode || 'प्रदान केले नाही';
   const farmerName = user.displayName || 'शेतकरी';
   const serviceName = service ? (language === 'marathi' ? service.nameMarathi || service.name : service.name) : selectedService;
+  const pinCode = user.pinCode || 'प्रदान केले नाही';
 
-  const farmerMessage = `🎉 खेतीसाथीवर तुमची ऑर्डर यशस्वीपणे बुक झाली आहे! 🚜😀\n\n` +
-                       `• 👨‍🌾 शेतकरी: ${farmerName}\n` +
-                       `• 🛠️ सेवा: ${serviceName || 'अज्ञात'}\n` +
-                       `${totalWorkersMessage}\n` +
-                       `• 💰 कामगार खर्च: ₹${workersCost.toFixed(2)}\n` +
-                       `• 💵 सेवा शुल्क (10%): ₹${serviceFee.toFixed(2)}\n` +
-                       `• 💰 एकूण खर्च: ₹${totalCost.toFixed(2)}\n` +
-                       `• 📅 प्रारंभ तारीख: ${startDate || 'प्रदान केले नाही'}\n` +
-                       `• 📅 समाप्ती तारीख: ${endDate || 'प्रदान केले नाही'}\n` +
-                       `• 🕒 प्रारंभ वेळ: ${startTime || 'प्रदान केले नाही'}\n` +
-                       `• 📍 पत्ता: ${address || 'प्रदान केले नाही'}\n` +
-                       `• 📮 पिन कोड: ${pinCode}\n` +
-                       `• 📞 संपर्क: ${contactNumber || 'प्रदान केले नाही'}\n` +
-                       `• 💳 पेमेंट पद्धत: ${paymentMethod === 'razorpay' ? 'ऑनलाइन (Razorpay)' : paymentMethod === 'cash' ? 'रोख (सेवा शुल्क ऑनलाइन)' : 'अज्ञात'}\n` +
-                       `• 💳 पेमेंट स्थिती: ${paymentStatus === 'service_fee_paid' ? 'सेवा शुल्क भरले' : paymentStatus === 'paid' ? 'पूर्ण भरले' : paymentStatus === 'failed' ? 'अयशस्वी' : 'प्रलंबित'}\n\n` +
-                       `🌟 आम्ही लवकरच तुमच्या ऑर्डरसाठी कामगार नियुक्त करू. खेतीसाथी वापरल्याबद्दल धन्यवाद!`;
+  const contentVariables = {
+    "1": farmerName,
+    "2": serviceName,
+    "3": (maleWorkersCount + femaleWorkersCount).toString(),
+    "4": maleWorkersCount.toString(),
+    "5": femaleWorkersCount.toString(),
+    "6": vehicleType || 'काही नाही',
+    "7": vehicleCost.toString() || '0',
+    "8": workersCost.toFixed(2),
+    "9": serviceFee.toFixed(2),
+    "10": totalCost.toFixed(2),
+    "11": startDate || 'प्रदान केले नाही',
+    "12": endDate || 'प्रदान केले नाही',
+    "13": startTime || 'प्रदान केले नाही',
+    "14": address || 'प्रदान केले नाही',
+    "15": pinCode,
+    "16": contactNumber || 'प्रदान केले नाही',
+    "17": paymentMethod === 'razorpay'
+      ? 'ऑनलाइन (Razorpay)'
+      : paymentMethod === 'cash'
+        ? 'रोख (सेवा शुल्क ऑनलाइन)'
+        : 'अज्ञात',
+    "18": paymentStatus === 'service_fee_paid'
+      ? 'सेवा शुल्क भरले'
+      : paymentStatus === 'paid'
+        ? 'पूर्ण भरले'
+        : paymentStatus === 'failed'
+          ? 'अयशस्वी'
+          : 'प्रलंबित'
+  };
 
   try {
     const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
@@ -442,21 +459,23 @@ const sendFarmerWhatsAppMessage = async () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        to: `+91${contactNumber}`, // Assuming contactNumber is a 10-digit Indian phone number
-        message: farmerMessage,
+        to: `+91${contactNumber}`,
+        contentSid: 'HX0cbca6a024a44e420178c43d80781a61',
+        contentVariables
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Failed to send WhatsApp notification to farmer:', errorData);
-      setError('ऑर्डर बुक झाली, परंतु शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
+      console.error('Failed to send WhatsApp to farmer:', errorData);
+      setError('ऑर्डर बुक झाली, पण शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
     }
   } catch (err) {
-    console.error('Error sending WhatsApp notification to farmer:', err);
-    setError('ऑर्डर बुक झाली, परंतु शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
+    console.error('Error sending WhatsApp to farmer:', err);
+    setError('ऑर्डर बुक झाली, पण शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
   }
 };
+
 
 const handleBookService = async () => {
   if (!user) {

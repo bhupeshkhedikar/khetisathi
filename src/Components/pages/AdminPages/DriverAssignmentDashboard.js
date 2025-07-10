@@ -259,24 +259,34 @@ const handleAssignDriver = async (groupId, index) => {
       .map((wid) => workers.find((w) => w.id === wid)?.mobile || 'N/A')
       .join(', ');
 
-    const driverMessage = `🚛 New Ride Assignment!
+    // ✅ Send Twilio WhatsApp Template message to driver
+    const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: `+91${driver.mobile.replace(/\s/g, '')}`,
+        contentSid: 'HXc6bbe9848fcfa1b355fa6d4f5f18145c',
+        contentVariables: {
+          '1': workerNames || 'कामगार',
+          '2': workerMobiles || 'मोबाइल उपलब्ध नाही',
+          '3': group.location || 'ठिकाण',
+          '4': group.startDate || 'तारीख',
+          '5': (group.customPrice || 0).toFixed(2),
+        },
+      }),
+    });
 
-👥 Workers: ${workerNames}
-📞 Contact: ${workerMobiles}
-📍 Location: ${group.location}
-📅 Date: ${group.startDate}
-💰 Earning: ₹${(group.customPrice || 0).toFixed(2)}
-
-✅ Accept or ❌ Reject this ride within 5 minutes from your dashboard.
-🔗 Dashboard: https://yourdashboardlink.com`;
-
-    const messages = [sendWhatsAppMessage(driver.mobile, driverMessage)];
-
-    const results = await Promise.all(messages);
-    const notificationErrors = results.some((r) => !r) ? ['Notification to driver failed.'] : [];
+    if (!response.ok) {
+      const errorJson = await response.json();
+      console.error('Twilio WhatsApp failed:', errorJson);
+      setSuccess('Driver assigned but message sending failed.');
+    } else {
+      setSuccess('Driver assigned and notified!');
+    }
 
     setSelectedDriver('');
-    setSuccess(notificationErrors.length ? `Assigned, but ${notificationErrors.join('; ')}` : 'Driver assigned and notified!');
     setTimeout(() => setSuccess(''), 3000);
   } catch (err) {
     logError('Error assigning driver', err);
@@ -285,6 +295,7 @@ const handleAssignDriver = async (groupId, index) => {
     setLoading(false);
   }
 };
+
 
 
   const handleVehicleTypeChange = async (groupId, type) => {

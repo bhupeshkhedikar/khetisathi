@@ -355,75 +355,92 @@ const WorkerDashboard = () => {
     };
   }, [orders, user, t]);
 
-  const handleAcceptOrder = async (orderId) => {
-    if (serviceFeeWallet >= 100) {
-      setError(t.serviceFeeWarning.replace('{amount}', serviceFeeWallet.toFixed(2)));
-      return;
+const handleAcceptOrder = async (orderId) => {
+  if (serviceFeeWallet >= 100) {
+    setError(t.serviceFeeWarning.replace('{amount}', serviceFeeWallet.toFixed(2)));
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const orderRef = doc(db, 'orders', orderId);
+    const orderDoc = await getDoc(orderRef);
+    if (!orderDoc.exists()) {
+      throw new Error(t.errorOrderNotFound.replace('{orderId}', orderId));
     }
-    setLoading(true);
-    try {
-      const orderRef = doc(db, 'orders', orderId);
-      const orderDoc = await getDoc(orderRef);
-      if (!orderDoc.exists()) {
-        throw new Error(t.errorOrderNotFound.replace('{orderId}', orderId));
-      }
-      const orderData = orderDoc.data();
+    const orderData = orderDoc.data();
 
-      const serviceName = orderData.serviceType
-        ? t[orderData.serviceType] || orderData.serviceType.replace('-', ' ')
-        : t.service;
+    const serviceName = orderData.serviceType
+      ? t[orderData.serviceType] || orderData.serviceType.replace('-', ' ')
+      : t.service;
 
-      const message = t.orderAccepted
-        .replace('{name}', profile.name)
-        .replace('{mobile}', profile.mobile)
-        .replace('{service}', serviceName)
-        .replace('{address}', orderData.address || t.none);
+    const contactNumber = orderData.contactNumber;
+    const farmerName = orderData.farmerName || 'शेतकरी';
+    const address = orderData.address || 'प्रदान केले नाही';
 
-      const messageSent = await sendWhatsAppMessage(orderData.contactNumber, message);
-      if (!messageSent && orderData.contactNumber) {
-        console.warn('[WorkerDashboard] Failed to send WhatsApp notification to farmer.');
+    // 🟢 Send message to farmer using Twilio template
+    if (contactNumber) {
+      const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: `+91${contactNumber}`,
+          contentSid: 'HXa26d9a0530518b27996464aa5c79b06b',
+          contentVariables: {
+            "1": profile.name || 'कामगार',
+            "2": profile.mobile || 'नाही',
+            "3": serviceName,
+            "4": address
+          }
+        })
+      });
+
+      if (!response.ok) {
+        console.warn('[WorkerDashboard] Failed to send Twilio WhatsApp to farmer:', await response.text());
         alert(t.orderAcceptedFailedWhatsApp);
       }
-
-      let updateData = {};
-      if (Array.isArray(orderData.workerId)) {
-        const updatedAcceptances = orderData.workerAcceptances
-          ? orderData.workerAcceptances.map(wa =>
-              wa.workerId === user.uid ? { ...wa, status: 'accepted' } : wa
-            )
-          : orderData.workerId.map(wid => ({
-              workerId: wid,
-              status: wid === user.uid ? 'accepted' : 'pending'
-            }));
-        const allAccepted = updatedAcceptances.every(wa => wa.status === 'accepted');
-        updateData = {
-          workerAcceptances: updatedAcceptances,
-          status: allAccepted ? 'assigned' : 'pending',
-          updatedAt: serverTimestamp(),
-        };
-      } else {
-        updateData = {
-          accepted: 'accepted',
-          status: 'assigned',
-          updatedAt: serverTimestamp(),
-        };
-      }
-
-      await updateDoc(orderRef, updateData);
-
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, { workerStatus: 'busy' });
-      setWorkerStatus('busy');
-      setProfile(prev => ({ ...prev, workerStatus: 'busy' }));
-
-      alert(t.successOrderAccepted);
-    } catch (err) {
-      console.error('[WorkerDashboard] Error accepting order:', err);
-      setError(`${t.errorCompletingOrder}: ${err.message}`);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    let updateData = {};
+    if (Array.isArray(orderData.workerId)) {
+      const updatedAcceptances = orderData.workerAcceptances
+        ? orderData.workerAcceptances.map(wa =>
+            wa.workerId === user.uid ? { ...wa, status: 'accepted' } : wa
+          )
+        : orderData.workerId.map(wid => ({
+            workerId: wid,
+            status: wid === user.uid ? 'accepted' : 'pending'
+          }));
+      const allAccepted = updatedAcceptances.every(wa => wa.status === 'accepted');
+      updateData = {
+        workerAcceptances: updatedAcceptances,
+        status: allAccepted ? 'assigned' : 'pending',
+        updatedAt: serverTimestamp(),
+      };
+    } else {
+      updateData = {
+        accepted: 'accepted',
+        status: 'assigned',
+        updatedAt: serverTimestamp(),
+      };
+    }
+
+    await updateDoc(orderRef, updateData);
+
+    const userRef = doc(db, 'users', user.uid);
+    await updateDoc(userRef, { workerStatus: 'busy' });
+    setWorkerStatus('busy');
+    setProfile(prev => ({ ...prev, workerStatus: 'busy' }));
+
+    alert(t.successOrderAccepted);
+  } catch (err) {
+    console.error('[WorkerDashboard] Error accepting order:', err);
+    setError(`${t.errorCompletingOrder}: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleRejectOrder = async (orderId) => {
     setLoading(true);
@@ -483,115 +500,130 @@ const WorkerDashboard = () => {
     }
   };
 
-  const handleCompleteOrder = async (orderId) => {
-    if (!paymentMethod[orderId]) {
-      setError(t.errorSelectPaymentMethod);
-      return;
+const handleCompleteOrder = async (orderId) => {
+  if (!paymentMethod[orderId]) {
+    setError(t.errorSelectPaymentMethod);
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const orderRef = doc(db, 'orders', orderId);
+    const orderDoc = await getDoc(orderRef);
+    if (!orderDoc.exists()) {
+      throw new Error(t.errorOrderNotFound.replace('{orderId}', orderId));
     }
-    setLoading(true);
-    try {
-      const orderRef = doc(db, 'orders', orderId);
-      const orderDoc = await getDoc(orderRef);
-      if (!orderDoc.exists()) {
-        throw new Error(t.errorOrderNotFound.replace('{orderId}', orderId));
-      }
-      const orderData = orderDoc.data();
+    const orderData = orderDoc.data();
 
-      if (!orderData.cost || isNaN(orderData.cost) || orderData.cost <= 0) {
-        throw new Error(t.errorInvalidOrderCost);
-      }
+    if (!orderData.cost || isNaN(orderData.cost) || orderData.cost <= 0) {
+      throw new Error(t.errorInvalidOrderCost);
+    }
 
-      const workerCount = Array.isArray(orderData.workerId) ? orderData.workerId.length : 1;
-      if (workerCount <= 0) {
-        throw new Error(t.errorInvalidWorkerCount);
-      }
+    const workerCount = Array.isArray(orderData.workerId) ? orderData.workerId.length : 1;
+    if (workerCount <= 0) {
+      throw new Error(t.errorInvalidWorkerCount);
+    }
 
-      const grossEarnings = orderData.cost / workerCount;
-      const serviceFeeRate = 0.02;
-      const serviceFee = grossEarnings * serviceFeeRate;
-      const netEarnings = grossEarnings - serviceFee;
+    const grossEarnings = orderData.cost / workerCount;
+    const serviceFeeRate = 0.02;
+    const serviceFee = grossEarnings * serviceFeeRate;
+    const netEarnings = grossEarnings - serviceFee;
 
-      let updateData = {};
-      if (Array.isArray(orderData.workerId)) {
-        const updatedAcceptances = orderData.workerAcceptances.map(wa =>
-          wa.workerId === user.uid
-            ? { ...wa, status: 'completed', completedAt: new Date().toISOString(), paymentMethod: paymentMethod[orderId] }
-            : wa
-        );
-        const allFinalized = updatedAcceptances.every(wa => wa.status === 'completed' || wa.status === 'rejected');
-        const hasCompletedWorkers = updatedAcceptances.some(wa => wa.status === 'completed');
-        updateData = {
-          workerAcceptances: updatedAcceptances,
-          status: allFinalized && hasCompletedWorkers ? 'completed' : 'assigned',
-          updatedAt: serverTimestamp(),
-        };
-        if (allFinalized && hasCompletedWorkers) {
-          updateData.paymentStatus = {
-            method: paymentMethod[orderId],
-            status: 'paid'
-          };
-        }
-      } else {
-        updateData = {
-          accepted: 'completed',
-          status: 'completed',
-          completedAt: serverTimestamp(),
-          paymentStatus: { method: paymentMethod[orderId], status: 'paid' },
-          updatedAt: serverTimestamp(),
+    let updateData = {};
+    if (Array.isArray(orderData.workerId)) {
+      const updatedAcceptances = orderData.workerAcceptances.map(wa =>
+        wa.workerId === user.uid
+          ? { ...wa, status: 'completed', completedAt: new Date().toISOString(), paymentMethod: paymentMethod[orderId] }
+          : wa
+      );
+      const allFinalized = updatedAcceptances.every(wa => wa.status === 'completed' || wa.status === 'rejected');
+      const hasCompletedWorkers = updatedAcceptances.some(wa => wa.status === 'completed');
+      updateData = {
+        workerAcceptances: updatedAcceptances,
+        status: allFinalized && hasCompletedWorkers ? 'completed' : 'assigned',
+        updatedAt: serverTimestamp(),
+      };
+      if (allFinalized && hasCompletedWorkers) {
+        updateData.paymentStatus = {
+          method: paymentMethod[orderId],
+          status: 'paid'
         };
       }
-
-      await updateDoc(orderRef, updateData);
-
-      await addDoc(collection(db, `users/${user.uid}/earnings`), {
-        orderId,
-        serviceType: orderData.serviceType,
-        cost: netEarnings,
-        serviceFee: serviceFee,
+    } else {
+      updateData = {
+        accepted: 'completed',
+        status: 'completed',
         completedAt: serverTimestamp(),
-        paymentMethod: paymentMethod[orderId],
-      });
-
-      const userRef = doc(db, 'users', user.uid);
-      const newServiceFeeWallet = (serviceFeeWallet || 0) + serviceFee;
-      await updateDoc(userRef, {
-        serviceFeeWallet: newServiceFeeWallet,
-        workerStatus: 'ready'
-      });
-      setServiceFeeWallet(newServiceFeeWallet);
-      setWorkerStatus('ready');
-      setProfile(prev => ({ ...prev, workerStatus: 'ready' }));
-      setPaymentMethod(prev => ({ ...prev, [orderId]: undefined }));
-
-      const adminWhatsAppNumber = '8788647637';
-      const serviceName = orderData.serviceType
-        ? t[orderData.serviceType] || orderData.serviceType.replace('-', ' ')
-        : t.service;
-      const paymentMethodName = t[paymentMethod[orderId]] || (paymentMethod[orderId].charAt(0).toUpperCase() + paymentMethod[orderId].slice(1));
-      const completedDate = formatDate(new Date());
-
-      const message = t.orderCompleted
-        .replace('{name}', profile.name)
-        .replace('{mobile}', profile.mobile)
-        .replace('{service}', serviceName)
-        .replace('{grossEarnings}', grossEarnings.toFixed(2))
-        .replace('{serviceFee}', serviceFee.toFixed(2))
-        .replace('{netEarnings}', netEarnings.toFixed(2))
-        .replace('{completedDate}', completedDate)
-        .replace('{address}', orderData.address || t.none)
-        .replace('{paymentMethod}', paymentMethodName)
-        .replace('{orderId}', orderId);
-
-      await sendWhatsAppMessage(adminWhatsAppNumber, message);
-
-      alert(t.successOrderCompleted);
-    } catch (err) {
-      console.error('[WorkerDashboard] Error completing order:', err);
-      setError(`${t.errorCompletingOrder}: ${err.message}`);
-    } finally {
-      setLoading(false);
+        paymentStatus: { method: paymentMethod[orderId], status: 'paid' },
+        updatedAt: serverTimestamp(),
+      };
     }
-  };
+
+    await updateDoc(orderRef, updateData);
+
+    await addDoc(collection(db, `users/${user.uid}/earnings`), {
+      orderId,
+      serviceType: orderData.serviceType,
+      cost: netEarnings,
+      serviceFee: serviceFee,
+      completedAt: serverTimestamp(),
+      paymentMethod: paymentMethod[orderId],
+    });
+
+    const userRef = doc(db, 'users', user.uid);
+    const newServiceFeeWallet = (serviceFeeWallet || 0) + serviceFee;
+    await updateDoc(userRef, {
+      serviceFeeWallet: newServiceFeeWallet,
+      workerStatus: 'ready'
+    });
+
+    setServiceFeeWallet(newServiceFeeWallet);
+    setWorkerStatus('ready');
+    setProfile(prev => ({ ...prev, workerStatus: 'ready' }));
+    setPaymentMethod(prev => ({ ...prev, [orderId]: undefined }));
+
+    // 🟢 Send Twilio WhatsApp using Template
+    const adminWhatsAppNumber = '8788647637';
+    const serviceName = orderData.serviceType
+      ? t[orderData.serviceType] || orderData.serviceType.replace('-', ' ')
+      : t.service;
+
+    const paymentMethodName =
+      t[paymentMethod[orderId]] ||
+      (paymentMethod[orderId].charAt(0).toUpperCase() + paymentMethod[orderId].slice(1));
+
+    const completedDate = formatDate(new Date());
+    const address = orderData.address || t.none;
+
+    await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: `+91${adminWhatsAppNumber}`,
+        contentSid: 'HXc8a5c4123fd5a2dc3edd80dfcd6066d6',
+        contentVariables: {
+          "1": profile.name || 'कामगार',
+          "2": profile.mobile || '',
+          "3": serviceName,
+          "4": `₹${grossEarnings.toFixed(2)}`,
+          "5": `₹${serviceFee.toFixed(2)}`,
+          "6": `₹${netEarnings.toFixed(2)}`,
+          "7": completedDate,
+          "8": address,
+          "9": orderId,
+        }
+      })
+    });
+
+    alert(t.successOrderCompleted);
+  } catch (err) {
+    console.error('[WorkerDashboard] Error completing order:', err);
+    setError(`${t.errorCompletingOrder}: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handlePayServiceFee = async () => {
     if (!window.Razorpay) {

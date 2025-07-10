@@ -216,57 +216,66 @@ const DriverDashboard = () => {
     }
   };
 
-  const handleAcceptAssignment = async (assignmentId) => {
-    if (serviceFeeWallet >= 100) {
-      setError(t.serviceFeeWarning.replace('{amount}', serviceFeeWallet.toFixed(2)));
+const handleAcceptAssignment = async (assignmentId) => {
+  if (serviceFeeWallet >= 100) {
+    setError(t.serviceFeeWarning.replace('{amount}', serviceFeeWallet.toFixed(2)));
+    return;
+  }
+
+  try {
+    setLoading(true);
+    const assignment = assignments.find((a) => a.id === assignmentId);
+    if (!assignment || !assignment.location) {
+      setError(t.errorInvalidAssignment);
       return;
     }
-    try {
-      setLoading(true);
-      const assignment = assignments.find((a) => a.id === assignmentId);
-      if (!assignment || !assignment.location) {
-        setError(t.errorInvalidAssignment);
-        return;
-      }
 
-      await updateDoc(doc(db, 'assignments', assignmentId), {
-        status: 'accepted',
-        updatedAt: serverTimestamp(),
+    await updateDoc(doc(db, 'assignments', assignmentId), {
+      status: 'accepted',
+      updatedAt: serverTimestamp(),
+    });
+
+    await updateDoc(doc(db, 'users', user.uid), {
+      driverStatus: 'busy',
+    });
+
+    setDriverStatus('busy');
+    setProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
+    setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
+
+    // ✅ Send Twilio Template Message to Workers
+    const workerMessages = (workerDetails[assignmentId] || []).map((worker) => {
+      if (!worker?.mobile) return Promise.resolve(false);
+
+      return fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: `+91${worker.mobile}`,
+          contentSid: 'HX87a61704d6cd283a4de603faac054df7',
+          contentVariables: {
+            "1": profile.name || 'ड्रायव्हर',
+            "2": profile.mobile || '',
+            "3": assignment.location || 'लोकेशन उपलब्ध नाही'
+          }
+        }),
       });
+    });
 
-      await updateDoc(doc(db, 'users', user.uid), {
-        driverStatus: 'busy',
-      });
-
-      setDriverStatus('busy');
-      setProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
-      setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
-
-      // Send WhatsApp message to workers
-      const workerMessages = (workerDetails[assignmentId] || []).map((worker) =>
-        sendWhatsAppMessage(
-          worker.mobile,
-          t.workerMessage
-            .replace('{workerName}', worker.name)
-            .replace('{driverName}', profile.name)
-            .replace('{driverMobile}', profile.mobile)
-            .replace('{location}', assignment.location)
-        )
-      );
-
-      const results = await Promise.all(workerMessages);
-      if (workerMessages.length > 0 && results.every((r) => !r)) {
-        setError(t.errorAcceptingAssignment);
-      }
-
-      alert(t.successAssignmentAccepted);
-    } catch (err) {
-      logError('Error accepting assignment', err);
+    const results = await Promise.all(workerMessages);
+    if (workerMessages.length > 0 && results.every((r) => !r)) {
       setError(t.errorAcceptingAssignment);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    alert(t.successAssignmentAccepted);
+  } catch (err) {
+    logError('Error accepting assignment', err);
+    setError(t.errorAcceptingAssignment);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleRejectAssignment = async (assignmentId) => {
     try {
@@ -291,77 +300,97 @@ const DriverDashboard = () => {
     }
   };
 
-  const handleCompleteAssignment = async (assignmentId) => {
-    if (!paymentMethod[assignmentId]) {
-      setError(t.errorSelectPaymentMethod);
-      return;
+const handleCompleteAssignment = async (assignmentId) => {
+  if (!paymentMethod[assignmentId]) {
+    setError(t.errorSelectPaymentMethod);
+    return;
+  }
+
+  try {
+    setLoading(true);
+    const assignment = assignments.find((a) => a.id === assignmentId);
+    if (!assignment) {
+      throw new Error(`Assignment ${assignmentId} not found.`);
     }
-    try {
-      setLoading(true);
-      const assignment = assignments.find((a) => a.id === assignmentId);
-      if (!assignment) {
-        throw new Error(`Assignment ${assignmentId} not found.`);
-      }
-      if (!assignment.customPrice || isNaN(assignment.customPrice) || assignment.customPrice <= 0) {
-        throw new Error(t.errorInvalidAssignmentCost);
-      }
-
-      const grossEarnings = assignment.customPrice;
-      const serviceFeeRate = 0.02; // 2% service fee
-      const serviceFee = grossEarnings * serviceFeeRate;
-      const netEarnings = grossEarnings - serviceFee;
-
-      await updateDoc(doc(db, 'assignments', assignmentId), {
-        status: 'completed',
-        completedAt: serverTimestamp(),
-        paymentStatus: { method: paymentMethod[assignmentId], status: 'paid' },
-        updatedAt: serverTimestamp(),
-      });
-
-      await addDoc(collection(db, `users/${user.uid}/earnings`), {
-        assignmentId,
-        serviceType: assignment.vehicleType,
-        cost: netEarnings,
-        serviceFee: serviceFee,
-        completedAt: serverTimestamp(),
-        paymentMethod: paymentMethod[assignmentId],
-      });
-
-      const newServiceFeeWallet = (serviceFeeWallet || 0) + serviceFee;
-      await updateDoc(doc(db, 'users', user.uid), {
-        driverStatus: 'available',
-        serviceFeeWallet: newServiceFeeWallet,
-      });
-
-      setDriverStatus('available');
-      setProfile((prev) => ({ ...prev, driverStatus: 'available' }));
-      setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'available' }));
-      setServiceFeeWallet(newServiceFeeWallet);
-      setPaymentMethod((prev) => ({ ...prev, [assignmentId]: undefined }));
-
-      // Notify admin via WhatsApp
-      const adminWhatsAppNumber = '+918788647637';
-      const message = t.adminMessage
-        .replace('{driverName}', profile.name)
-        .replace('{driverMobile}', profile.mobile)
-        .replace('{vehicleType}', assignment.vehicleType.replace('-', ' '))
-        .replace('{grossEarnings}', grossEarnings.toFixed(2))
-        .replace('{serviceFee}', serviceFee.toFixed(2))
-        .replace('{netEarnings}', netEarnings.toFixed(2))
-        .replace('{completedDate}', formatDate(new Date()))
-        .replace('{location}', assignment.location || t.none)
-        .replace('{paymentMethod}', paymentMethod[assignmentId].charAt(0).toUpperCase() + paymentMethod[assignmentId].slice(1))
-        .replace('{assignmentId}', assignmentId);
-      await sendWhatsAppMessage(adminWhatsAppNumber, message);
-
-      alert(t.successAssignmentCompleted);
-    } catch (err) {
-      logError('Error completing assignment', err);
-      setError(t.errorCompletingAssignment.replace('{message}', err.message));
-    } finally {
-      setLoading(false);
+    if (!assignment.customPrice || isNaN(assignment.customPrice) || assignment.customPrice <= 0) {
+      throw new Error(t.errorInvalidAssignmentCost);
     }
-  };
+
+    const grossEarnings = assignment.customPrice;
+    const serviceFeeRate = 0.02; // 2% service fee
+    const serviceFee = grossEarnings * serviceFeeRate;
+    const netEarnings = grossEarnings - serviceFee;
+
+    await updateDoc(doc(db, 'assignments', assignmentId), {
+      status: 'completed',
+      completedAt: serverTimestamp(),
+      paymentStatus: {
+        method: paymentMethod[assignmentId],
+        status: 'paid'
+      },
+      updatedAt: serverTimestamp()
+    });
+
+    await addDoc(collection(db, `users/${user.uid}/earnings`), {
+      assignmentId,
+      serviceType: assignment.vehicleType,
+      cost: netEarnings,
+      serviceFee: serviceFee,
+      completedAt: serverTimestamp(),
+      paymentMethod: paymentMethod[assignmentId],
+    });
+
+    const newServiceFeeWallet = (serviceFeeWallet || 0) + serviceFee;
+    await updateDoc(doc(db, 'users', user.uid), {
+      driverStatus: 'available',
+      serviceFeeWallet: newServiceFeeWallet,
+    });
+
+    setDriverStatus('available');
+    setProfile((prev) => ({ ...prev, driverStatus: 'available' }));
+    setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'available' }));
+    setServiceFeeWallet(newServiceFeeWallet);
+    setPaymentMethod((prev) => ({ ...prev, [assignmentId]: undefined }));
+
+    // 🔔 Send WhatsApp message using Twilio Template
+    const adminWhatsAppNumber = '+918788647637';
+    const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: adminWhatsAppNumber,
+        contentSid: 'HX2f95a526950e179926f5bf9c77d3937e',
+        contentVariables: {
+          '1': profile.name || 'ड्रायव्हर',
+          '2': profile.mobile || 'मोबाईल उपलब्ध नाही',
+          '3': assignment.vehicleType?.replace('-', ' ') || 'वाहन',
+          '4': grossEarnings.toFixed(2),
+          '5': serviceFee.toFixed(2),
+          '6': netEarnings.toFixed(2),
+          '7': formatDate(new Date()), // Example: "१० जुलै २०२५"
+          '8': assignment.location || t.none,
+          '9': paymentMethod[assignmentId]?.charAt(0).toUpperCase() + paymentMethod[assignmentId].slice(1),
+          '10': assignmentId,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const resJson = await response.json();
+      console.error('Twilio Message Failed:', resJson);
+    }
+
+    alert(t.successAssignmentCompleted);
+  } catch (err) {
+    logError('Error completing assignment', err);
+    setError(t.errorCompletingAssignment.replace('{message}', err.message));
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handlePayServiceFee = async () => {
     if (!window.Razorpay) {
