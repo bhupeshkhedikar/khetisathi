@@ -69,7 +69,7 @@ const translationsTermsAndConditions = {
     // Contact
     contact: {
       title: 'Contact Us',
-      content: 'For questions or concerns about these Terms and Conditions, contact us at support@khetisathi.com or +91 87886 47637.'
+      content: 'For questions or concerns about these Terms and Conditions, contact us at support@khetisathi.com or +91 7020258039.'
     }
   },
   hi: {
@@ -142,7 +142,7 @@ const translationsTermsAndConditions = {
     // Contact
     contact: {
       title: 'हमसे संपर्क करें',
-      content: 'इन नियमों और शर्तों के बारे में प्रश्नों या चिंताओं के लिए, हमसे support@khetisathi.com या +91 87886 47637 पर संपर्क करें।'
+      content: 'इन नियमों और शर्तों के बारे में प्रश्नों या चिंताओं के लिए, हमसे support@khetisathi.com या +91 7020258039 पर संपर्क करें।'
     }
   },
   mr: {
@@ -215,7 +215,7 @@ const translationsTermsAndConditions = {
     // Contact
     contact: {
       title: 'आमच्याशी संपर्क साधा',
-      content: 'या नियम आणि अटींबाबत प्रश्न किंवा चिंतांसाठी, support@khetisathi.com किंवा +91 87886 47637 वर आमच्याशी संपर्क साधा.'
+      content: 'या नियम आणि अटींबाबत प्रश्न किंवा चिंतांसाठी, support@khetisathi.com किंवा +91 7020258039 वर आमच्याशी संपर्क साधा.'
     }
   }
 };

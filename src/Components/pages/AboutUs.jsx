@@ -17,7 +17,7 @@ const AboutUs = () => {
           <div className="md:w-1/2">
             <h2 className="text-3xl font-semibold text-green-700 mb-4">Our Story</h2>
             <p className="text-gray-600 leading-relaxed">
-              Founded in 2025, KhetiSathi is dedicated to transforming agriculture in India by providing on demand services to
+              Founded in 2025 by Bhupesh Prakash Khedikar, KhetiSathi is dedicated to transforming agriculture in India by providing on demand services to
               farmers.and knowledge to enhance their livelihoods. Our passion
               for sustainable farming drives us to support rural communities across the nation.
             </p>
@@ -67,8 +67,7 @@ const AboutUs = () => {
           <div className="grid md:grid-cols-3 gap-6 text-center">
             <div>
               <i className="fas fa-map-marker-alt text-green-600 text-2xl mb-2"></i>
-              <p className="text-gray-600">BHUPESH PRAKASH KHEDIKAR, NEAR HANUMAN MANDIR LAKHORI, LAKHORI, Lakhori, PO:
-Lakhni, DIST: Bhandara, Maharashtra - 441804</p>
+              <p className="text-gray-600">At post LAKHORI,Tah: Lakhani DIST: Bhandara, Maharashtra - 441804</p>
             </div>
             <div>
               <i className="fas fa-envelope text-green-600 text-2xl mb-2"></i>
@@ -78,7 +77,7 @@ Lakhni, DIST: Bhandara, Maharashtra - 441804</p>
             </div>
             <div>
               <i className="fas fa-phone-alt text-green-600 text-2xl mb-2"></i>
-              <p className="text-gray-600">+91 8788647637</p>
+              <p className="text-gray-600">+91 7020258039</p>
             </div>
           </div>
         </section>

@@ -35,6 +35,9 @@ const Home = () => {
   const [vehicleType, setVehicleType] = useState('');
   const [vehicleCost, setVehicleCost] = useState(0);
   const [showCashModal, setShowCashModal] = useState(false);
+  const [district, setDistrict] = useState('');
+  const [tahsil, setTahsil] = useState('');
+  const [village, setVillage] = useState('');
   const navigate = useNavigate();
 
   const t = translations[language];
@@ -97,6 +100,12 @@ const Home = () => {
   }, [startDate, numberOfDays]);
 
   useEffect(() => {
+    // Combine district, tahsil, and village into address
+    const addressComponents = [village,tahsil,district].filter(Boolean).join(', ');
+    setAddress(addressComponents);
+  }, [village,tahsil,district]);
+
+  useEffect(() => {
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       const totalWorkers = selectedBundle
         ? bundles.find(b => b.id === selectedBundle)?.maleWorkers + bundles.find(b => b.id === selectedBundle)?.femaleWorkers
@@ -104,19 +113,19 @@ const Home = () => {
 
       if (totalWorkers >= 1 && totalWorkers <= 4) {
         setVehicleType('Bike');
-        setVehicleCost(totalWorkers * 20);
+        setVehicleCost(totalWorkers * 30);
       } else if (totalWorkers >= 5 && totalWorkers <= 6) {
         setVehicleType('UV Auto');
-        setVehicleCost(500);
-      } else if (totalWorkers >= 7 && totalWorkers <= 14) {
+        setVehicleCost(150);
+      } else if (totalWorkers >= 7 && totalWorkers <= 10) {
         setVehicleType('Omni');
-        setVehicleCost(2000);
-      } else if (totalWorkers >= 15 && totalWorkers <= 20) {
+        setVehicleCost(300);
+      } else if (totalWorkers >= 11 && totalWorkers <= 20) {
         setVehicleType('Tata Magic');
-        setVehicleCost(2000);
+        setVehicleCost(400);
       } else if (totalWorkers > 20) {
         setVehicleType('Bolero');
-        setVehicleCost(3000);
+        setVehicleCost(400);
       } else {
         setVehicleType('');
         setVehicleCost(0);
@@ -135,6 +144,9 @@ const Home = () => {
     setHours('1');
     setSelectedBundle('');
     setAddress('');
+    setDistrict('');
+    setTahsil('');
+    setVillage('');
     setContactNumber('');
     setPaymentMethod('');
     setAdditionalNote('');
@@ -189,8 +201,8 @@ const Home = () => {
         return false;
       }
     } else if (currentStep === 2) {
-      if (!address || !contactNumber) {
-        setError('Please fill in address and contact number.');
+      if (!address || !contactNumber || !district || !tahsil || !village) {
+        setError('Please fill in all address and contact number fields.');
         return false;
       }
       if (contactNumber.length !== 10 || !/^\d{10}$/.test(contactNumber)) {
@@ -246,7 +258,7 @@ const Home = () => {
     const days = parseInt(numberOfDays || 0);
     let workersCost = 0;
     let serviceFee = 0;
-    const serviceFeeRate = 0.10;
+    const serviceFeeRate = 0.05;
 
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       if (selectedBundle) {
@@ -273,7 +285,7 @@ const Home = () => {
           <h3>{t.cashPaymentModalTitle}</h3>
           <p>{t.cashPaymentModalMessage}</p>
           <p>
-            <strong>{t.serviceFee} (10%):</strong> ₹{serviceFee.toFixed(2)} ({t.payOnline})
+            <strong>{t.serviceFee} (5%):</strong> ₹{serviceFee.toFixed(2)} ({t.payOnline})
           </p>
           <p>
             <strong>{t.workersCost}:</strong> ₹{workersCost.toFixed(2)}
@@ -293,7 +305,7 @@ const sendAdminWhatsAppMessage = async () => {
   const days = parseInt(numberOfDays || 0);
   let workersCost = 0;
   let serviceFee = 0;
-  const serviceFeeRate = 0.10;
+  const serviceFeeRate = 0.05;
   let totalCost = 0;
   let maleWorkersCount = 0;
   let femaleWorkersCount = 0;
@@ -381,13 +393,12 @@ const sendAdminWhatsAppMessage = async () => {
   }
 };
 
-
 const sendFarmerWhatsAppMessage = async () => {
   const service = services.find(s => s.type === selectedService);
   const days = parseInt(numberOfDays || 0);
   let workersCost = 0;
   let serviceFee = 0;
-  const serviceFeeRate = 0.10;
+  const serviceFeeRate = 0.05;
   let totalCost = 0;
   let maleWorkersCount = 0;
   let femaleWorkersCount = 0;
@@ -460,7 +471,7 @@ const sendFarmerWhatsAppMessage = async () => {
       },
       body: JSON.stringify({
         to: `+91${contactNumber}`,
-        contentSid: 'HX0cbca6a024a44e420178c43d80781a61',
+        contentSid: 'HXe4314b0088e9ef328b084ead9056ae9f',
         contentVariables
       }),
     });
@@ -476,7 +487,6 @@ const sendFarmerWhatsAppMessage = async () => {
   }
 };
 
-
 const handleBookService = async () => {
   if (!user) {
     setError('Please log in to book a service.');
@@ -490,6 +500,7 @@ const handleBookService = async () => {
     status: 'pending',
     createdAt: new Date(),
     address: address || '',
+    fullAddress: address || '',
     contactNumber: contactNumber || '',
     paymentMethod: paymentMethod || 'unknown',
     additionalNote: additionalNote || '',
@@ -501,6 +512,8 @@ const handleBookService = async () => {
     paymentStatus: { status: 'pending' },
   };
 
+
+
   try {
     const service = services.find(s => s.type === selectedService);
     if (!service) {
@@ -508,7 +521,7 @@ const handleBookService = async () => {
     }
 
     let workersCost = 0;
-    const serviceFeeRate = 0.10;
+    const serviceFeeRate = 0.05;
     let serviceFee = 0;
     let totalCost = 0;
     let maleWorkersCount = 0;
@@ -665,6 +678,9 @@ const handleBookService = async () => {
     setHours('1');
     setSelectedBundle('');
     setAddress('');
+    setDistrict('');
+    setTahsil('');
+    setVillage('');
     setContactNumber('');
     setPaymentMethod('');
     setAdditionalNote('');
@@ -722,7 +738,7 @@ const handleBookService = async () => {
     const days = parseInt(numberOfDays || 0);
     let workersCost = 0;
     let serviceFee = 0;
-    const serviceFeeRate = 0.10;
+    const serviceFeeRate = 0.05;
     let totalCost = 0;
 
     if (!service) {
@@ -740,7 +756,7 @@ const handleBookService = async () => {
             <div className="cost-breakdown">
               <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({t.bundle}: ₹{bundle.price}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
               <p><span className="review-label">{t.vehicleCost}:</span> ₹{(vehicleCost * days).toFixed(2)} ({vehicleType}: ₹{vehicleCost}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
-              <p><span className="review-label">{t.serviceFee} (10%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
+              <p><span className="review-label">{t.serviceFee} (5%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
               <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
             </div>
           );
@@ -753,7 +769,7 @@ const handleBookService = async () => {
           <div className="cost-breakdown">
             <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({maleWorkers} {t.maleWorkers} @ ₹{service.maleCost || 0}/{t.day} + {femaleWorkers} {t.femaleWorkers} @ ₹{service.femaleCost || 0}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
             <p><span className="review-label">{t.vehicleCost}:</span> ₹{(vehicleCost * days).toFixed(2)} ({vehicleType}: ₹{vehicleCost}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
-            <p><span className="review-label">{t.serviceFee} (10%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
+            <p><span className="review-label">{t.serviceFee} (5%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
             <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
           </div>
         );
@@ -765,7 +781,7 @@ const handleBookService = async () => {
       return (
         <div className="cost-breakdown">
           <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({otherWorkers} {t.otherWorkers} @ ₹{service.cost || 0}/{t.hours.toLowerCase()} × {hours} {t.hours.toLowerCase()} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
-          <p><span className="review-label">{t.serviceFee} (10%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
+          <p><span className="review-label">{t.serviceFee} (5%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
           <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
         </div>
       );
@@ -776,7 +792,7 @@ const handleBookService = async () => {
       return (
         <div className="cost-breakdown">
           <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({otherWorkers} {t.otherWorkers} @ ₹{service.cost || 0}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
-          <p><span className="review-label">{t.serviceFee} (10%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
+          <p><span className="review-label">{t.serviceFee} (5%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
           <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
         </div>
       );
@@ -954,6 +970,45 @@ const handleBookService = async () => {
             <div>
               <h3 className="section-title">{t.locationDetails}</h3>
               <div className="input-group">
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                <div className="input-wrapper" style={{margin:'5px'}}>
+                  <label className="input-label">{t.district}</label>
+                  <select
+                    className="select-field"
+                    value={district}
+                    onChange={(e) => setDistrict(e.target.value)}
+                    required
+                  >
+                    <option value="">{t.selectDistrict}</option>
+                    <option value="Bhandara">Bhandara</option>
+                  </select>
+                </div>
+                <div className="input-wrapper" style={{margin:'5px'}}>
+                  <label className="input-label">{t.tahsil}</label>
+                  <select
+                    className="select-field"
+                    value={tahsil}
+                    onChange={(e) => setTahsil(e.target.value)}
+                    required
+                  >
+                    <option value="">{t.selectTahsil}</option>
+                    <option value="Lakhani">Lakhani</option>
+                  </select>
+                </div>
+                <div className="input-wrapper" style={{margin:'5px'}}>
+                  <label className="input-label">{t.village}</label>
+                  <select
+                    className="select-field"
+                    value={village}
+                    onChange={(e) => setVillage(e.target.value)}
+                    required
+                  >
+                    <option value="">{t.selectVillage}</option>
+                    <option value="Lakhori">Lakhori</option>
+                  </select>
+                </div>
+                </div>
+
                 <div className="input-wrapper">
                   <label className="input-label">{t.fullAddress}</label>
                   <input
@@ -1308,7 +1363,7 @@ const handleBookService = async () => {
       </section>
 
       <section id="app-download" className="app-download-section">
-        <div style={{display:'flex',justifyContent:'center'}}><img src='https://i.ibb.co/4nxw7GR6/image-5-removebg-preview.png' height={50} width={150} alt='farmer'/></div>
+        <div style={{display:'flex',justifyContent:'center'}}><img src='https://i.ibb.co/4nxw7GR/image-5-removebg-preview.png' height={50} width={150} alt='farmer'/></div>
         <h2 className="app-download-title">{t.downloadApp}</h2>
         <p className="app-download-description">{t.downloadAppDescription}</p>
         <div className="app-download-buttons">
