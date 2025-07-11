@@ -130,7 +130,7 @@ const Register = () => {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setFormData({ ...formData, role: tab, gender: '', skills: [], vehicleSkills: [], termsAccepted: false });
+    setFormData({ ...formData, role: tab, gender: '', skills: [], vehicleSkills: [], termsAccepted: true });
     setError('');
   };
 
