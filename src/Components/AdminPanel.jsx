@@ -60,7 +60,16 @@ const AdminPanel = () => {
   const [editBundleDriverId, setEditBundleDriverId] = useState('');
   const [editBundleVehicleSkills, setEditBundleVehicleSkills] = useState([]);
   const [drivers, setDrivers] = useState([]);
-
+  const [newBundleMaleWages, setNewBundleMaleWages] = useState('');
+  const [newBundleFemaleWages, setNewBundleFemaleWages] = useState('');
+  const [newBundleDriverWages, setNewBundleDriverWages] = useState('');
+  const [newBundleTimeRange, setNewBundleTimeRange] = useState('');
+  const [newBundleLocation, setNewBundleLocation] = useState('');
+  const [editBundleMaleWages, setEditBundleMaleWages] = useState('');
+  const [editBundleFemaleWages, setEditBundleFemaleWages] = useState('');
+  const [editBundleDriverWages, setEditBundleDriverWages] = useState('');
+  const [editBundleTimeRange, setEditBundleTimeRange] = useState('');
+  const [editBundleLocation, setEditBundleLocation] = useState('');
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       if (user) {
@@ -290,6 +299,11 @@ const AdminPanel = () => {
         maleWorkers: parseInt(newBundleMaleWorkers) || 0,
         femaleWorkers: parseInt(newBundleFemaleWorkers) || 0,
         price: parseFloat(newBundlePrice) || 0,
+        maleWages: parseFloat(newBundleMaleWages) || 0,
+        femaleWages: parseFloat(newBundleFemaleWages) || 0,
+        driverWages: parseFloat(newBundleDriverWages) || 0,
+        timeRange: newBundleTimeRange || '',
+        location: newBundleLocation || '',
         driverId: newBundleDriverId || null,
         vehicleSkills: newBundleVehicleSkills || [],
         createdAt: serverTimestamp(),
@@ -301,6 +315,11 @@ const AdminPanel = () => {
       setNewBundlePrice('');
       setNewBundleDriverId('');
       setNewBundleVehicleSkills([]);
+      setNewBundleMaleWages('');
+      setNewBundleFemaleWages('');
+      setNewBundleDriverWages('');
+      setNewBundleTimeRange('');
+      setNewBundleLocation('');
       alert('Bundle added successfully!');
     } catch (err) {
       console.error('Error adding bundle:', err);
@@ -322,12 +341,18 @@ const handleEditBundle = async (e) => {
       maleWorkers: parseInt(editBundleMaleWorkers) || 0,
       femaleWorkers: parseInt(editBundleFemaleWorkers) || 0,
       price: parseFloat(editBundlePrice) || 0,
+      maleWages: parseFloat(editBundleMaleWages) || 0,
+      femaleWages: parseFloat(editBundleFemaleWages) || 0,
+      driverWages: parseFloat(editBundleDriverWages) || 0,
+      timeRange: editBundleTimeRange || '',
+      location: editBundleLocation || '',
       driverId: editBundleDriverId || null,
       vehicleSkills: editBundleVehicleSkills || [],
       updatedAt: serverTimestamp(),
     });
     setShowEditBundleModal(false);
     setCurrentBundle(null);
+    
     alert('Bundle updated successfully!');
   } catch (err) {
     setError(`Error updating bundle: ${err.message}`);
@@ -804,6 +829,11 @@ const openEditBundleModal = (bundle) => {
   setEditBundleDriverId(bundle.driverId || '');
   setEditBundleVehicleSkills(bundle.vehicleSkills || []);
   setShowEditBundleModal(true);
+  setEditBundleMaleWages(bundle.maleWages?.toString() || '');
+  setEditBundleFemaleWages(bundle.femaleWages?.toString() || '');
+  setEditBundleDriverWages(bundle.driverWages?.toString() || '');
+  setEditBundleTimeRange(bundle.timeRange || '');
+  setEditBundleLocation(bundle.location || '');
 };
   
 
@@ -929,6 +959,26 @@ const openEditBundleModal = (bundle) => {
           setEditBundleDriverId={setEditBundleDriverId}
           editBundleVehicleSkills={editBundleVehicleSkills}
           setEditBundleVehicleSkills={setEditBundleVehicleSkills}
+          newBundleMaleWages={newBundleMaleWages}
+          setNewBundleMaleWages={setNewBundleMaleWages}
+          newBundleFemaleWages={newBundleFemaleWages}
+          setNewBundleFemaleWages={setNewBundleFemaleWages}
+          newBundleDriverWages={newBundleDriverWages}
+          setNewBundleDriverWages={setNewBundleDriverWages}
+          newBundleTimeRange={newBundleTimeRange}
+          setNewBundleTimeRange={setNewBundleTimeRange}
+          newBundleLocation={newBundleLocation}
+          setNewBundleLocation={setNewBundleLocation}
+          editBundleMaleWages={editBundleMaleWages}
+          setEditBundleMaleWages={setEditBundleMaleWages}
+          editBundleFemaleWages={editBundleFemaleWages}
+          setEditBundleFemaleWages={setEditBundleFemaleWages}
+          editBundleDriverWages={editBundleDriverWages}
+          setEditBundleDriverWages={setEditBundleDriverWages}
+          editBundleTimeRange={editBundleTimeRange}
+          setEditBundleTimeRange={setEditBundleTimeRange}
+          editBundleLocation={editBundleLocation}
+          setEditBundleLocation={setEditBundleLocation}
         />
 <OrderManagement
           orders={orders}

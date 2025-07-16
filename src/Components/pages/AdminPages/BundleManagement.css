@@ -1,0 +1,75 @@
+.bundles-section {
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.bundles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1.2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .bundles-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    padding: 0 0.5rem;
+    justify-content: center;
+  }
+  .bundle-card {
+    width: 140px;
+    height: 180px;
+    flex: 0 0 auto;
+  }
+}
+
+.bundle-card {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.bundle-content {
+  padding: 0.5rem;
+  text-align: left;
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.bundle-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 0.3rem;
+}
+
+.bundle-details {
+  font-size: 0.65rem;
+  color: #555;
+  line-height: 1.3;
+}
+
+.bundle-price {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: #F59E0B;
+  margin-top: 0.3rem;
+}
+
+.bundle-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+}
+
+.bundle-actions button {
+  flex: 1;
+  margin: 0 0.25rem;
+  min-height: 44px;
+}

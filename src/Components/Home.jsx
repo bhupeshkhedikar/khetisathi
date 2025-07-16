@@ -1255,54 +1255,71 @@ const Home = () => {
         />
       </section>
 
-      <section className="bundles-section">
-        <h2 className="services-title">{t.newBundlesAvailable}</h2>
-        {isServicesLoading ? (
-          <div className="services-loader-container">
-            <div className="services-loader"></div>
-          </div>
-        ) : (
-          <div className="bundles-grid">
-            {bundles.map((b, index) => (
-              <div
-                key={b.id}
-                className={`bundle-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`}
-                onClick={() => handleBundleOrder(b.id)}
-              >
-                <div className="bundle-image-container">
-                  <img
-                    src={b.image || 'https://i.ibb.co/Z1Wfs935/e814b809-5fee-497d-a0b7-a215e49f7111.jpg'}
-                    alt={b.name}
-                    className="bundle-image"
-                  />
-                  <div className="bundle-overlay"></div>
-                </div>
-                <div className="bundle-content">
-                  <div className="bundle-name-container">
-                    <span className={`bundle-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
-                      {language === 'english' ? b.name : language === 'hindi' ? b.nameHindi || b.name : b.nameMarathi || b.name}
-                    </span>
-                  </div>
-                  <div className="bundle-details">
-                    <p><i className="fas fa-male"></i> {b.maleWorkers} {t.maleWorkers}</p>
-                    <p><i className="fas fa-female"></i> {b.femaleWorkers} {t.femaleWorkers}</p>
-                    <p className="bundle-price">₹{b.price}/{t.day}</p>
-                  </div>
-                </div>
-                <button
-                  className="order-now-button"
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent card click from triggering twice
-                    handleBundleOrder(b.id);
-                  }}
-                >
-                  {t.orderNow}
-                </button>
+   <section className="bundles-section">
+      <h2 className="services-title">{t.newBundlesAvailable}</h2>
+      {isServicesLoading ? (
+        <div className="services-loader-container">
+          <div className="services-loader"></div>
+        </div>
+      ) : (
+        <div className="bundles-grid">
+          {bundles.map((b, index) => (
+            <div
+              key={b.id}
+              className={`bundle-card ${index % 3 === 0 ? 'bundle-orange-border' : index % 3 === 1 ? 'bundle-green-border' : 'bundle-blue-border'}`}
+              onClick={() => handleBundleOrder(b.id)}
+            >
+              <div className="bundle-image-container">
+                <img
+                  src={b.image || 'https://i.ibb.co/Z1Wfs935/e814b809-5fee-497d-a0b7-a215e49f7111.jpg'}
+                  alt={b.name}
+                  className="bundle-image"
+                />
+                <div className="bundle-overlay"></div>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+              <div className="bundle-content">
+                <div className="bundle-name-container">
+                  <span className={`bundle-name ${index % 3 === 0 ? 'orangee' : index % 3 === 1 ? 'greenn' : 'bluee'}`}>
+                    {language === 'english' ? b.name : language === 'hindi' ? b.nameHindi || b.name : b.nameMarathi || b.name}
+                  </span>
+                </div>
+                <div className="bundle-details">
+                  <p><i className="fas fa-male"></i> {b.maleWorkers} {t.maleWorkers}</p>
+                  <p><i className="fas fa-female"></i> {b.femaleWorkers} {t.femaleWorkers}</p>
+                  <p className="bundle-details-highlight">
+                    <i className="fas fa-money-bill"></i> {t.maleWages}: ₹{b.maleWages}/{t.day}
+                  </p>
+                  <p className="bundle-details-highlight">
+                    <i className="fas fa-money-bill"></i> {t.femaleWages}: ₹{b.femaleWages}/{t.day}
+                  </p>
+                  {b.driverWages > 0 && (
+                    <p className="bundle-details-highlight">
+                      <i className="fas fa-money-bill"></i> {t.driverWages}: ₹{b.driverWages}/{t.day}
+                    </p>
+                  )}
+                  <p className="bundle-details-highlight">
+                    <i className="fas fa-clock"></i> {t.timeRange}: {b.timeRange}
+                  </p>
+                  <p className="bundle-details-highlight">
+                    <i className="fas fa-map-marker-alt"></i> {t.location}: {b.location}
+                  </p>
+                  {/* <p className="bundle-price">₹{b.price}/{t.day}</p> */}
+                </div>
+              </div>
+              <button
+                className="order-now-button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleBundleOrder(b.id);
+                }}
+              >
+                 <p className="bundle-price" style={{marginBottom:'10px'}}>₹{b.price}/{t.day}</p> <p style={{marginBottom:'12px'}}>{t.orderNow}</p> 
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
 
       <section className="services-section">
         <h2 className="services-title">{t.ourServices}</h2>

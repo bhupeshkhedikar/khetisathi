@@ -79,8 +79,13 @@ const translations = {
     district: "District",
     tahsil: "Tahsil",
     village: "Village",
-    newBundlesAvailable: "New Bundles Available",
-    orderNow: "Order Now"
+newBundlesAvailable: "New Bundles Available",
+  orderNow: "Order Now",
+  maleWages: "Male Wages",
+  femaleWages: "Female Wages",
+  driverWages: "Driver Wages",
+  timeRange: "Time Range",
+  location: "Location"
   },
   hindi: {
     farmConnect: "KhetiSathi",
@@ -162,8 +167,12 @@ const translations = {
     district: "जिला",
     tahsil: "तहसील",
     village: "गाँव",
-    newBundlesAvailable: "नए बंडल उपलब्ध",
-    orderNow: "अभी ऑर्डर करें"
+    orderNow: "अभी ऑर्डर करें",
+    maleWages: "पुरुष मजदूरी",
+    femaleWages: "महिला मजदूरी",
+    driverWages: "ड्राइवर मजदूरी",
+    timeRange: "समय सीमा",
+    location: "स्थान"
   },
   marathi: {
     farmConnect: "KhetiSathi",
@@ -246,7 +255,12 @@ const translations = {
     tahsil: "तहसील",
     village: "गाव",
     newBundlesAvailable: "नवीन बंडल उपलब्ध",
-    orderNow: "आता ऑर्डर करा"
+    orderNow: "आता ऑर्डर करा",
+    maleWages: "पुरुष मजूरी ",
+    femaleWages: "महिला मजूरी",
+    driverWages: "गाडी भाडा",
+    timeRange: "वेळ",
+    location: "रोवणी शेतमजुरांचे गांव "
   },
 };
 

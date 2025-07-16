@@ -1,8 +1,8 @@
 import React from 'react';
+import './BundleManagement.css';
 
 const BundleManagement = ({
   bundles,
-  services,
   drivers,
   newBundleName,
   setNewBundleName,
@@ -16,6 +16,16 @@ const BundleManagement = ({
   setNewBundleDriverId,
   newBundleVehicleSkills,
   setNewBundleVehicleSkills,
+  newBundleMaleWages,
+  setNewBundleMaleWages,
+  newBundleFemaleWages,
+  setNewBundleFemaleWages,
+  newBundleDriverWages,
+  setNewBundleDriverWages,
+  newBundleTimeRange,
+  setNewBundleTimeRange,
+  newBundleLocation,
+  setNewBundleLocation,
   handleAddBundle,
   handleDeleteBundle,
   openEditBundleModal,
@@ -33,56 +43,78 @@ const BundleManagement = ({
   setEditBundleDriverId,
   editBundleVehicleSkills,
   setEditBundleVehicleSkills,
+  editBundleMaleWages,
+  setEditBundleMaleWages,
+  editBundleFemaleWages,
+  setEditBundleFemaleWages,
+  editBundleDriverWages,
+  setEditBundleDriverWages,
+  editBundleTimeRange,
+  setEditBundleTimeRange,
+  editBundleLocation,
+  setEditBundleLocation,
   handleEditBundle,
   setShowEditBundleModal,
   loading,
 }) => {
+  const timeRangeOptions = [
+    '09:00 AM - 5:00 PM',
+    '7:00 AM - 7:00 PM',
+    '8:00 AM - 8:00 PM',
+    '9:00 AM - 5:00 PM',
+    '10:00 AM - 6:00 PM',
+  ];
+
   return (
-    <section className="mb-8">
+    <section className="bundles-section">
       <h3 className="text-2xl font-semibold mb-6 text-green-700">Manage Bundles</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+      <div className="bundles-grid">
         {bundles.map((b) => (
-          <div key={b.id} className="bg-white rounded-lg shadow-lg p-4">
-            <h4 className="text-lg font-semibold mb-2">{b.name}</h4>
-            <p className="text-gray-600 mb-2">
-              {b.maleWorkers} male + {b.femaleWorkers} female workers
-            </p>
-            <p className="text-green-600 font-bold">₹{b.price.toFixed(2)}</p>
-            {b.driverId && (
-              <p className="text-gray-600 mb-2">
-                Driver: {drivers.find((d) => d.id === b.driverId)?.name || 'Unknown'}
+          <div key={b.id} className="bundle-card">
+            <div className="bundle-content">
+              <h4 className="bundle-name">{b.name}</h4>
+              <p className="bundle-details">
+                Workers: {b.maleWorkers} male + {b.femaleWorkers} female
               </p>
-            )}
-            {b.vehicleSkills?.length > 0 && (
-              <p className="text-gray-600 mb-2">
-                Vehicle Skills:{' '}
-                {b.vehicleSkills
-                  .map((skill) => skill.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
-                  .join(', ')}
-              </p>
-            )}
-            <div className="mt-2 flex space-x-2">
-              <button
-                type="button"
-                onClick={() => openEditBundleModal(b)}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
-                disabled={loading}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeleteBundle(b.id)}
-                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
-                disabled={loading}
-              >
-                Delete
-              </button>
+              <p className="bundle-details">Male Wages: ₹{b.maleWages}/day</p>
+              <p className="bundle-details">Female Wages: ₹{b.femaleWages}/day</p>
+              {b.driverId && (
+                <>
+                  <p className="bundle-details">
+                    Driver: {drivers.find((d) => d.id === b.driverId)?.name || 'Unknown'}
+                  </p>
+                  <p className="bundle-details">Driver Wages: ₹{b.driverWages}/day</p>
+                </>
+              )}
+              {b.vehicleSkills?.length > 0 && (
+                <p className="bundle-details">Skills: {b.vehicleSkills.join(', ')}</p>
+              )}
+              <p className="bundle-details">Time: {b.timeRange}</p>
+              <p className="bundle-details">Location: {b.location}</p>
+              <p className="bundle-price">₹{b.price.toFixed(2)}</p>
+              <div className="bundle-actions">
+                <button
+                  type="button"
+                  className="bg-blue-600 text-white py-1 px-3 rounded hover:bg-blue-700 transition text-sm"
+                  onClick={() => openEditBundleModal(b)}
+                  disabled={loading}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="bg-red-600 text-white py-1 px-3 rounded hover:bg-red-700 transition text-sm"
+                  onClick={() => handleDeleteBundle(b.id)}
+                  disabled={loading}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         ))}
       </div>
-      <form onSubmit={handleAddBundle} className="bg-white p-6 rounded-lg shadow-lg">
+      <form onSubmit={handleAddBundle} className="bg-white p-6 rounded-lg shadow-lg mt-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
             <label className="block text-gray-700">Bundle Name:</label>
@@ -126,6 +158,67 @@ const BundleManagement = ({
               onChange={(e) => setNewBundlePrice(e.target.value)}
               min="0"
               step="0.01"
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700">Male Wages (₹/day):</label>
+            <input
+              type="number"
+              value={newBundleMaleWages}
+              onChange={(e) => setNewBundleMaleWages(e.target.value)}
+              min="0"
+              step="0.01"
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700">Female Wages (₹/day):</label>
+            <input
+              type="number"
+              value={newBundleFemaleWages}
+              onChange={(e) => setNewBundleFemaleWages(e.target.value)}
+              min="0"
+              step="0.01"
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700">Driver Wages (₹/day):</label>
+            <input
+              type="number"
+              value={newBundleDriverWages}
+              onChange={(e) => setNewBundleDriverWages(e.target.value)}
+              min="0"
+              step="0.01"
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700">Time Range:</label>
+            <select
+              value={newBundleTimeRange}
+              onChange={(e) => setNewBundleTimeRange(e.target.value)}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+              required
+            >
+              <option value="">Select Time Range</option>
+              {timeRangeOptions.map((range) => (
+                <option key={range} value={range}>
+                  {range}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-gray-700">Location:</label>
+            <input
+              type="text"
+              value={newBundleLocation}
+              onChange={(e) => setNewBundleLocation(e.target.value)}
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
               required
             />
@@ -212,6 +305,67 @@ const BundleManagement = ({
                     onChange={(e) => setEditBundlePrice(e.target.value)}
                     min="0"
                     step="0.01"
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700">Male Wages (₹/day):</label>
+                  <input
+                    type="number"
+                    value={editBundleMaleWages}
+                    onChange={(e) => setEditBundleMaleWages(e.target.value)}
+                    min="0"
+                    step="0.01"
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700">Female Wages (₹/day):</label>
+                  <input
+                    type="number"
+                    value={editBundleFemaleWages}
+                    onChange={(e) => setEditBundleFemaleWages(e.target.value)}
+                    min="0"
+                    step="0.01"
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700">Driver Wages (₹/day):</label>
+                  <input
+                    type="number"
+                    value={editBundleDriverWages}
+                    onChange={(e) => setEditBundleDriverWages(e.target.value)}
+                    min="0"
+                    step="0.01"
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700">Time Range:</label>
+                  <select
+                    value={editBundleTimeRange}
+                    onChange={(e) => setEditBundleTimeRange(e.target.value)}
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+                    required
+                  >
+                    <option value="">Select Time Range</option>
+                    {timeRangeOptions.map((range) => (
+                      <option key={range} value={range}>
+                        {range}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-700">Location:</label>
+                  <input
+                    type="text"
+                    value={editBundleLocation}
+                    onChange={(e) => setEditBundleLocation(e.target.value)}
                     className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
                     required
                   />
