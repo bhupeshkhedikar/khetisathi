@@ -16,6 +16,9 @@ const Register = () => {
     gender: '',
     pincode: '',
     mobile: '',
+    district: '',
+    tahsil: '',
+    village: '',
     skills: [],
     vehicleSkills: [],
     termsAccepted: true,
@@ -44,6 +47,12 @@ const Register = () => {
       selectVehicleSkills: "Hold Ctrl (Cmd on Mac) to select multiple vehicle skills.",
       pincode: "Pincode",
       mobileNumber: "WhatsApp Number",
+      district: "District",
+      tahsil: "Tahsil",
+      village: "Village",
+      selectDistrict: "Select District",
+      selectTahsil: "Select Tahsil",
+      selectVillage: "Select Village",
       termsAndConditions: "By continuing, I accept the Terms and Conditions",
       registering: "Registering...",
       alreadyHaveAccount: "Already have an account?",
@@ -56,7 +65,7 @@ const Register = () => {
       invalidMobile: "Mobile number must be a 10-digit number.",
       passwordTooShort: "Password must be at least 6 characters.",
       registrationSuccessful: "Registration successful!",
-      termsAndConditionsLink:'Terms and Conditions'
+      termsAndConditionsLink: "Terms and Conditions"
     },
     hindi: {
       register: "पंजीकरण करें",
@@ -77,6 +86,12 @@ const Register = () => {
       selectVehicleSkills: "एक से अधिक वाहन कौशल चुनने के लिए Ctrl (Mac पर Cmd) दबाए रखें।",
       pincode: "पिनकोड",
       mobileNumber: "व्हाट्सएप नंबर",
+      district: "जिला",
+      tahsil: "तहसील",
+      village: "गाँव",
+      selectDistrict: "जिला चुनें",
+      selectTahsil: "तहसील चुनें",
+      selectVillage: "गाँव चुनें",
       termsAndConditions: "जारी रखकर, मैं नियम और शर्तों को स्वीकार करता हूँ",
       registering: "पंजीकरण हो रहा है...",
       alreadyHaveAccount: "पहले से ही खाता है?",
@@ -89,7 +104,7 @@ const Register = () => {
       invalidMobile: "व्हाट्सएप नंबर 10 अंकों का होना चाहिए।",
       passwordTooShort: "पासवर्ड कम से कम 6 अक्षरों का होना चाहिए।",
       registrationSuccessful: "पंजीकरण सफल!",
-      termsAndConditionsLink:'नियम और शर्तें'
+      termsAndConditionsLink: "नियम और शर्तें"
     },
     marathi: {
       register: "नोंदणी करा",
@@ -110,6 +125,12 @@ const Register = () => {
       selectVehicleSkills: "एकापेक्षा जास्त वाहन कौशल्ये निवडण्यासाठी Ctrl (Mac वर Cmd) दाबा.",
       pincode: "पिनकोड",
       mobileNumber: "व्हाट्सएप नंबर",
+      district: "जिल्हा",
+      tahsil: "तहसील",
+      village: "गाव",
+      selectDistrict: "जिल्हा निवडा",
+      selectTahsil: "तहसील निवडा",
+      selectVillage: "गाव निवडा",
       termsAndConditions: "पुढे चालू ठेवून, मी नियम आणि अटी स्वीकारतो.",
       registering: "नोंदणी होत आहे...",
       alreadyHaveAccount: "आधीच खाते आहे का?",
@@ -122,7 +143,7 @@ const Register = () => {
       invalidMobile: "व्हाट्सएप नंबर 10 अंकांचा असावा.",
       passwordTooShort: "पासवर्ड किमान 6 अक्षरांचा असावा.",
       registrationSuccessful: "नोंदणी यशस्वी!",
-      termsAndConditionsLink:'नियम आणि अटी'
+      termsAndConditionsLink: "नियम आणि अटी"
     },
   };
 
@@ -130,7 +151,7 @@ const Register = () => {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setFormData({ ...formData, role: tab, gender: '', skills: [], vehicleSkills: [], termsAccepted: true });
+    setFormData({ ...formData, role: tab, gender: '', skills: [], vehicleSkills: [], district: '', tahsil: '', village: '', termsAccepted: true });
     setError('');
   };
 
@@ -151,10 +172,10 @@ const Register = () => {
     setError('');
     setLoading(true);
 
-    const { email, password, name, role, gender, pincode, mobile, skills, vehicleSkills, termsAccepted } = formData;
+    const { email, password, name, role, gender, pincode, mobile, district, tahsil, village, skills, vehicleSkills, termsAccepted } = formData;
 
     // Validate inputs
-    if (!email || !password || !name || !role || !pincode || !mobile) {
+    if (!email || !password || !name || !role || !pincode || !mobile || !district || !tahsil || !village) {
       setError(t.allFieldsRequired);
       setLoading(false);
       return;
@@ -202,6 +223,9 @@ const Register = () => {
         role,
         pincode,
         mobile,
+        district,
+        tahsil,
+        village,
         password,
         status: role === 'farmer' ? 'approved' : 'pending',
         createdAt: new Date().toISOString(),
@@ -365,6 +389,61 @@ const Register = () => {
             <p className="text-sm text-gray-500 mt-1">{t.selectVehicleSkills}</p>
           </div>
         )}
+<div className="mb-4">
+  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'nowrap' }}>
+    {/* District */}
+    <div style={{ flex: 1 }}>
+      <label className="block text-gray-700">{t.district}</label>
+      <select
+        name="district"
+        value={formData.district}
+        onChange={handleChange}
+        className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
+        required
+      >
+        <option value="">{t.selectDistrict}</option>
+        <option value="Bhandara">
+          {language === 'marathi' ? 'भंडारा' : language === 'hindi' ? 'भंडारा' : 'Bhandara'}
+        </option>
+      </select>
+    </div>
+
+    {/* Tahsil */}
+    <div style={{ flex: 1 }}>
+      <label className="block text-gray-700">{t.tahsil}</label>
+      <select
+        name="tahsil"
+        value={formData.tahsil}
+        onChange={handleChange}
+        className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
+        required
+      >
+        <option value="">{t.selectTahsil}</option>
+        <option value="Lakhani">
+          {language === 'marathi' ? 'लाखनी' : language === 'hindi' ? 'लखनी' : 'Lakhani'}
+        </option>
+      </select>
+    </div>
+
+    {/* Village */}
+    <div style={{ flex: 1 }}>
+      <label className="block text-gray-700">{t.village}</label>
+      <select
+        name="village"
+        value={formData.village}
+        onChange={handleChange}
+        className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
+        required
+      >
+        <option value="">{t.selectVillage}</option>
+        <option value="Lakhori">
+          {language === 'marathi' ? 'लाखोरी' : language === 'hindi' ? 'लखोरी' : 'Lakhori'}
+        </option>
+      </select>
+    </div>
+  </div>
+</div>
+
         <div className="mb-4">
           <label className="block text-gray-700">{t.pincode}</label>
           <input
