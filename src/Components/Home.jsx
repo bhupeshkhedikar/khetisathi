@@ -315,8 +315,7 @@ const Home = () => {
       if (selectedBundle) {
         const bundle = bundles.find(b => b.id === selectedBundle);
         workersCost = bundle.price * days;
-        serviceFee = workersCost * serviceFeeRate;
-        totalCost = workersCost * days + serviceFee; // Exclude vehicleCost
+        totalCost = workersCost + serviceFee; // Exclude vehicleCost
         maleWorkersCount = bundle.maleWorkers;
         femaleWorkersCount = bundle.femaleWorkers;
       } else {
@@ -409,7 +408,7 @@ const Home = () => {
         const bundle = bundles.find(b => b.id === selectedBundle);
         workersCost = bundle.price * days;
         serviceFee = workersCost * serviceFeeRate;
-        totalCost = workersCost * days + serviceFee; // Exclude vehicleCost
+        totalCost = workersCost + serviceFee; // Exclude vehicleCost
         maleWorkersCount = bundle.maleWorkers;
         femaleWorkersCount = bundle.femaleWorkers;
       } else {
@@ -548,7 +547,7 @@ const Home = () => {
             throw new Error('Invalid workers cost for bundle.');
           }
           serviceFee = workersCost * serviceFeeRate;
-          totalCost = workersCost * parseInt(numberOfDays) + serviceFee; // Exclude vehicleCost
+          totalCost = workersCost + serviceFee // Exclude vehicleCost
         } else {
           orderData.maleWorkers = maleWorkers;
           orderData.femaleWorkers = femaleWorkers;
@@ -747,18 +746,21 @@ const Home = () => {
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       if (selectedBundle) {
         const bundle = bundles.find(b => b.id === selectedBundle);
-        if (bundle) {
-          workersCost = bundle.price * days;
-          serviceFee = workersCost * serviceFeeRate;
-          totalCost = workersCost * days + serviceFee; // Exclude vehicleCost
-          return (
-            <div className="cost-breakdown">
-              <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({t.bundle}: ₹{bundle.price}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
-              <p><span className="review-label">{t.serviceFee} (5%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
-              <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
-            </div>
-          );
-        }
+if (selectedBundle) {
+  const bundle = bundles.find(b => b.id === selectedBundle);
+  if (bundle) {
+    workersCost = bundle.price * days;
+    serviceFee = workersCost * serviceFeeRate;
+    totalCost = workersCost + serviceFee;
+    return (
+      <div className="cost-breakdown">
+        <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({t.bundle}: ₹{bundle.price}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
+        <p><span className="review-label">{t.serviceFee} (5%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
+        <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
+      </div>
+    );
+  }
+}
       } else {
         workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * days;
         serviceFee = workersCost * serviceFeeRate;

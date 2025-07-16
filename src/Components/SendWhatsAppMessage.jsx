@@ -2,14 +2,27 @@ import React, { useState } from 'react';
 import { db } from './firebaseConfig';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 
-const sendWhatsAppMessage = async (mobile, message) => {
+const sendWhatsAppMessage = async (mobile, type, message, contentSid = '', contentVariables = {}) => {
   try {
     if (!mobile) return false;
+
+    const body = type === 'content'
+      ? {
+          to: `+91${mobile.replace(/\s/g, '')}`,
+          contentSid,
+          contentVariables,
+        }
+      : {
+          to: `+91${mobile.replace(/\s/g, '')}`,
+          message,
+        };
+
     const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: `+91${mobile.replace(/\s/g, '')}`, message }),
+      body: JSON.stringify(body),
     });
+
     return response.ok;
   } catch (err) {
     console.error(`Error sending WhatsApp message to ${mobile}`, err);
@@ -17,72 +30,90 @@ const sendWhatsAppMessage = async (mobile, message) => {
   }
 };
 
-const templates = [
+const contentTemplates = [
   {
-    label: 'Driver Assigned',
-    value: 'driver_assigned',
-    template: `🚜 ड्रायव्हर नेमणूक झाली आहे.\n👤 नाव: {driverName}\n📞 मोबाईल: {driverNumber}`,
-    placeholders: ['driverName', 'driverNumber'],
+    label: '🚜 Driver Profile Approved',
+    value: 'driver_profile_approved',
+    contentSid: 'HXbe3ea460565c1bd7750e5fe8d4554038',
+    variables: ['1'],
+    preview: `
+🙏 नमस्कार {{1}}, 
+
+तुमची प्रोफाईल KhetiSathi वर मंजूर झालेली आहे ✅
+
+कृपया तुमच्याकडे असलेल्या **रोवणी शेतमजुरांची संख्या** व **पूर्ण गाडी भाडा (per day)** ह्याबद्दल माहिती खालील क्रमांकावर पाठवा:
+📞 8788647637
+
+KhetiSathi वापरल्याबद्दल धन्यवाद 🌾
+    `,
   },
   {
-    label: 'Worker Assigned',
-    value: 'worker_assigned',
-    template: `👷🏻 कामगार नेमणूक झाली आहे.\n👤 नाव: {workerName}\n📞 मोबाईल: {workerNumber}`,
-    placeholders: ['workerName', 'workerNumber'],
-  },
-  {
-    label: 'Worker Reaching Soon',
-    value: 'worker_coming',
-    template: `👷🏻 कामगार लवकरच पोहोचतील.\n👤 नाव: {workerName}\n🕒 वेळ: {eta}`,
-    placeholders: ['workerName', 'eta'],
+    label: '🌾 Bundle Available for Farmer',
+    value: 'bundle_available_notificationn',
+    contentSid: 'HX215485454fb489a90f997a13a86f7f1d',
+    variables: ['1', '2', '3', '4','5','6'],
+    preview: `
+🙏 नमस्कार {{1}} शेतकरी राजा,
+
+ रोवणी शेतमजूर बंडल सध्या उपलब्ध आहे.
+
+📦 बंडल नाव – {{2}}
+
+👩‍🌾 महिला रोवणी शेतमजूर ₹{{3}} (प्रति दिवस): एकूण {{4}}  
+👨‍🌾 पुरुष पेंडकर: एकूण {{5}}  
+🚜 वाहतूक भाडा (प्रति दिवस): ₹{{6}}
+
+कृपया तपशील पाहण्यासाठी किंवा पुढील कारवाईसाठी www.khetisathi.com वर लॉगिन करा.
+    `,
   },
 ];
-
-const footer = '\n\n🙏 धन्यवाद! KhetiSathi वापरल्याबद्दल आभार.';
 
 const SendWhatsAppMessage = () => {
   const [mobiles, setMobiles] = useState('');
   const [name, setName] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
-  const [placeholders, setPlaceholders] = useState({});
-  const [customMessage, setCustomMessage] = useState('');
   const [status, setStatus] = useState('');
+  const [messageType, setMessageType] = useState('content');
+  const [contentSid, setContentSid] = useState('');
+  const [contentVariables, setContentVariables] = useState({});
 
-  const currentTemplate = templates.find((t) => t.value === selectedTemplate);
+  const generateContentPreview = () => {
+    const current = contentTemplates.find(t => t.value === selectedTemplate);
+    if (!current || !current.preview) return '';
 
-  const generateMessage = () => {
-    let msg = '';
+    let msg = current.preview;
+    current.variables.forEach((v) => {
+      const val = contentVariables[v] || '';
+      msg = msg.replace(`{{${v}}}`, val);
+    });
 
-    if (currentTemplate) {
-      msg = currentTemplate.template;
-      currentTemplate.placeholders.forEach((ph) => {
-        msg = msg.replace(`{${ph}}`, placeholders[ph] || '');
-      });
-    } else {
-      msg = customMessage;
-    }
-
-    return name ? `Hi ${name},\n\n${msg}${footer}` : `${msg}${footer}`;
+    return msg.trim();
   };
 
   const handleSend = async () => {
     const numbers = mobiles.split(',').map((num) => num.trim()).filter(Boolean);
-    const finalMessage = generateMessage();
-
-    if (!numbers.length || !finalMessage) {
-      setStatus('Please fill all required fields.');
+    if (!numbers.length) {
+      setStatus('Please enter mobile numbers.');
       return;
     }
 
     setStatus('Sending messages...');
 
     for (const mobile of numbers) {
-      const ok = await sendWhatsAppMessage(mobile, finalMessage);
+      let ok = false;
+      let messageSent = '';
+
+      if (!contentSid || Object.keys(contentVariables).length === 0) {
+        setStatus('Please provide content SID and all required variables.');
+        return;
+      }
+      ok = await sendWhatsAppMessage(mobile, 'content', '', contentSid, contentVariables);
+      messageSent = `[Content Message] SID: ${contentSid}, variables: ${JSON.stringify(contentVariables)}`;
 
       await addDoc(collection(db, 'whatsappMessages'), {
         name,
         mobile,
-        message: finalMessage,
+        message: messageSent,
         status: ok ? 'Sent' : 'Failed',
         timestamp: Timestamp.now(),
       });
@@ -92,69 +123,46 @@ const SendWhatsAppMessage = () => {
     setMobiles('');
     setName('');
     setSelectedTemplate('');
-    setPlaceholders({});
-    setCustomMessage('');
+    setContentSid('');
+    setContentVariables({});
   };
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>📲 WhatsApp Message Sender (KhetiSathi)</h2>
+    <div style={{ maxWidth: '700px', margin: '40px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '10px', backgroundColor: '#fafafa', fontFamily: 'sans-serif' }}>
+      <h2 style={{ textAlign: 'center', color: '#2e7d32', marginBottom: '20px' }}>📲 WhatsApp Message Sender (KhetiSathi)</h2>
 
-      <input
-        type="text"
-        placeholder="Enter recipient's name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={styles.input}
-      />
+      <input type="text" placeholder="Recipient's name" value={name} onChange={(e) => setName(e.target.value)} style={styles.input} />
+      <textarea placeholder="Mobile numbers (comma separated)" value={mobiles} onChange={(e) => setMobiles(e.target.value)} rows={2} style={styles.textarea} />
 
-      <textarea
-        placeholder="Mobile numbers (comma separated)"
-        value={mobiles}
-        onChange={(e) => setMobiles(e.target.value)}
-        rows={2}
-        style={styles.textarea}
-      />
-
-      <select
-        value={selectedTemplate}
-        onChange={(e) => {
-          setSelectedTemplate(e.target.value);
-          setCustomMessage('');
-        }}
-        style={styles.select}
-      >
-        <option value="">-- Select a Message Template --</option>
-        {templates.map((t) => (
+      <select value={selectedTemplate} onChange={(e) => {
+        const selected = contentTemplates.find(t => t.value === e.target.value);
+        setSelectedTemplate(selected?.value || '');
+        setContentSid(selected?.contentSid || '');
+        setContentVariables({});
+      }} style={styles.select}>
+        <option value="">-- Select Twilio Content Template --</option>
+        {contentTemplates.map((t) => (
           <option key={t.value} value={t.value}>{t.label}</option>
         ))}
       </select>
 
-      {currentTemplate && currentTemplate.placeholders.map((ph) => (
+      {selectedTemplate && contentTemplates.find(t => t.value === selectedTemplate)?.variables.map((v) => (
         <input
-          key={ph}
+          key={v}
           type="text"
-          placeholder={`Enter ${ph}`}
-          value={placeholders[ph] || ''}
-          onChange={(e) => setPlaceholders({ ...placeholders, [ph]: e.target.value })}
+          placeholder={`Value for {{${v}}}`}
+          value={contentVariables[v] || ''}
+          onChange={(e) => setContentVariables({ ...contentVariables, [v]: e.target.value })}
           style={styles.input}
         />
       ))}
 
-      {!selectedTemplate && (
-        <textarea
-          placeholder="Write custom message"
-          value={customMessage}
-          onChange={(e) => setCustomMessage(e.target.value)}
-          rows={4}
-          style={styles.textarea}
-        />
+      {Object.keys(contentVariables).length > 0 && (
+        <div style={styles.previewBox}>
+          <strong>📄 Preview:</strong>
+          <pre style={styles.preview}>{generateContentPreview()}</pre>
+        </div>
       )}
-
-      <div style={styles.previewBox}>
-        <strong>📄 Preview:</strong>
-        <pre style={styles.preview}>{generateMessage()}</pre>
-      </div>
 
       <button onClick={handleSend} style={styles.button}>Send WhatsApp Messages</button>
       {status && <p style={styles.status}>{status}</p>}
@@ -163,71 +171,13 @@ const SendWhatsAppMessage = () => {
 };
 
 const styles = {
-  container: {
-    maxWidth: '650px',
-    margin: '40px auto',
-    padding: '20px',
-    border: '1px solid #ccc',
-    borderRadius: '10px',
-    backgroundColor: '#fafafa',
-    fontFamily: 'sans-serif',
-  },
-  heading: {
-    textAlign: 'center',
-    color: '#2e7d32',
-    marginBottom: '20px',
-  },
-  textarea: {
-    width: '100%',
-    padding: '10px',
-    borderRadius: '6px',
-    fontSize: '16px',
-    marginBottom: '10px',
-    border: '1px solid #ccc',
-  },
-  input: {
-    width: '100%',
-    padding: '10px',
-    borderRadius: '6px',
-    fontSize: '16px',
-    marginBottom: '10px',
-    border: '1px solid #ccc',
-  },
-  select: {
-    width: '100%',
-    padding: '10px',
-    fontSize: '16px',
-    marginBottom: '10px',
-    borderRadius: '6px',
-    border: '1px solid #ccc',
-  },
-  button: {
-    width: '100%',
-    padding: '14px',
-    backgroundColor: '#43a047',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    cursor: 'pointer',
-  },
-  status: {
-    marginTop: '15px',
-    textAlign: 'center',
-    color: '#333',
-    fontWeight: 'bold',
-  },
-  previewBox: {
-    backgroundColor: '#e8f5e9',
-    padding: '10px',
-    borderRadius: '6px',
-    marginBottom: '10px',
-    fontSize: '14px',
-  },
-  preview: {
-    whiteSpace: 'pre-wrap',
-    margin: 0,
-  },
+  input: { width: '100%', padding: '10px', borderRadius: '6px', fontSize: '16px', marginBottom: '10px', border: '1px solid #ccc' },
+  textarea: { width: '100%', padding: '10px', borderRadius: '6px', fontSize: '16px', marginBottom: '10px', border: '1px solid #ccc' },
+  select: { width: '100%', padding: '10px', fontSize: '16px', marginBottom: '10px', borderRadius: '6px', border: '1px solid #ccc' },
+  button: { width: '100%', padding: '14px', backgroundColor: '#43a047', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: 'pointer' },
+  status: { marginTop: '15px', textAlign: 'center', color: '#333', fontWeight: 'bold' },
+  previewBox: { backgroundColor: '#e8f5e9', padding: '10px', borderRadius: '6px', marginBottom: '10px', fontSize: '14px' },
+  preview: { whiteSpace: 'pre-wrap', margin: 0 },
 };
 
 export default SendWhatsAppMessage;

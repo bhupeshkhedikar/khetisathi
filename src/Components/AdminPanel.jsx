@@ -55,7 +55,11 @@ const AdminPanel = () => {
   const [editBundlePrice, setEditBundlePrice] = useState('');
   const [showAssignDriverModal, setShowAssignDriverModal] = useState(false);
   const [currentOrderForDriver, setCurrentOrderForDriver] = useState(null);
-
+  const [newBundleDriverId, setNewBundleDriverId] = useState('');
+  const [newBundleVehicleSkills, setNewBundleVehicleSkills] = useState([]);
+  const [editBundleDriverId, setEditBundleDriverId] = useState('');
+  const [editBundleVehicleSkills, setEditBundleVehicleSkills] = useState([]);
+  const [drivers, setDrivers] = useState([]);
 
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
@@ -67,6 +71,16 @@ const AdminPanel = () => {
           return;
         }
         setAdminUser(user);
+
+        const driversQuery = query(
+          collection(db, 'users'),
+          where('role', '==', 'driver'),
+          where('status', '==', 'approved')
+        );
+        const unsubscribeDrivers = onSnapshot(driversQuery, (snapshot) => {
+          const driverList = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          setDrivers(driverList);
+        }, (err) => setError(`Error fetching drivers: ${err.message}`));
 
         const workersQuery = query(collection(db, 'users'), where('role', '==', 'worker'));
         const unsubscribeWorkers = onSnapshot(workersQuery, (snapshot) => {
@@ -119,6 +133,7 @@ const AdminPanel = () => {
           unsubscribeFarmers();
           unsubscribeOrders();
           unsubscribeServices();
+          unsubscribeDrivers();
         };
       }
     }, (err) => setError(`Authentication error: ${err.message}`));
@@ -275,6 +290,8 @@ const AdminPanel = () => {
         maleWorkers: parseInt(newBundleMaleWorkers) || 0,
         femaleWorkers: parseInt(newBundleFemaleWorkers) || 0,
         price: parseFloat(newBundlePrice) || 0,
+        driverId: newBundleDriverId || null,
+        vehicleSkills: newBundleVehicleSkills || [],
         createdAt: serverTimestamp(),
       };
       await addDoc(collection(db, `services/${farmWorkersService.id}/bundles`), bundleData);
@@ -282,37 +299,42 @@ const AdminPanel = () => {
       setNewBundleMaleWorkers('0');
       setNewBundleFemaleWorkers('0');
       setNewBundlePrice('');
+      setNewBundleDriverId('');
+      setNewBundleVehicleSkills([]);
       alert('Bundle added successfully!');
     } catch (err) {
+      console.error('Error adding bundle:', err);
       setError(`Error adding bundle: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditBundle = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const farmWorkersService = services.find((s) => s.type === 'farm-workers');
-      if (!farmWorkersService) throw new Error('Farm Workers service not found');
-      const bundleRef = doc(db, `services/${farmWorkersService.id}/bundles`, currentBundle.id);
-      await updateDoc(bundleRef, {
-        name: editBundleName,
-        maleWorkers: parseInt(editBundleMaleWorkers) || 0,
-        femaleWorkers: parseInt(editBundleFemaleWorkers) || 0,
-        price: parseFloat(editBundlePrice) || 0,
-        updatedAt: serverTimestamp(),
-      });
-      setShowEditBundleModal(false);
-      setCurrentBundle(null);
-      alert('Bundle updated successfully!');
-    } catch (err) {
-      setError(`Error updating bundle: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+const handleEditBundle = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  try {
+    const farmWorkersService = services.find((s) => s.type === 'farm-workers');
+    if (!farmWorkersService) throw new Error('Farm Workers service not found');
+    const bundleRef = doc(db, `services/${farmWorkersService.id}/bundles`, currentBundle.id);
+    await updateDoc(bundleRef, {
+      name: editBundleName,
+      maleWorkers: parseInt(editBundleMaleWorkers) || 0,
+      femaleWorkers: parseInt(editBundleFemaleWorkers) || 0,
+      price: parseFloat(editBundlePrice) || 0,
+      driverId: editBundleDriverId || null,
+      vehicleSkills: editBundleVehicleSkills || [],
+      updatedAt: serverTimestamp(),
+    });
+    setShowEditBundleModal(false);
+    setCurrentBundle(null);
+    alert('Bundle updated successfully!');
+  } catch (err) {
+    setError(`Error updating bundle: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleDeleteBundle = async (bundleId) => {
     setLoading(true);
@@ -541,8 +563,8 @@ const autoAssignWorkers = async (orderId, order) => {
             "7": order.startDate || 'प्रदान केले नाही',
             "8": order.address || 'प्रदान केले नाही',
             "9": `₹${earningsPerWorker.toFixed(2)}`,
-            "10": 'https://khetisathi.com/driver-dashboard',
-            "11":'https://khetisathi.com/driver-dashboard',
+            "10": 'https://khetisathi.com/worker-dashboard',
+            "11":'https://khetisathi.com/worker-dashboard',
             "12": responseDeadline
           }
         })
@@ -634,8 +656,8 @@ const handleAssignWorker = async (orderId, workerIds) => {
             "7": order.startDate || 'प्रदान केले नाही',
             "8": order.address || 'प्रदान केले नाही',
             "9": `₹${earningsPerWorker.toFixed(2)}`,
-            "10": 'https://khetisathi.com/driver-dashboard',
-            "11":'https://khetisathi.com/driver-dashboard',
+            "10": 'https://khetisathi.com/worker-dashboard',
+            "11":'https://khetisathi.com/worker-dashboard',
             "12":responseDeadline
           }
         })
@@ -773,14 +795,16 @@ const handleAssignDriver = async (orderId, driverIds) => {
     setShowEditServiceModal(true);
   };
 
-  const openEditBundleModal = (bundle) => {
-    setCurrentBundle(bundle);
-    setEditBundleName(bundle.name);
-    setEditBundleMaleWorkers(bundle.maleWorkers || '0');
-    setEditBundleFemaleWorkers(bundle.femaleWorkers || '0');
-    setEditBundlePrice(bundle.price || '');
-    setShowEditBundleModal(true);
-  };
+const openEditBundleModal = (bundle) => {
+  setCurrentBundle(bundle);
+  setEditBundleName(bundle.name);
+  setEditBundleMaleWorkers(bundle.maleWorkers.toString() || '0');
+  setEditBundleFemaleWorkers(bundle.femaleWorkers.toString() || '0');
+  setEditBundlePrice(bundle.price.toString() || '');
+  setEditBundleDriverId(bundle.driverId || '');
+  setEditBundleVehicleSkills(bundle.vehicleSkills || []);
+  setShowEditBundleModal(true);
+};
   
 
   if (error) {
@@ -871,6 +895,7 @@ const handleAssignDriver = async (orderId, driverIds) => {
         />
         <BundleManagement
           bundles={bundles}
+          drivers={drivers} // Pass drivers
           newBundleName={newBundleName}
           setNewBundleName={setNewBundleName}
           newBundleMaleWorkers={newBundleMaleWorkers}
@@ -895,6 +920,15 @@ const handleAssignDriver = async (orderId, driverIds) => {
           handleEditBundle={handleEditBundle}
           setShowEditBundleModal={setShowEditBundleModal}
           loading={loading}
+          workers={workers}
+          newBundleDriverId={newBundleDriverId}
+          setNewBundleDriverId={setNewBundleDriverId}
+          newBundleVehicleSkills={newBundleVehicleSkills}
+          setNewBundleVehicleSkills={setNewBundleVehicleSkills}
+          editBundleDriverId={editBundleDriverId}
+          setEditBundleDriverId={setEditBundleDriverId}
+          editBundleVehicleSkills={editBundleVehicleSkills}
+          setEditBundleVehicleSkills={setEditBundleVehicleSkills}
         />
 <OrderManagement
           orders={orders}

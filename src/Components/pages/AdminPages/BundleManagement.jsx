@@ -2,6 +2,8 @@ import React from 'react';
 
 const BundleManagement = ({
   bundles,
+  services,
+  drivers,
   newBundleName,
   setNewBundleName,
   newBundleMaleWorkers,
@@ -10,6 +12,10 @@ const BundleManagement = ({
   setNewBundleFemaleWorkers,
   newBundlePrice,
   setNewBundlePrice,
+  newBundleDriverId,
+  setNewBundleDriverId,
+  newBundleVehicleSkills,
+  setNewBundleVehicleSkills,
   handleAddBundle,
   handleDeleteBundle,
   openEditBundleModal,
@@ -23,6 +29,10 @@ const BundleManagement = ({
   setEditBundleFemaleWorkers,
   editBundlePrice,
   setEditBundlePrice,
+  editBundleDriverId,
+  setEditBundleDriverId,
+  editBundleVehicleSkills,
+  setEditBundleVehicleSkills,
   handleEditBundle,
   setShowEditBundleModal,
   loading,
@@ -38,6 +48,19 @@ const BundleManagement = ({
               {b.maleWorkers} male + {b.femaleWorkers} female workers
             </p>
             <p className="text-green-600 font-bold">₹{b.price.toFixed(2)}</p>
+            {b.driverId && (
+              <p className="text-gray-600 mb-2">
+                Driver: {drivers.find((d) => d.id === b.driverId)?.name || 'Unknown'}
+              </p>
+            )}
+            {b.vehicleSkills?.length > 0 && (
+              <p className="text-gray-600 mb-2">
+                Vehicle Skills:{' '}
+                {b.vehicleSkills
+                  .map((skill) => skill.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
+                  .join(', ')}
+              </p>
+            )}
             <div className="mt-2 flex space-x-2">
               <button
                 type="button"
@@ -107,6 +130,31 @@ const BundleManagement = ({
               required
             />
           </div>
+          <div>
+            <label className="block text-gray-700">Select Driver:</label>
+            <select
+              value={newBundleDriverId}
+              onChange={(e) => {
+                setNewBundleDriverId(e.target.value);
+                const driver = drivers.find((d) => d.id === e.target.value);
+                setNewBundleVehicleSkills(driver ? driver.vehicleSkills || [] : []);
+              }}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+            >
+              <option value="">No Driver</option>
+              {drivers.map((driver) => (
+                <option key={driver.id} value={driver.id}>
+                  {driver.name} (
+                  {driver.vehicleSkills && driver.vehicleSkills.length > 0
+                    ? driver.vehicleSkills
+                        .map((skill) => skill.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
+                        .join(', ')
+                    : 'None'}
+                  )
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         <button
           type="submit"
@@ -167,6 +215,31 @@ const BundleManagement = ({
                     className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-gray-700">Select Driver:</label>
+                  <select
+                    value={editBundleDriverId}
+                    onChange={(e) => {
+                      setEditBundleDriverId(e.target.value);
+                      const driver = drivers.find((d) => d.id === e.target.value);
+                      setEditBundleVehicleSkills(driver ? driver.vehicleSkills || [] : []);
+                    }}
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+                  >
+                    <option value="">No Driver</option>
+                    {drivers.map((driver) => (
+                      <option key={driver.id} value={driver.id}>
+                        {driver.name} (
+                        {driver.vehicleSkills && driver.vehicleSkills.length > 0
+                          ? driver.vehicleSkills
+                              .map((skill) => skill.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
+                              .join(', ')
+                          : 'None'}
+                        )
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="mt-4 flex space-x-2">
