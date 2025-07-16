@@ -79,6 +79,8 @@ const translations = {
     district: "District",
     tahsil: "Tahsil",
     village: "Village",
+    newBundlesAvailable: "New Bundles Available",
+    orderNow: "Order Now"
   },
   hindi: {
     farmConnect: "KhetiSathi",
@@ -160,6 +162,8 @@ const translations = {
     district: "जिला",
     tahsil: "तहसील",
     village: "गाँव",
+    newBundlesAvailable: "नए बंडल उपलब्ध",
+    orderNow: "अभी ऑर्डर करें"
   },
   marathi: {
     farmConnect: "KhetiSathi",
@@ -241,6 +245,8 @@ const translations = {
     district: "जिल्हा",
     tahsil: "तहसील",
     village: "गाव",
+    newBundlesAvailable: "नवीन बंडल उपलब्ध",
+    orderNow: "आता ऑर्डर करा"
   },
 };
 

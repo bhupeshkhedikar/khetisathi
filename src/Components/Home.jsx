@@ -171,6 +171,38 @@ const Home = () => {
     }
   };
 
+  const handleBundleOrder = (bundleId) => {
+    setSelectedService('farm-workers');
+    setSelectedBundle(bundleId);
+    setMaleWorkers(0);
+    setFemaleWorkers(0);
+    setOtherWorkers(0);
+    setHours('1');
+    setAddress('');
+    setDistrict('');
+    setTahsil('');
+    setVillage('');
+    setContactNumber('');
+    setPaymentMethod('');
+    setAdditionalNote('');
+    setNumberOfDays('1');
+    setStartDate('');
+    setEndDate('');
+    setStartTime('');
+    setCurrentStep(0);
+    setSuccess('');
+    setError('');
+    setPaymentStatus('');
+    setVehicleType('');
+    setVehicleCost(0);
+    setShowCashModal(false);
+
+    const orderSection = document.getElementById('order');
+    if (orderSection) {
+      orderSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const validateStep = () => {
     setError('');
     if (currentStep === 0) {
@@ -315,13 +347,14 @@ const Home = () => {
       if (selectedBundle) {
         const bundle = bundles.find(b => b.id === selectedBundle);
         workersCost = bundle.price * days;
-        totalCost = workersCost + serviceFee; // Exclude vehicleCost
+        serviceFee = workersCost * serviceFeeRate;
+        totalCost = workersCost + serviceFee;
         maleWorkersCount = bundle.maleWorkers;
         femaleWorkersCount = bundle.femaleWorkers;
       } else {
         workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * days;
         serviceFee = workersCost * serviceFeeRate;
-        totalCost = (workersCost + vehicleCost) * days + serviceFee;
+        totalCost = (workersCost + vehicleCost) + serviceFee;
         maleWorkersCount = maleWorkers;
         femaleWorkersCount = femaleWorkers;
       }
@@ -408,13 +441,13 @@ const Home = () => {
         const bundle = bundles.find(b => b.id === selectedBundle);
         workersCost = bundle.price * days;
         serviceFee = workersCost * serviceFeeRate;
-        totalCost = workersCost + serviceFee; // Exclude vehicleCost
+        totalCost = workersCost + serviceFee;
         maleWorkersCount = bundle.maleWorkers;
         femaleWorkersCount = bundle.femaleWorkers;
       } else {
         workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * days;
         serviceFee = workersCost * serviceFeeRate;
-        totalCost = (workersCost + vehicleCost) * days + serviceFee;
+        totalCost = (workersCost + vehicleCost) + serviceFee;
         maleWorkersCount = maleWorkers;
         femaleWorkersCount = femaleWorkers;
       }
@@ -547,7 +580,7 @@ const Home = () => {
             throw new Error('Invalid workers cost for bundle.');
           }
           serviceFee = workersCost * serviceFeeRate;
-          totalCost = workersCost + serviceFee // Exclude vehicleCost
+          totalCost = workersCost + serviceFee;
         } else {
           orderData.maleWorkers = maleWorkers;
           orderData.femaleWorkers = femaleWorkers;
@@ -559,7 +592,7 @@ const Home = () => {
             throw new Error('Invalid workers cost for individual workers.');
           }
           serviceFee = workersCost * serviceFeeRate;
-          totalCost = (workersCost + vehicleCost) * parseInt(numberOfDays) + serviceFee;
+          totalCost = (workersCost + vehicleCost) + serviceFee;
         }
         orderData.vehicleType = vehicleType;
         orderData.vehicleCost = vehicleCost;
@@ -746,25 +779,22 @@ const Home = () => {
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       if (selectedBundle) {
         const bundle = bundles.find(b => b.id === selectedBundle);
-if (selectedBundle) {
-  const bundle = bundles.find(b => b.id === selectedBundle);
-  if (bundle) {
-    workersCost = bundle.price * days;
-    serviceFee = workersCost * serviceFeeRate;
-    totalCost = workersCost + serviceFee;
-    return (
-      <div className="cost-breakdown">
-        <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({t.bundle}: ₹{bundle.price}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
-        <p><span className="review-label">{t.serviceFee} (5%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
-        <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
-      </div>
-    );
-  }
-}
+        if (bundle) {
+          workersCost = bundle.price * days;
+          serviceFee = workersCost * serviceFeeRate;
+          totalCost = workersCost + serviceFee;
+          return (
+            <div className="cost-breakdown">
+              <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({t.bundle}: ₹{bundle.price}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
+              <p><span className="review-label">{t.serviceFee} (5%):</span> ₹{serviceFee.toFixed(2)} {paymentMethod === 'cash' ? `(${t.payOnline})` : ''}</p>
+              <p className="total-cost"><span className="review-label">{t.totalCost}:</span> ₹{totalCost.toFixed(2)}</p>
+            </div>
+          );
+        }
       } else {
         workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * days;
         serviceFee = workersCost * serviceFeeRate;
-        totalCost = (workersCost + vehicleCost) * days + serviceFee;
+        totalCost = (workersCost + vehicleCost) + serviceFee;
         return (
           <div className="cost-breakdown">
             <p><span className="review-label">{t.workersCost}:</span> ₹{workersCost.toFixed(2)} ({maleWorkers} {t.maleWorkers} @ ₹{service.maleCost || 0}/{t.day} + {femaleWorkers} {t.femaleWorkers} @ ₹{service.femaleCost || 0}/{t.day} × {days} {days > 1 ? t.daysPlural : t.day}) {paymentMethod === 'cash' && `(${t.payOffline})`}</p>
@@ -831,7 +861,7 @@ if (selectedBundle) {
                     <option value="">{t.noBundle}</option>
                     {bundles.map(b => (
                       <option key={b.id} value={b.id}>
-                        ₹{b.price} - {language === 'english' ? b.name : language === 'hindi' ? b.nameHindi || b.name : b.nameMarathi || b.name} ({b.maleWorkers} {t.maleWorkers} पेंडकर + {b.femaleWorkers} {t.femaleWorkers})
+                        ₹{b.price} - {language === 'english' ? b.name : language === 'hindi' ? b.nameHindi || b.name : b.nameMarathi || b.name} ({b.maleWorkers} {t.maleWorkers} + {b.femaleWorkers} {t.femaleWorkers})
                       </option>
                     ))}
                   </select>
@@ -1225,6 +1255,55 @@ if (selectedBundle) {
         />
       </section>
 
+      <section className="bundles-section">
+        <h2 className="services-title">{t.newBundlesAvailable}</h2>
+        {isServicesLoading ? (
+          <div className="services-loader-container">
+            <div className="services-loader"></div>
+          </div>
+        ) : (
+          <div className="bundles-grid">
+            {bundles.map((b, index) => (
+              <div
+                key={b.id}
+                className={`bundle-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`}
+                onClick={() => handleBundleOrder(b.id)}
+              >
+                <div className="bundle-image-container">
+                  <img
+                    src={b.image || 'https://i.ibb.co/Z1Wfs935/e814b809-5fee-497d-a0b7-a215e49f7111.jpg'}
+                    alt={b.name}
+                    className="bundle-image"
+                  />
+                  <div className="bundle-overlay"></div>
+                </div>
+                <div className="bundle-content">
+                  <div className="bundle-name-container">
+                    <span className={`bundle-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                      {language === 'english' ? b.name : language === 'hindi' ? b.nameHindi || b.name : b.nameMarathi || b.name}
+                    </span>
+                  </div>
+                  <div className="bundle-details">
+                    <p><i className="fas fa-male"></i> {b.maleWorkers} {t.maleWorkers}</p>
+                    <p><i className="fas fa-female"></i> {b.femaleWorkers} {t.femaleWorkers}</p>
+                    <p className="bundle-price">₹{b.price}/{t.day}</p>
+                  </div>
+                </div>
+                <button
+                  className="order-now-button"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent card click from triggering twice
+                    handleBundleOrder(b.id);
+                  }}
+                >
+                  {t.orderNow}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       <section className="services-section">
         <h2 className="services-title">{t.ourServices}</h2>
         {isServicesLoading ? (
@@ -1275,8 +1354,6 @@ if (selectedBundle) {
                             वेळ(स.९ ते सायं 5)
                           </span>
                         )}
-
-
                       </div>
                     </div>
                     {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
