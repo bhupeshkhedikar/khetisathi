@@ -629,6 +629,7 @@ const Home = () => {
           amount: Math.round(paymentAmount * 100),
           currency: 'INR',
           name: 'KhetiSathi',
+          capture: true,
           description: paymentMethod === 'cash' ? `Service fee payment for ${selectedService}` : `Payment for ${selectedService} with service fee`,
           handler: async (response) => {
             try {
