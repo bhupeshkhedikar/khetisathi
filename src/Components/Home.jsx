@@ -1278,11 +1278,22 @@ const Home = () => {
                 />
                 <div className="bundle-chip-stack">
                   <span className={`bundle-status-chip ${b.availabilityStatus === 'Unavailable' ? 'bundle-status-chip--unavailable' : ''}`}>
-                    <i className="fas fa-check-circle"></i> {t.availabilityStatus} {b.availabilityStatus}
+                    <i className="fas fa-check-circle"></i>
+                    {t.availabilityStatus}{' '}
+                    {
+                      language === 'english' ? (b.availabilityStatus === 'Available' ? 'Available' : 'Unavailable') :
+                        language === 'hindi' ? (b.availabilityStatus === 'Available' ? 'उपलब्ध' : 'अनुपलब्ध') :
+                          (b.availabilityStatus === 'Available' ? 'उपलब्ध' : 'अनुपलब्ध')
+                    }
                   </span>
 
                   <span className="bundle-date-chip">
-                    <i className="fas fa-calendar-alt"></i> {t.availabilityDate} {b.availabilityDate}
+                    <i className="fas fa-calendar-alt"></i>
+                    {
+                      language === 'english' ? `from ${b.availabilityDate}` :
+                        language === 'hindi' ? `से ${b.availabilityDate}` :
+                          `${b.availabilityDate} पासून`
+                    }
                   </span>
                 </div>
               </div>
