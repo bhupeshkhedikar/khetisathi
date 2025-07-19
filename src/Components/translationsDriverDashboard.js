@@ -39,6 +39,7 @@ const translationsDriverDashboard = {
     addBundle: "Add Bundle",
     editBundle: "Edit Bundle",
     deleteBundle: "Delete Bundle",
+    unavailable: "Unavailable",
     // Profile
     name: 'Name',
     mobile: 'Mobile',
@@ -142,7 +143,12 @@ const translationsDriverDashboard = {
     successWorkingDayRemoved: 'Working day removed!',
     successOffDayRemoved: 'Off day removed!',
     successSkillsUpdated: 'Vehicle skills updated!',
-    
+    maleWages: "Male Wages",
+    femaleWages: "Female Wages",
+    driverWages: "Driver Wages",
+    yourBundles: "Your Bundles",
+    noBundles: "No bundles found",
+    villageOfFarmWorkers: "Village of Farm Workers",
 
     // WhatsApp Messages
     workerMessage: `👋 Hello {workerName},
@@ -192,7 +198,7 @@ Khetisathi 🚜`,
     noSkillsSelected: 'कोई कौशल चयनित नहीं।',
     sortedNewestFirst: 'सॉर्ट किया गया: नवीनतम पहले',
     skillsInstruction: 'एकाधिक कौशल चुनने के लिए Ctrl (Mac पर Cmd) दबाए रखें।',
-
+    unavailable: "अनुपलब्ध",
     // Profile
     name: 'नाम',
     mobile: 'मोबाइल',
@@ -298,7 +304,11 @@ Khetisathi 🚜`,
     errorSelectSkill: 'कम से कम एक वाहन कौशल चुनें।',
     errorUpdatingSkills: 'वाहन कौशल अपडेट करने में विफल।',
     serviceFeeWarning: 'कृपया नए असाइनमेंट स्वीकार करने के लिए ₹{amount} का बकाया सेवा शुल्क भुगतान करें।',
-
+    maleWages: "पुरुष मजुरी",
+    femaleWages: "महिला मजुरी",
+    driverWages: "ड्राइवर की मजुरी",
+    yourBundles: "आपके बंडल",
+    noBundles: "कोई बंडल नहीं मिला",
     // Success Messages
     successAssignmentAccepted: 'असाइनमेंट स्वीकार किया गया!',
     successAssignmentRejected: 'असाइनमेंट अस्वीकार किया गया।',
@@ -310,7 +320,7 @@ Khetisathi 🚜`,
     successWorkingDayRemoved: 'कार्य दिवस हटाया गया!',
     successOffDayRemoved: 'अवकाश दिवस हटाया गया!',
     successSkillsUpdated: 'वाहन कौशल अपडेट किए गए!',
-
+    villageOfFarmWorkers: "श्रमिकों का गांव",
     // WhatsApp Messages
     workerMessage: `👋 नमस्ते {workerName},
 
@@ -430,7 +440,11 @@ Khetisathi 🚜`,
     accepted: 'स्वीकारले',
     rejected: 'नाकारले',
     completed: 'पूर्ण झाले',
-
+    maleWages: "पुरुष मजुरी",
+    yourBundles: "तुमचे बंडल",
+    noBundles: "कोणतेही बंडल सापडले नाहीत",
+    femaleWages: "महिला मजुरी",
+    driverWages: "ड्रायव्हरची मजुरी",
     // Error Messages
     errorFirebaseNotInitialized: 'Firebase सुरू झाले नाही.',
     errorPleaseLogIn: 'कृपया ड्रायव्हर म्हणून लॉग इन करा.',
@@ -477,7 +491,8 @@ Khetisathi 🚜`,
     successWorkingDayRemoved: 'कार्य दिवस काढला!',
     successOffDayRemoved: 'सुट्टीचा दिवस काढला!',
     successSkillsUpdated: 'वाहन कौशल्ये अपडेट केली!',
-
+    unavailable: "उपलब्ध नाही",
+    villageOfFarmWorkers: "शेतमजुरांचे गाव",
     // WhatsApp Messages
     workerMessage: `👋 नमस्कार {workerName},
 

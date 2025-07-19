@@ -1276,239 +1276,240 @@ white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-col
           )}
         </div>
 
-        {canCreateBundles && (
-          <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
-            <button
-              onClick={() => setShowBundles(!showBundles)}
-              className="w-full flex items-center justify-between text-xl md:text-2xl font-semibold text-green-700 mb-4 focus:outline-none"
-            >
-              <span className="flex items-center">
-                <TruckIcon className="w-6 h-6 mr-2" />
-                {t.createBundle}
-              </span>
-              {showBundles ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
-            </button>
-            {showBundles && (
-              <div>
-                <form onSubmit={handleAddBundle} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <label htmlFor="bundle-name" className="block text-gray-700 font-medium mb-2">Bundle Name</label>
-                    <input
-                      id="bundle-name"
-                      type="text"
-                      value={newBundleName}
-                      onChange={(e) => setNewBundleName(e.target.value)}
-                      placeholder="Enter bundle name"
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
-                      required
-                      aria-label="Enter bundle name"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="bundle-price" className="block text-gray-700 font-medium mb-2">Price</label>
-                    <input
-                      id="bundle-price"
-                      type="number"
-                      value={newBundlePrice}
-                      onChange={(e) => setNewBundlePrice(e.target.value)}
-                      placeholder="Enter price"
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
-                      required
-                      min="0"
-                      step="0.01"
-                      aria-label="Enter price"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="availability-status" className="block text-gray-700 font-medium mb-2">Availability Status</label>
-                    <select
-                      id="availability-status"
-                      value={newBundleAvailabilityStatus}
-                      onChange={(e) => setNewBundleAvailabilityStatus(e.target.value)}
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
-                      required
-                      aria-label="Select availability status"
-                    >
-                      <option value="Available">Available</option>
-                      <option value="Unavailable">Unavailable</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="availability-date" className="block text-gray-700 font-medium mb-2">Availability Date</label>
-                    <input
-                      id="availability-date"
-                      type="date"
-                      value={newBundleAvailabilityDate}
-                      onChange={(e) => setNewBundleAvailabilityDate(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
-                      required
-                      aria-label="Select availability date"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="bundle-location" className="block text-gray-700 font-medium mb-2">Location</label>
-                    <input
-                      id="bundle-location"
-                      type="text"
-                      value={newBundleLocation}
-                      onChange={(e) => setNewBundleLocation(e.target.value)}
-                      placeholder="Enter location"
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
-                      required
-                      aria-label="Enter location"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="male-workers" className="block text-gray-700 font-medium mb-2">Male Workers</label>
-                    <input
-                      id="male-workers"
-                      type="number"
-                      value={newBundleMaleWorkers}
-                      onChange={(e) => setNewBundleMaleWorkers(e.target.value)}
-                      placeholder="Enter number of male workers"
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
-                      min="0"
-                      aria-label="Enter number of male workers"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="female-workers" className="block text-gray-700 font-medium mb-2">Female Workers</label>
-                    <input
-                      id="female-workers"
-                      type="number"
-                      value={newBundleFemaleWorkers}
-                      onChange={(e) => setNewBundleFemaleWorkers(e.target.value)}
-                      placeholder="Enter number of female workers"
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
-                      min="0"
-                      aria-label="Enter number of female workers"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="male-wages" className="block text-gray-700 font-medium mb-2">Male Wages</label>
-                    <input
-                      id="male-wages"
-                      type="number"
-                      value={newBundleMaleWages}
-                      onChange={(e) => setNewBundleMaleWages(e.target.value)}
-                      placeholder="Enter male wages"
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
-                      min="0"
-                      step="0.01"
-                      required
-                      aria-label="Enter male wages"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="female-wages" className="block text-gray-700 font-medium mb-2">Female Wages</label>
-                    <input
-                      id="female-wages"
-                      type="number"
-                      value={newBundleFemaleWages}
-                      onChange={(e) => setNewBundleFemaleWages(e.target.value)}
-                      placeholder="Enter female wages"
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
-                      min="0"
-                      step="0.01"
-                      required
-                      aria-label="Enter female wages"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="driver-wages" className="block text-gray-700 font-medium mb-2">Driver Wages</label>
-                    <input
-                      id="driver-wages"
-                      type="number"
-                      value={newBundleDriverWages}
-                      onChange={(e) => setNewBundleDriverWages(e.target.value)}
-                      placeholder="Enter driver wages"
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
-                      min="0"
-                      step="0.01"
-                      aria-label="Enter driver wages"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="time-range" className="block text-gray-700 font-medium mb-2">Time Range</label>
-                    <select
-                      id="time-range"
-                      value={newBundleTimeRange}
-                      onChange={(e) => setNewBundleTimeRange(e.target.value)}
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
-                      required
-                      aria-label="Select time range"
-                    >
-                      <option value="">Select time range</option>
-                      {timeRangeOptions.map((range) => (
-                        <option key={range} value={range}>
-                          {range}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    type="submit"
-                    className="flex items-center justify-center bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors md:col-span-2"
-                    disabled={loading}
-                    aria-label={editingBundleId ? 'Edit Bundle' : 'Add Bundle'}
-                  >
-                    <CheckCircleIcon className="w-5 h-5 mr-2" />
-                    {editingBundleId ? 'Edit Bundle' : 'Add Bundle'}
-                  </button>
-                </form>
-                <div>
-                  <h4 className="text-lg font-semibold mb-2 text-gray-700">{t.yourBundles}</h4>
-                  {bundles.length === 0 ? (
-                    <p className="text-gray-600">{t.noBundles}</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {bundles.map((bundle) => (
-                        <div key={bundle.id} className="border border-gray-200 p-4 rounded-lg hover:shadow-md transition-shadow">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <p><strong>Bundle Name:</strong> {bundle.name}</p>
-                            <p><strong>Price:</strong> ₹{bundle.price.toFixed(2)}</p>
-                            <p><strong>Availability Status:</strong> {t[bundle.availabilityStatus?.toLowerCase()] || bundle.availabilityStatus}</p>
-                            <p><strong>Availability Date:</strong> {bundle.availabilityDate ? formatDate(bundle.availabilityDate) : 'N/A'}</p>
-                            <p><strong>Location:</strong> {bundle.location}</p>
-                            <p><strong>Male Workers:</strong> {bundle.maleWorkers}</p>
-                            <p><strong>Female Workers:</strong> {bundle.femaleWorkers}</p>
-                            <p><strong>Male Wages:</strong> ₹{bundle.maleWages.toFixed(2)}</p>
-                            <p><strong>Female Wages:</strong> ₹{bundle.femaleWages.toFixed(2)}</p>
-                            <p><strong>Driver Wages:</strong> ₹{bundle.driverWages.toFixed(2)}</p>
-                            <p><strong>Vehicle Skills:</strong> {bundle.vehicleSkills?.length > 0 ? bundle.vehicleSkills.join(', ') : t.none}</p>
-                            <p><strong>Time Range:</strong> {bundle.timeRange}</p>
-                            <p><strong>Driver Name:</strong> {bundle.driverName}</p>
-                          </div>
-                          <div className="mt-3 flex gap-2">
-                            <button
-                              onClick={() => handleEditBundle(bundle)}
-                              className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
-                              disabled={loading}
-                              title={t.editBundle}
-                            >
-                              <CheckCircleIcon className="w-5 h-5 mr-2" />
-                              {t.editBundle}
-                            </button>
-                            <button
-                              onClick={() => handleDeleteBundle(bundle.id)}
-                              className="flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 transition-colors"
-                              disabled={loading}
-                              title={t.deleteBundle}
-                            >
-                              <XCircleIcon className="w-5 h-5 mr-2" />
-                              {t.deleteBundle}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+{canCreateBundles && (
+  <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
+    <button
+      onClick={() => setShowBundles(!showBundles)}
+      className="w-full flex items-center justify-between text-xl md:text-2xl font-semibold text-green-700 mb-4 focus:outline-none"
+    >
+      <span className="flex items-center">
+        <TruckIcon className="w-6 h-6 mr-2" />
+        {t.createBundle}
+      </span>
+      {showBundles ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
+    </button>
+    {showBundles && (
+      <div>
+        <form onSubmit={handleAddBundle} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label htmlFor="bundle-name" className="block text-gray-700 font-medium mb-2">{t.bundleName}</label>
+            <input
+              id="bundle-name"
+              type="text"
+              value={newBundleName}
+              onChange={(e) => setNewBundleName(e.target.value)}
+              placeholder={t.bundleName}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+              required
+              aria-label={t.bundleName}
+            />
           </div>
-        )}
+          <div>
+            <label htmlFor="bundle-price" className="block text-gray-700 font-medium mb-2">{t.price}</label>
+            <input
+              id="bundle-price"
+              type="number"
+              value={newBundlePrice}
+              onChange={(e) => setNewBundlePrice(e.target.value)}
+              placeholder={t.price}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+              required
+              min="0"
+              step="0.01"
+              aria-label={t.price}
+            />
+          </div>
+          <div>
+            <label htmlFor="availability-status" className="block text-gray-700 font-medium mb-2">{t.availabilityStatus}</label>
+            <select
+              id="availability-status"
+              value={newBundleAvailabilityStatus}
+              onChange={(e) => setNewBundleAvailabilityStatus(e.target.value)}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+              required
+              aria-label={t.availabilityStatus}
+            >
+              <option value="Available">{t.available}</option>
+              <option value="Unavailable">{t.unavailable}</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="availability-date" className="block text-gray-700 font-medium mb-2">{t.availabilityDate}</label>
+            <input
+              id="availability-date"
+              type="date"
+              value={newBundleAvailabilityDate}
+              onChange={(e) => setNewBundleAvailabilityDate(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+              required
+              aria-label={t.availabilityDate}
+            />
+          </div>
+          <div>
+            <label htmlFor="bundle-location" className="block text-gray-700 font-medium mb-2">{t.villageOfFarmWorkers}</label>
+            <input
+              id="bundle-location"
+              type="text"
+              value={newBundleLocation}
+              onChange={(e) => setNewBundleLocation(e.target.value)}
+              placeholder={t.location}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+              required
+              aria-label={t.location}
+            />
+          </div>
+          <div>
+            <label htmlFor="male-workers" className="block text-gray-700 font-medium mb-2">{t.maleWorkers}</label>
+            <input
+              id="male-workers"
+              type="number"
+              value={newBundleMaleWorkers}
+              onChange={(e) => setNewBundleMaleWorkers(e.target.value)}
+              placeholder={t.maleWorkers}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+              min="0"
+              aria-label={t.maleWorkers}
+            />
+          </div>
+          <div>
+            <label htmlFor="female-workers" className="block text-gray-700 font-medium mb-2">{t.femaleWorkers}</label>
+            <input
+              id="female-workers"
+              type="number"
+              value={newBundleFemaleWorkers}
+              onChange={(e) => setNewBundleFemaleWorkers(e.target.value)}
+              placeholder={t.femaleWorkers}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+              min="0"
+              aria-label={t.femaleWorkers}
+            />
+          </div>
+          <div>
+            <label htmlFor="male-wages" className="block text-gray-700 font-medium mb-2">{t.maleWages}</label>
+            <input
+              id="male-wages"
+              type="number"
+              value={newBundleMaleWages}
+              onChange={(e) => setNewBundleMaleWages(e.target.value)}
+              placeholder={t.maleWages}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+              min="0"
+              step="0.01"
+              required
+              aria-label={t.maleWages}
+            />
+          </div>
+          <div>
+            <label htmlFor="female-wages" className="block text-gray-700 font-medium mb-2">{t.femaleWages}</label>
+            <input
+              id="female-wages"
+              type="number"
+              value={newBundleFemaleWages}
+              onChange={(e) => setNewBundleFemaleWages(e.target.value)}
+              placeholder={t.femaleWages}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+              min="0"
+              step="0.01"
+              required
+              aria-label={t.femaleWages}
+            />
+          </div>
+          <div>
+            <label htmlFor="driver-wages" className="block text-gray-700 font-medium mb-2">{t.driverWages}</label>
+            <input
+              id="driver-wages"
+              type="number"
+              value={newBundleDriverWages}
+              onChange={(e) => setNewBundleDriverWages(e.target.value)}
+              placeholder={t.driverWages}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+              min="0"
+              step="0.01"
+              required
+              aria-label={t.driverWages}
+            />
+          </div>
+          <div>
+            <label htmlFor="time-range" className="block text-gray-700 font-medium mb-2">{t.timeRange}</label>
+            <select
+              id="time-range"
+              value={newBundleTimeRange}
+              onChange={(e) => setNewBundleTimeRange(e.target.value)}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+              required
+              aria-label={t.timeRange}
+            >
+              <option value="">{t.timeRange}</option>
+              {timeRangeOptions.map((range) => (
+                <option key={range} value={range}>
+                  {range}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="submit"
+            className="flex items-center justify-center bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors md:col-span-2"
+            disabled={loading}
+            aria-label={editingBundleId ? t.editBundle : t.addBundle}
+          >
+            <CheckCircleIcon className="w-5 h-5 mr-2" />
+            {editingBundleId ? t.editBundle : t.addBundle}
+          </button>
+        </form>
+        <div>
+          <h4 className="text-lg font-semibold mb-2 text-gray-700">{t.yourBundles}</h4>
+          {bundles.length === 0 ? (
+            <p className="text-gray-600">{t.noBundles}</p>
+          ) : (
+            <div className="space-y-4">
+              {bundles.map((bundle) => (
+                <div key={bundle.id} className="border border-gray-200 p-4 rounded-lg hover:shadow-md transition-shadow">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <p><strong>{t.bundleName}:</strong> {bundle.name}</p>
+                    <p><strong>{t.price}:</strong> ₹{bundle.price.toFixed(2)}</p>
+                    <p><strong>{t.availabilityStatus}:</strong> {t[bundle.availabilityStatus?.toLowerCase()] || bundle.availabilityStatus}</p>
+                    <p><strong>{t.availabilityDate}:</strong> {bundle.availabilityDate ? formatDate(bundle.availabilityDate) : 'N/A'}</p>
+                    <p><strong>{t.location}:</strong> {bundle.location}</p>
+                    <p><strong>{t.maleWorkers}:</strong> {bundle.maleWorkers}</p>
+                    <p><strong>{t.femaleWorkers}:</strong> {bundle.femaleWorkers}</p>
+                    <p><strong>{t.maleWages}:</strong> ₹{bundle.maleWages.toFixed(2)}</p>
+                    <p><strong>{t.femaleWages}:</strong> ₹{bundle.femaleWages.toFixed(2)}</p>
+                    <p><strong>{t.driverWages}:</strong> ₹{bundle.driverWages.toFixed(2)}</p>
+                    <p><strong>{t.timeRange}:</strong> {bundle.timeRange}</p>
+                    <p><strong>{t.driverName}:</strong> {bundle.driverName}</p>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => handleEditBundle(bundle)}
+                      className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                      disabled={loading}
+                      title={t.editBundle}
+                    >
+                      <CheckCircleIcon className="w-5 h-5 mr-2" />
+                      {t.editBundle}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteBundle(bundle.id)}
+                      className="flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 transition-colors"
+                      disabled={loading}
+                      title={t.deleteBundle}
+                    >
+                      <XCircleIcon className="w-5 h-5 mr-2" />
+                      {t.deleteBundle}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+  </div>
+)}
+
       </div>
     </div>
   );
