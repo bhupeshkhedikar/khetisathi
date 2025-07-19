@@ -1276,13 +1276,14 @@ const Home = () => {
                   alt={b.name}
                   className="bundle-image"
                 />
-                <div >
-<span className={`bundle-status-chip ${b.availabilityStatus === 'Unavailable' ? 'bundle-status-chip--unavailable' : ''}`}>
-                  <i className="fas fa-check-circle"></i> {t.availabilityStatus} {b.availabilityStatus}
-                </span>
-                <span className="bundle-date-chip">
-                  <i className="fas fa-calendar-alt"></i> {t.availabilityDate}{b.availabilityDate}
-                </span>
+                <div className="bundle-chip-stack">
+                  <span className={`bundle-status-chip ${b.availabilityStatus === 'Unavailable' ? 'bundle-status-chip--unavailable' : ''}`}>
+                    <i className="fas fa-check-circle"></i> {t.availabilityStatus} {b.availabilityStatus}
+                  </span>
+
+                  <span className="bundle-date-chip">
+                    <i className="fas fa-calendar-alt"></i> {t.availabilityDate} {b.availabilityDate}
+                  </span>
                 </div>
               </div>
               <div className="bundle-content">
