@@ -1256,7 +1256,7 @@ const Home = () => {
         />
       </section>
 
-   <section className="bundles-section">
+ <section className="bundles-section">
       <h2 className="services-title">{t.newBundlesAvailable}</h2>
       {isServicesLoading ? (
         <div className="services-loader-container">
@@ -1276,7 +1276,14 @@ const Home = () => {
                   alt={b.name}
                   className="bundle-image"
                 />
-                <div className="bundle-overlay"></div>
+                <div >
+<span className={`bundle-status-chip ${b.availabilityStatus === 'Unavailable' ? 'bundle-status-chip--unavailable' : ''}`}>
+                  <i className="fas fa-check-circle"></i> {t.availabilityStatus} {b.availabilityStatus}
+                </span>
+                <span className="bundle-date-chip">
+                  <i className="fas fa-calendar-alt"></i> {t.availabilityDate}{b.availabilityDate}
+                </span>
+                </div>
               </div>
               <div className="bundle-content">
                 <div className="bundle-name-container">
@@ -1304,17 +1311,23 @@ const Home = () => {
                   <p className="bundle-details-highlight">
                     <i className="fas fa-map-marker-alt"></i> {t.location}: {b.location}
                   </p>
-                  {/* <p className="bundle-price">₹{b.price}/{t.day}</p> */}
+                  
                 </div>
               </div>
-              <button
+                <button
+                disabled={b.availabilityStatus === 'Unavailable'}
                 className="order-now-button"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleBundleOrder(b.id);
                 }}
               >
-                 <p className="bundle-price" style={{marginBottom:'10px'}}>₹{b.price}/{t.day}</p> <p style={{marginBottom:'12px'}}>{t.orderNow}</p> 
+                <p className="bundle-price" style={{ marginBottom: '10px' }}>
+                  ₹{b.price}/{t.day}
+                </p>
+                <p style={{ marginBottom: '12px' }}>
+                  {b.availabilityStatus === 'Unavailable' ? t.orderClosed : t.orderNow}
+                </p>
               </button>
             </div>
           ))}

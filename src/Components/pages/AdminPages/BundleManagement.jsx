@@ -1,6 +1,19 @@
 import React from 'react';
 import './BundleManagement.css';
 
+const formatDateToDDMMYYYY = (dateStr) => {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-');
+  return `${day}-${month}-${year}`;
+};
+
+// Utility function to convert DD-MM-YYYY to YYYY-MM-DD
+const formatDateToYYYYMMDD = (dateStr) => {
+  if (!dateStr) return '';
+  const [day, month, year] = dateStr.split('-');
+  return `${year}-${month}-${day}`;
+};
+
 const BundleManagement = ({
   bundles,
   drivers,
@@ -55,6 +68,14 @@ const BundleManagement = ({
   setEditBundleLocation,
   handleEditBundle,
   setShowEditBundleModal,
+  newBundleAvailabilityStatus,
+  setNewBundleAvailabilityStatus,
+  newBundleAvailabilityDate,
+  setNewBundleAvailabilityDate,
+  editBundleAvailabilityStatus,
+  setEditBundleAvailabilityStatus,
+  editBundleAvailabilityDate,
+  setEditBundleAvailabilityDate,
   loading,
 }) => {
   const timeRangeOptions = [
@@ -92,6 +113,8 @@ const BundleManagement = ({
               <p className="bundle-details">Time: {b.timeRange}</p>
               <p className="bundle-details">Location: {b.location}</p>
               <p className="bundle-price">₹{b.price.toFixed(2)}</p>
+                <p className="bundle-details">Status: {b.availabilityStatus}</p>
+  <p className="bundle-details">Available on: {b.availabilityDate}</p>
               <div className="bundle-actions">
                 <button
                   type="button"
@@ -223,6 +246,29 @@ const BundleManagement = ({
               required
             />
           </div>
+           <div>
+    <label className="block text-gray-700">Availability Status:</label>
+    <select
+      value={newBundleAvailabilityStatus}
+      onChange={(e) => setNewBundleAvailabilityStatus(e.target.value)}
+      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+      required
+    >
+      <option value="Available">Available</option>
+      <option value="Unavailable">Unavailable</option>
+    </select>
+  </div>
+          <div>
+            <label className="block text-gray-700">Availability Date:</label>
+            <input
+              type="date"
+              value={newBundleAvailabilityDate ? formatDateToYYYYMMDD(newBundleAvailabilityDate) : ''}
+              onChange={(e) => setNewBundleAvailabilityDate(e.target.value ? formatDateToDDMMYYYY(e.target.value) : '')}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+            />
+          </div>
+
+
           <div>
             <label className="block text-gray-700">Select Driver:</label>
             <select
@@ -368,6 +414,27 @@ const BundleManagement = ({
                     onChange={(e) => setEditBundleLocation(e.target.value)}
                     className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
                     required
+                  />
+                </div>
+                  <div>
+    <label className="block text-gray-700">Availability Status:</label>
+    <select
+      value={editBundleAvailabilityStatus}
+      onChange={(e) => setEditBundleAvailabilityStatus(e.target.value)}
+      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+      required
+    >
+      <option value="Available">Available</option>
+      <option value="Unavailable">Unavailable</option>
+    </select>
+  </div>
+                <div>
+                  <label className="block text-gray-700">Availability Date:</label>
+                  <input
+                    type="date"
+                    value={editBundleAvailabilityDate ? formatDateToYYYYMMDD(editBundleAvailabilityDate) : ''}
+                    onChange={(e) => setEditBundleAvailabilityDate(e.target.value ? formatDateToDDMMYYYY(e.target.value) : '')}
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
                   />
                 </div>
                 <div>

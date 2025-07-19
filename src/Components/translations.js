@@ -85,7 +85,12 @@ newBundlesAvailable: "New Bundles Available",
   femaleWages: "Female Wages",
   driverWages: "Driver Wages",
   timeRange: "Time Range",
-  location: "Location"
+  location: "Location",
+  available: "Available",
+  unavailable: "Unavailable",
+    orderClosed:"Order Closed",
+// availabilityStatus: "Status",
+// availabilityDate: "Available on"
   },
   hindi: {
     farmConnect: "KhetiSathi",
@@ -172,7 +177,12 @@ newBundlesAvailable: "New Bundles Available",
     femaleWages: "महिला मजदूरी",
     driverWages: "ड्राइवर मजदूरी",
     timeRange: "समय सीमा",
-    location: "स्थान"
+    location: "स्थान",
+      available: "उपलब्ध",
+  unavailable: "अनुपलब्ध",
+    orderClosed:"ऑर्डर बंद",
+//     availabilityStatus: "स्थिति",
+// availabilityDate: "उपलब्ध तिथि"
   },
   marathi: {
     farmConnect: "KhetiSathi",
@@ -260,7 +270,12 @@ newBundlesAvailable: "New Bundles Available",
     femaleWages: "महिला मजूरी",
     driverWages: "गाडी भाडा",
     timeRange: "वेळ",
-    location: "रोवणी शेतमजुरांचे गांव "
+    location: "रोवणी शेतमजुरांचे गांव ",
+//     availabilityStatus: "स्थिती",
+// availabilityDate: "उपलब्ध तारीख"
+    available: "उपलब्ध",
+  unavailable: "अनुपलब्ध",
+  orderClosed:"ऑर्डर बंद",
   },
 };
 

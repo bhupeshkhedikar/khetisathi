@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { auth, db } from './firebaseConfig.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
-  collection, query, where, onSnapshot, doc, updateDoc, getDoc, getDocs, addDoc, or,
+  collection, query, where, onSnapshot, doc, updateDoc, getDoc, getDocs, addDoc, deleteDoc, or,
 } from 'firebase/firestore';
 import { serverTimestamp } from 'firebase/firestore';
 import { ASSIGNMENT_TIMEOUT, MOBILE_REGEX, PINCODE_REGEX, STATUS_COLORS } from '../Components/pages/constants.js';
 import translationsDriverDashboard from './translationsDriverDashboard.js';
-import {VEHICLE_SKILLS,VEHICLE_SKILL_LABELS} from '../utils/skills.js';
+import { VEHICLE_SKILLS, VEHICLE_SKILL_LABELS } from '../utils/skills.js';
 import { ChevronDownIcon, ChevronUpIcon, CheckCircleIcon, XCircleIcon, ClockIcon, CashIcon, TruckIcon, CalendarIcon, UserIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 
 const DriverDashboard = () => {
@@ -26,6 +26,7 @@ const DriverDashboard = () => {
   const [newOffDayDate, setNewOffDayDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [farmWorkersServiceId, setFarmWorkersServiceId] = useState(null);
   const [timers, setTimers] = useState({});
   const [paymentMethod, setPaymentMethod] = useState({});
   const [workerDetails, setWorkerDetails] = useState({});
@@ -34,19 +35,54 @@ const DriverDashboard = () => {
   const [showAvailability, setShowAvailability] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
   const [showEarnings, setShowEarnings] = useState(false);
-  const [language, setLanguage] = useState('marathi'); // Default to Marathi
+  const [showBundles, setShowBundles] = useState(false);
+  const [bundles, setBundles] = useState([]);
+  const [newBundleName, setNewBundleName] = useState('');
+  const [newBundleMaleWorkers, setNewBundleMaleWorkers] = useState('0');
+  const [newBundleFemaleWorkers, setNewBundleFemaleWorkers] = useState('0');
+  const [newBundlePrice, setNewBundlePrice] = useState('');
+  const [newBundleMaleWages, setNewBundleMaleWages] = useState('');
+  const [newBundleFemaleWages, setNewBundleFemaleWages] = useState('');
+  const [newBundleDriverWages, setNewBundleDriverWages] = useState('');
+  const [newBundleTimeRange, setNewBundleTimeRange] = useState('');
+  const [newBundleLocation, setNewBundleLocation] = useState('');
+  const [newBundleAvailabilityStatus, setNewBundleAvailabilityStatus] = useState('Available');
+  const [newBundleAvailabilityDate, setNewBundleAvailabilityDate] = useState('');
+  const [editingBundleId, setEditingBundleId] = useState(null);
+  const [language, setLanguage] = useState('marathi');
   const timerRef = useRef({});
   const t = translationsDriverDashboard[language];
 
-  // Format date based on language
+  const allowedVehicleSkills = ['uv-auto', 'omni', 'tata-magic', 'bolero'];
+  const canCreateBundles = vehicleSkills.some(skill => allowedVehicleSkills.includes(skill));
+
   const formatDate = (date) => {
-    const locale = language === 'en' ? 'en-GB' : language === 'hi' ? 'hi-IN' : 'mr-IN';
+    const locale = language === 'english' ? 'en-GB' : language === 'hindi' ? 'hi-IN' : 'mr-IN';
     return new Date(date).toLocaleDateString(locale);
   };
 
+  const formatDateToDDMMYYYY = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatDateToYYYYMMDD = (dateStr) => {
+    if (!dateStr) return '';
+    const [day, month, year] = dateStr.split('-');
+    return `${year}-${month}-${day}`;
+  };
+
+  const timeRangeOptions = [
+    '09:45 AM - 04:45 PM',
+    '9:00 AM - 5:00 PM',
+    '8:00 AM - 5:00 PM',
+    '7:00 AM - 5:00 PM',
+    '10:00 AM - 5:00 PM',
+  ];
+
   const logError = useCallback((message, error) => console.error(`[DriverDashboard] ${message}`, error), []);
 
-  // Load Razorpay script
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -99,80 +135,135 @@ const DriverDashboard = () => {
     }
   }, [t]);
 
-  useEffect(() => {
-    if (!auth || !db) {
-      setError(t.errorFirebaseNotInitialized);
+useEffect(() => {
+  if (!auth || !db) {
+    setError(t.errorFirebaseNotInitialized);
+    return;
+  }
+
+  // Fetch farm-workers service ID
+  const fetchServiceId = async () => {
+    try {
+      const servicesSnapshot = await getDocs(collection(db, 'services'));
+      const farmWorkersService = servicesSnapshot.docs.find(doc => doc.data().type === 'farm-workers');
+      if (!farmWorkersService) {
+        setError('Farm Workers service not found');
+        return null;
+      }
+      return farmWorkersService.id;
+    } catch (err) {
+      logError('Error fetching services', err);
+      setError(t.errorFetchingBundles);
+      return null;
+    }
+  };
+
+  const unsubscribeAuth = onAuthStateChanged(auth, async (authState) => {
+    if (!authState) {
+      setError(t.errorPleaseLogIn);
       return;
     }
+    console.log('[DriverDashboard] authState.uid:', authState.uid);
+    const userRef = doc(db, 'users', authState.uid);
+    const userDoc = await getDoc(userRef);
+    if (!userDoc.exists() || userDoc.data().role !== 'driver') {
+      setError(t.errorAccessRestricted);
+      return;
+    }
+    const userData = userDoc.data();
+    setUser(authState);
+    setStatus(userData.status || 'pending');
+    setDriverStatus(userData.driverStatus || 'available');
+    setServiceFeeWallet(userData.serviceFeeWallet || 0);
+    setProfile({
+      name: userData.name || '',
+      mobile: userData.mobile || '',
+      pincode: userData.pincode || '',
+      driverStatus: userData.driverStatus || 'available',
+    });
+    setUpdatedProfile({
+      name: userData.name || '',
+      mobile: userData.mobile || '',
+      pincode: userData.pincode || '',
+      driverStatus: userData.driverStatus || 'available',
+    });
+    setVehicleSkills(userData.vehicleSkills || []);
+    setAvailability(userData.availability || { workingDays: [], offDays: [] });
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (authState) => {
-      if (!authState) {
-        setError(t.errorPleaseLogIn);
-        return;
-      }
-      const userRef = doc(db, 'users', authState.uid);
-      const userDoc = await getDoc(userRef);
-      if (!userDoc.exists() || userDoc.data().role !== 'driver') {
-        setError(t.errorAccessRestricted);
-        return;
-      }
-      const userData = userDoc.data();
-      setUser(authState);
-      setStatus(userData.status || 'pending');
-      setDriverStatus(userData.driverStatus || 'available');
-      setServiceFeeWallet(userData.serviceFeeWallet || 0);
-      setProfile({
-        name: userData.name || '',
-        mobile: userData.mobile || '',
-        pincode: userData.pincode || '',
-        driverStatus: userData.driverStatus || 'available',
-      });
-      setUpdatedProfile({
-        name: userData.name || '',
-        mobile: userData.mobile || '',
-        pincode: userData.pincode || '',
-        driverStatus: userData.driverStatus || 'available',
-      });
-      setVehicleSkills(userData.vehicleSkills || []);
-      setAvailability(userData.availability || { workingDays: [], offDays: [] });
+    // Fetch farm-workers service ID
+    const serviceId = await fetchServiceId();
+    if (!serviceId) return;
+    setFarmWorkersServiceId(serviceId);
 
-      const assignmentsQuery = query(collection(db, 'assignments'), where('driverId', '==', authState.uid), where('status', 'in', ['pending', 'accepted']));
-      const unsubscribeAssignments = onSnapshot(assignmentsQuery, async (snapshot) => {
+    const assignmentsQuery = query(
+      collection(db, 'assignments'),
+      where('driverId', '==', authState.uid),
+      where('status', 'in', ['pending', 'accepted'])
+    );
+    const unsubscribeAssignments = onSnapshot(
+      assignmentsQuery,
+      async (snapshot) => {
         const assignmentsData = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
-          timeout: doc.data().createdAt ? new Date(doc.data().createdAt.toDate().getTime() + ASSIGNMENT_TIMEOUT).toISOString() : null,
+          timeout: doc.data().createdAt
+            ? new Date(doc.data().createdAt.toDate().getTime() + ASSIGNMENT_TIMEOUT).toISOString()
+            : null,
         }));
         setAssignments(assignmentsData);
         await fetchWorkerDetails(assignmentsData);
-      }, (err) => setError(t.errorFetchingAssignments));
+      },
+      (err) => setError(t.errorFetchingAssignments)
+    );
 
-      const taskHistoryQuery = query(
-        collection(db, 'assignments'),
-        or(
-          where('driverId', '==', authState.uid),
-          where('rejectedDriverIds', 'array-contains', authState.uid)
-        )
-      );
-      const unsubscribeTaskHistory = onSnapshot(taskHistoryQuery, async (snapshot) => {
+    const taskHistoryQuery = query(
+      collection(db, 'assignments'),
+      or(
+        where('driverId', '==', authState.uid),
+        where('rejectedDriverIds', 'array-contains', authState.uid)
+      )
+    );
+    const unsubscribeTaskHistory = onSnapshot(
+      taskHistoryQuery,
+      async (snapshot) => {
         const taskHistoryData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         setTaskHistory(taskHistoryData.sort((a, b) => new Date(b.startDate) - new Date(a.startDate)));
         await fetchWorkerDetails(taskHistoryData);
-      }, (err) => setError(t.errorFetchingTaskHistory));
+      },
+      (err) => setError(t.errorFetchingTaskHistory)
+    );
 
-      const earningsSnapshot = await getDocs(collection(db, `users/${authState.uid}/earnings`));
-      const earningsData = earningsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setEarnings(earningsData);
-      setTotalEarnings(earningsData.reduce((sum, earning) => sum + (earning.cost || 0), 0));
+    const earningsSnapshot = await getDocs(collection(db, `users/${authState.uid}/earnings`));
+    const earningsData = earningsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    setEarnings(earningsData);
+    setTotalEarnings(earningsData.reduce((sum, earning) => sum + (earning.cost || 0), 0));
 
-      return () => {
-        unsubscribeAssignments();
-        unsubscribeTaskHistory();
-      };
-    }, (err) => setError(t.errorPleaseLogIn));
+    const bundlesQuery = query(
+      collection(db, `services/${serviceId}/bundles`),
+      where('driverId', '==', authState.uid)
+    );
+    const unsubscribeBundles = onSnapshot(
+      bundlesQuery,
+      (snapshot) => {
+        const bundlesData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        console.log('[DriverDashboard] Fetched bundles:', bundlesData);
+        setBundles(bundlesData);
+      },
+      (err) => {
+        console.error('[DriverDashboard] Error fetching bundles:', err);
+        setError(t.errorFetchingBundles);
+      }
+    );
 
-    return () => unsubscribeAuth();
-  }, [fetchWorkerDetails, t]);
+    return () => {
+      unsubscribeAssignments();
+      unsubscribeTaskHistory();
+      unsubscribeBundles();
+    };
+  }, (err) => setError(t.errorPleaseLogIn));
+
+  return () => unsubscribeAuth();
+}, [fetchWorkerDetails, t]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -216,66 +307,63 @@ const DriverDashboard = () => {
     }
   };
 
-const handleAcceptAssignment = async (assignmentId) => {
-  if (serviceFeeWallet >= 100) {
-    setError(t.serviceFeeWarning.replace('{amount}', serviceFeeWallet.toFixed(2)));
-    return;
-  }
-
-  try {
-    setLoading(true);
-    const assignment = assignments.find((a) => a.id === assignmentId);
-    if (!assignment || !assignment.location) {
-      setError(t.errorInvalidAssignment);
+  const handleAcceptAssignment = async (assignmentId) => {
+    if (serviceFeeWallet >= 100) {
+      setError(t.serviceFeeWarning.replace('{amount}', serviceFeeWallet.toFixed(2)));
       return;
     }
 
-    await updateDoc(doc(db, 'assignments', assignmentId), {
-      status: 'accepted',
-      updatedAt: serverTimestamp(),
-    });
+    try {
+      setLoading(true);
+      const assignment = assignments.find((a) => a.id === assignmentId);
+      if (!assignment || !assignment.location) {
+        setError(t.errorInvalidAssignment);
+        return;
+      }
 
-    await updateDoc(doc(db, 'users', user.uid), {
-      driverStatus: 'busy',
-    });
-
-    setDriverStatus('busy');
-    setProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
-    setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
-
-    // ✅ Send Twilio Template Message to Workers
-    const workerMessages = (workerDetails[assignmentId] || []).map((worker) => {
-      if (!worker?.mobile) return Promise.resolve(false);
-
-      return fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: `+91${worker.mobile}`,
-          contentSid: 'HX87a61704d6cd283a4de603faac054df7',
-          contentVariables: {
-            "1": profile.name || 'ड्रायव्हर',
-            "2": profile.mobile || '',
-            "3": assignment.location || 'लोकेशन उपलब्ध नाही'
-          }
-        }),
+      await updateDoc(doc(db, 'assignments', assignmentId), {
+        status: 'accepted',
+        updatedAt: serverTimestamp(),
       });
-    });
 
-    const results = await Promise.all(workerMessages);
-    if (workerMessages.length > 0 && results.every((r) => !r)) {
+      await updateDoc(doc(db, 'users', user.uid), {
+        driverStatus: 'busy',
+      });
+
+      setDriverStatus('busy');
+      setProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
+      setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'busy' }));
+
+      const workerMessages = (workerDetails[assignmentId] || []).map((worker) => {
+        if (!worker?.mobile) return Promise.resolve(false);
+        return fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: `+91${worker.mobile}`,
+            contentSid: 'HX87a61704d6cd283a4de603faac054df7',
+            contentVariables: {
+              "1": profile.name || 'Driver',
+              "2": profile.mobile || '',
+              "3": assignment.location || 'Location not available'
+            }
+          }),
+        });
+      });
+
+      const results = await Promise.all(workerMessages);
+      if (workerMessages.length > 0 && results.every((r) => !r)) {
+        setError(t.errorAcceptingAssignment);
+      }
+
+      alert(t.successAssignmentAccepted);
+    } catch (err) {
+      logError('Error accepting assignment', err);
       setError(t.errorAcceptingAssignment);
+    } finally {
+      setLoading(false);
     }
-
-    alert(t.successAssignmentAccepted);
-  } catch (err) {
-    logError('Error accepting assignment', err);
-    setError(t.errorAcceptingAssignment);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handleRejectAssignment = async (assignmentId) => {
     try {
@@ -300,97 +388,95 @@ const handleAcceptAssignment = async (assignmentId) => {
     }
   };
 
-const handleCompleteAssignment = async (assignmentId) => {
-  if (!paymentMethod[assignmentId]) {
-    setError(t.errorSelectPaymentMethod);
-    return;
-  }
-
-  try {
-    setLoading(true);
-    const assignment = assignments.find((a) => a.id === assignmentId);
-    if (!assignment) {
-      throw new Error(`Assignment ${assignmentId} not found.`);
-    }
-    if (!assignment.customPrice || isNaN(assignment.customPrice) || assignment.customPrice <= 0) {
-      throw new Error(t.errorInvalidAssignmentCost);
+  const handleCompleteAssignment = async (assignmentId) => {
+    if (!paymentMethod[assignmentId]) {
+      setError(t.errorSelectPaymentMethod);
+      return;
     }
 
-    const grossEarnings = assignment.customPrice;
-    const serviceFeeRate = 0.02; // 2% service fee
-    const serviceFee = grossEarnings * serviceFeeRate;
-    const netEarnings = grossEarnings - serviceFee;
+    try {
+      setLoading(true);
+      const assignment = assignments.find((a) => a.id === assignmentId);
+      if (!assignment) {
+        throw new Error(`Assignment ${assignmentId} not found.`);
+      }
+      if (!assignment.customPrice || isNaN(assignment.customPrice) || assignment.customPrice <= 0) {
+        throw new Error(t.errorInvalidAssignmentCost);
+      }
 
-    await updateDoc(doc(db, 'assignments', assignmentId), {
-      status: 'completed',
-      completedAt: serverTimestamp(),
-      paymentStatus: {
-        method: paymentMethod[assignmentId],
-        status: 'paid'
-      },
-      updatedAt: serverTimestamp()
-    });
+      const grossEarnings = assignment.customPrice;
+      const serviceFeeRate = 0.02;
+      const serviceFee = grossEarnings * serviceFeeRate;
+      const netEarnings = grossEarnings - serviceFee;
 
-    await addDoc(collection(db, `users/${user.uid}/earnings`), {
-      assignmentId,
-      serviceType: assignment.vehicleType,
-      cost: netEarnings,
-      serviceFee: serviceFee,
-      completedAt: serverTimestamp(),
-      paymentMethod: paymentMethod[assignmentId],
-    });
-
-    const newServiceFeeWallet = (serviceFeeWallet || 0) + serviceFee;
-    await updateDoc(doc(db, 'users', user.uid), {
-      driverStatus: 'available',
-      serviceFeeWallet: newServiceFeeWallet,
-    });
-
-    setDriverStatus('available');
-    setProfile((prev) => ({ ...prev, driverStatus: 'available' }));
-    setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'available' }));
-    setServiceFeeWallet(newServiceFeeWallet);
-    setPaymentMethod((prev) => ({ ...prev, [assignmentId]: undefined }));
-
-    // 🔔 Send WhatsApp message using Twilio Template
-    const adminWhatsAppNumber = '+918788647637';
-    const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: adminWhatsAppNumber,
-        contentSid: 'HX2f95a526950e179926f5bf9c77d3937e',
-        contentVariables: {
-          '1': profile.name || 'ड्रायव्हर',
-          '2': profile.mobile || 'मोबाईल उपलब्ध नाही',
-          '3': assignment.vehicleType?.replace('-', ' ') || 'वाहन',
-          '4': grossEarnings.toFixed(2),
-          '5': serviceFee.toFixed(2),
-          '6': netEarnings.toFixed(2),
-          '7': formatDate(new Date()), // Example: "१० जुलै २०२५"
-          '8': assignment.location || t.none,
-          '9': paymentMethod[assignmentId]?.charAt(0).toUpperCase() + paymentMethod[assignmentId].slice(1),
-          '10': assignmentId,
+      await updateDoc(doc(db, 'assignments', assignmentId), {
+        status: 'completed',
+        completedAt: serverTimestamp(),
+        paymentStatus: {
+          method: paymentMethod[assignmentId],
+          status: 'paid'
         },
-      }),
-    });
+        updatedAt: serverTimestamp()
+      });
 
-    if (!response.ok) {
-      const resJson = await response.json();
-      console.error('Twilio Message Failed:', resJson);
+      await addDoc(collection(db, `users/${user.uid}/earnings`), {
+        assignmentId,
+        serviceType: assignment.vehicleType,
+        cost: netEarnings,
+        serviceFee: serviceFee,
+        completedAt: serverTimestamp(),
+        paymentMethod: paymentMethod[assignmentId],
+      });
+
+      const newServiceFeeWallet = (serviceFeeWallet || 0) + serviceFee;
+      await updateDoc(doc(db, 'users', user.uid), {
+        driverStatus: 'available',
+        serviceFeeWallet: newServiceFeeWallet,
+      });
+
+      setDriverStatus('available');
+      setProfile((prev) => ({ ...prev, driverStatus: 'available' }));
+      setUpdatedProfile((prev) => ({ ...prev, driverStatus: 'available' }));
+      setServiceFeeWallet(newServiceFeeWallet);
+      setPaymentMethod((prev) => ({ ...prev, [assignmentId]: undefined }));
+
+      const adminWhatsAppNumber = '+918788647637';
+      const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: adminWhatsAppNumber,
+          contentSid: 'HX2f95a526950e179926f5bf9c77d3937e',
+          contentVariables: {
+            '1': profile.name || 'Driver',
+            '2': profile.mobile || 'Mobile not available',
+            '3': assignment.vehicleType?.replace('-', ' ') || 'Vehicle',
+            '4': grossEarnings.toFixed(2),
+            '5': serviceFee.toFixed(2),
+            '6': netEarnings.toFixed(2),
+            '7': formatDate(new Date()),
+            '8': assignment.location || t.none,
+            '9': paymentMethod[assignmentId]?.charAt(0).toUpperCase() + paymentMethod[assignmentId].slice(1),
+            '10': assignmentId,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const resJson = await response.json();
+        console.error('Twilio Message Failed:', resJson);
+      }
+
+      alert(t.successAssignmentCompleted);
+    } catch (err) {
+      logError('Error completing assignment', err);
+      setError(t.errorCompletingAssignment.replace('{message}', err.message));
+    } finally {
+      setLoading(false);
     }
-
-    alert(t.successAssignmentCompleted);
-  } catch (err) {
-    logError('Error completing assignment', err);
-    setError(t.errorCompletingAssignment.replace('{message}', err.message));
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handlePayServiceFee = async () => {
     if (!window.Razorpay) {
@@ -596,6 +682,90 @@ const handleCompleteAssignment = async (assignmentId) => {
     }
   };
 
+const handleAddBundle = async (e) => {
+  e.preventDefault();
+  if (!farmWorkersServiceId) {
+    setError('Farm Workers service ID not found');
+    return;
+  }
+  setLoading(true);
+  try {
+    const bundleData = {
+      name: newBundleName,
+      maleWorkers: parseInt(newBundleMaleWorkers) || 0,
+      femaleWorkers: parseInt(newBundleFemaleWorkers) || 0,
+      price: parseFloat(newBundlePrice) || 0,
+      maleWages: parseFloat(newBundleMaleWages) || 0,
+      femaleWages: parseFloat(newBundleFemaleWages) || 0,
+      driverWages: parseFloat(newBundleDriverWages) || 0,
+      timeRange: newBundleTimeRange || '',
+      location: newBundleLocation || '',
+      driverId: user.uid,
+      driverName: profile.name || '',
+      vehicleSkills: vehicleSkills || [],
+      availabilityStatus: newBundleAvailabilityStatus || 'Available',
+      availabilityDate: newBundleAvailabilityDate || '',
+      createdAt: serverTimestamp(),
+    };
+    if (editingBundleId) {
+      await updateDoc(doc(db, `services/${farmWorkersServiceId}/bundles`, editingBundleId), bundleData);
+      setEditingBundleId(null);
+      alert(t.successBundleUpdated);
+    } else {
+      await addDoc(collection(db, `services/${farmWorkersServiceId}/bundles`), bundleData);
+      alert(t.successBundleAdded);
+    }
+    setNewBundleName('');
+    setNewBundleMaleWorkers('0');
+    setNewBundleFemaleWorkers('0');
+    setNewBundlePrice('');
+    setNewBundleMaleWages('');
+    setNewBundleFemaleWages('');
+    setNewBundleDriverWages('');
+    setNewBundleTimeRange('');
+    setNewBundleLocation('');
+    setNewBundleAvailabilityStatus('Available');
+    setNewBundleAvailabilityDate('');
+  } catch (err) {
+    console.error('Error adding/updating bundle:', err);
+    setError(`${t.errorAddingBundle}: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const handleEditBundle = (bundle) => {
+    setNewBundleName(bundle.name);
+    setNewBundleMaleWorkers(bundle.maleWorkers.toString() || '0');
+    setNewBundleFemaleWorkers(bundle.femaleWorkers.toString() || '0');
+    setNewBundlePrice(bundle.price.toString() || '');
+    setNewBundleMaleWages(bundle.maleWages.toString() || '0');
+    setNewBundleFemaleWages(bundle.femaleWages.toString() || '0');
+    setNewBundleDriverWages(bundle.driverWages.toString() || '0');
+    setNewBundleTimeRange(bundle.timeRange || '');
+    setNewBundleLocation(bundle.location || '');
+    setNewBundleAvailabilityStatus(bundle.availabilityStatus || 'Available');
+    setNewBundleAvailabilityDate(bundle.availabilityDate ? formatDateToDDMMYYYY(bundle.availabilityDate) : '');
+    setEditingBundleId(bundle.id);
+  };
+
+const handleDeleteBundle = async (bundleId) => {
+  if (!farmWorkersServiceId) {
+    setError('Farm Workers service ID not found');
+    return;
+  }
+  try {
+    setLoading(true);
+    await deleteDoc(doc(db, `services/${farmWorkersServiceId}/bundles`, bundleId));
+    alert(t.successBundleDeleted);
+  } catch (err) {
+    console.error('Error deleting bundle:', err);
+    setError(`${t.errorDeletingBundle}: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
+
   if (!user || error.includes(t.errorAccessRestricted) || error.includes(t.errorPleaseLogIn)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -610,7 +780,6 @@ const handleCompleteAssignment = async (assignmentId) => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-gray-100 p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
-        {/* Language Selector */}
         <div className="mb-6 flex justify-end">
           <select
             value={language}
@@ -664,6 +833,7 @@ const handleCompleteAssignment = async (assignmentId) => {
             </div>
           </div>
         </div>
+
         <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
           <h3 className="text-xl md:text-2xl font-semibold mb-4 text-green-700 flex items-center">
             <TruckIcon className="w-6 h-6 mr-2" />
@@ -682,81 +852,79 @@ const handleCompleteAssignment = async (assignmentId) => {
             </p>
           ) : (
             <div className="space-y-4">
-              {assignments.map((assignment) => {
-                console.log(`[DriverDashboard] Assignment ID: ${assignment.id}, vehicleType: ${assignment.vehicleType}`);
-                return (
-                  <div key={assignment.id} className="border border-gray-200 p-4 rounded-lg hover:shadow-md transition-shadow">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <p><strong>{t.type}:</strong> {t[assignment.vehicleType] || assignment.vehicleType.replace('-', ' ').toUpperCase()}</p>
-                      <p><strong>{t.date}:</strong> {formatDate(assignment.startDate)}</p>
-                      <p><strong>{t.location}:</strong> {assignment.location}</p>
-                      <p><strong>{t.earnings}:</strong> ₹{((assignment.customPrice || 0) * 0.98).toFixed(2)} (after 2% service fee)</p>
-                      <p>
-                        <strong>{t.workers}:</strong>{' '}
-                        {(workerDetails[assignment.id]?.length > 0)
-                          ? workerDetails[assignment.id].map((w) => `${w.name} (${w.mobile})`).join(', ')
-                          : t.none}
-                      </p>
-                      <p><strong>{t.status}:</strong> <span className={`px-3 py-1 rounded-full text-sm ${STATUS_COLORS[assignment.status] || 'bg-gray-100 text-gray-600'}`}>{t[assignment.status] || assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}</span></p>
-                    </div>
-                    {assignment.status === 'pending' && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button
-                          onClick={() => handleAcceptAssignment(assignment.id)}
-                          className="flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors"
-                          disabled={loading || timers[assignment.id] === 0 || status !== 'approved' || serviceFeeWallet >= 100}
-                          title={t.accept}
-                        >
-                          <CheckCircleIcon className="w-5 h-5 mr-2" />
-                          {t.accept}
-                        </button>
-                        <button
-                          onClick={() => handleRejectAssignment(assignment.id)}
-                          className="flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 transition-colors"
-                          disabled={loading || timers[assignment.id] === 0 || status !== 'approved'}
-                          title={t.reject}
-                        >
-                          <XCircleIcon className="w-5 h-5 mr-2" />
-                          {t.reject}
-                        </button>
-                        {timers[assignment.id] > 0 && (
-                          <span className="flex items-center text-red-600">
-                            <ClockIcon className="w-5 h-5 mr-2" />
-                            {t.timeLeft}: {Math.floor(timers[assignment.id] / 60)}:{(timers[assignment.id] % 60).toString().padStart(2, '0')}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {assignment.status === 'accepted' && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <select
-                          value={paymentMethod[assignment.id] || ''}
-                          onChange={(e) => setPaymentMethod((prev) => ({ ...prev, [assignment.id]: e.target.value }))}
-                          className="p-2 border rounded-lg focus:ring-2 focus:ring-green-600"
-                          aria-label={t.selectPaymentMethod}
-                        >
-                          <option value="" disabled>{t.selectPaymentMethod}</option>
-                          <option value="cash">{t.paymentMethodCash}</option>
-                          <option value="online">{t.paymentMethodOnline}</option>
-                        </select>
-                        <button
-                          onClick={() => handleCompleteAssignment(assignment.id)}
-                          className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
-                          disabled={loading || !paymentMethod[assignment.id] || status !== 'approved'}
-                          title={t.markAsCompleted}
-                        >
-                          <CheckCircleIcon className="w-5 h-5 mr-2" />
-                          {t.complete}
-                        </button>
-                      </div>
-                    )}
+              {assignments.map((assignment) => (
+                <div key={assignment.id} className="border border-gray-200 p-4 rounded-lg hover:shadow-md transition-shadow">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <p><strong>{t.type}:</strong> {t[assignment.vehicleType] || assignment.vehicleType.replace('-', ' ').toUpperCase()}</p>
+                    <p><strong>{t.date}:</strong> {formatDate(assignment.startDate)}</p>
+                    <p><strong>{t.location}:</strong> {assignment.location}</p>
+                    <p><strong>{t.earnings}:</strong> ₹{((assignment.customPrice || 0) * 0.98).toFixed(2)} (after 2% service fee)</p>
+                    <p>
+                      <strong>{t.workers}:</strong>{' '}
+                      {(workerDetails[assignment.id]?.length > 0)
+                        ? workerDetails[assignment.id].map((w) => `${w.name} (${w.mobile})`).join(', ')
+                        : t.none}
+                    </p>
+                    <p><strong>{t.status}:</strong> <span className={`px-3 py-1 rounded-full text-sm ${STATUS_COLORS[assignment.status] || 'bg-gray-100 text-gray-600'}`}>{t[assignment.status] || assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}</span></p>
                   </div>
-                );
-              })}
+                  {assignment.status === 'pending' && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleAcceptAssignment(assignment.id)}
+                        className="flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors"
+                        disabled={loading || timers[assignment.id] === 0 || status !== 'approved' || serviceFeeWallet >= 100}
+                        title={t.accept}
+                      >
+                        <CheckCircleIcon className="w-5 h-5 mr-2" />
+                        {t.accept}
+                      </button>
+                      <button
+                        onClick={() => handleRejectAssignment(assignment.id)}
+                        className="flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 transition-colors"
+                        disabled={loading || timers[assignment.id] === 0 || status !== 'approved'}
+                        title={t.reject}
+                      >
+                        <XCircleIcon className="w-5 h-5 mr-2" />
+                        {t.reject}
+                      </button>
+                      {timers[assignment.id] > 0 && (
+                        <span className="flex items-center text-red-600">
+                          <ClockIcon className="w-5 h-5 mr-2" />
+                          {t.timeLeft}: {Math.floor(timers[assignment.id] / 60)}:{(timers[assignment.id] % 60).toString().padStart(2, '0')}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {assignment.status === 'accepted' && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <select
+                        value={paymentMethod[assignment.id] || ''}
+                        onChange={(e) => setPaymentMethod((prev) => ({ ...prev, [assignment.id]: e.target.value }))}
+                        className="p-2 border rounded-lg focus:ring-2 focus:ring-green-600"
+                        aria-label={t.selectPaymentMethod}
+                      >
+                        <option value="" disabled>{t.selectPaymentMethod}</option>
+                        <option value="cash">{t.paymentMethodCash}</option>
+                        <option value="online">{t.paymentMethodOnline}</option>
+                      </select>
+                      <button
+                        onClick={() => handleCompleteAssignment(assignment.id)}
+                        className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                        disabled={loading || !paymentMethod[assignment.id] || status !== 'approved'}
+                        title={t.markAsCompleted}
+                      >
+                        <CheckCircleIcon className="w-5 h-5 mr-2" />
+                        {t.complete}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
-   <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
+
+        <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
           <h3 className="text-xl md:text-2xl font-semibold mb-2 text-green-700 flex items-center">
             <TruckIcon className="w-6 h-6 mr-2" />
             {t.taskHistory}
@@ -792,7 +960,7 @@ const handleCompleteAssignment = async (assignmentId) => {
             </div>
           )}
         </div>
-        
+
         <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
           <button
             onClick={() => setShowEarnings(!showEarnings)}
@@ -817,7 +985,8 @@ const handleCompleteAssignment = async (assignmentId) => {
                   {serviceFeeWallet >= 100 && (
                     <button
                       onClick={handlePayServiceFee}
-                      className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                      className="flex items-center bg-blue-600 text024-11-03 21:17:46.467 UTC
+white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
                       disabled={loading}
                       title={t.payServiceFee}
                     >
@@ -849,8 +1018,6 @@ const handleCompleteAssignment = async (assignmentId) => {
             </div>
           )}
         </div>
-
-     
 
         <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
           <button
@@ -1055,7 +1222,7 @@ const handleCompleteAssignment = async (assignmentId) => {
           )}
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-lg">
+        <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
           <button
             onClick={() => setShowSkills(!showSkills)}
             className="w-full flex items-center justify-between text-xl md:text-2xl font-semibold text-green-700 mb-4 focus:outline-none"
@@ -1075,11 +1242,11 @@ const handleCompleteAssignment = async (assignmentId) => {
                 className="w-full p-3 border rounded-lg h-32 mb-4 focus:ring-2 focus:ring-green-600"
                 aria-label={t.selectSkills}
               >
-              {VEHICLE_SKILLS.map((skill) => (
-                <option key={skill} value={skill}>
-                  {VEHICLE_SKILL_LABELS[skill]?.[language] || skill}
-                </option>
-              ))}
+                {VEHICLE_SKILLS.map((skill) => (
+                  <option key={skill} value={skill}>
+                    {VEHICLE_SKILL_LABELS[skill]?.[language] || skill}
+                  </option>
+                ))}
               </select>
               <p className="text-sm text-gray-500 mb-4">{t.skillsInstruction}</p>
               <button
@@ -1108,6 +1275,240 @@ const handleCompleteAssignment = async (assignmentId) => {
             </form>
           )}
         </div>
+
+        {canCreateBundles && (
+          <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
+            <button
+              onClick={() => setShowBundles(!showBundles)}
+              className="w-full flex items-center justify-between text-xl md:text-2xl font-semibold text-green-700 mb-4 focus:outline-none"
+            >
+              <span className="flex items-center">
+                <TruckIcon className="w-6 h-6 mr-2" />
+                {t.createBundle}
+              </span>
+              {showBundles ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
+            </button>
+            {showBundles && (
+              <div>
+                <form onSubmit={handleAddBundle} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label htmlFor="bundle-name" className="block text-gray-700 font-medium mb-2">Bundle Name</label>
+                    <input
+                      id="bundle-name"
+                      type="text"
+                      value={newBundleName}
+                      onChange={(e) => setNewBundleName(e.target.value)}
+                      placeholder="Enter bundle name"
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                      required
+                      aria-label="Enter bundle name"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="bundle-price" className="block text-gray-700 font-medium mb-2">Price</label>
+                    <input
+                      id="bundle-price"
+                      type="number"
+                      value={newBundlePrice}
+                      onChange={(e) => setNewBundlePrice(e.target.value)}
+                      placeholder="Enter price"
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                      required
+                      min="0"
+                      step="0.01"
+                      aria-label="Enter price"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="availability-status" className="block text-gray-700 font-medium mb-2">Availability Status</label>
+                    <select
+                      id="availability-status"
+                      value={newBundleAvailabilityStatus}
+                      onChange={(e) => setNewBundleAvailabilityStatus(e.target.value)}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                      required
+                      aria-label="Select availability status"
+                    >
+                      <option value="Available">Available</option>
+                      <option value="Unavailable">Unavailable</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="availability-date" className="block text-gray-700 font-medium mb-2">Availability Date</label>
+                    <input
+                      id="availability-date"
+                      type="date"
+                      value={newBundleAvailabilityDate}
+                      onChange={(e) => setNewBundleAvailabilityDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                      required
+                      aria-label="Select availability date"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="bundle-location" className="block text-gray-700 font-medium mb-2">Location</label>
+                    <input
+                      id="bundle-location"
+                      type="text"
+                      value={newBundleLocation}
+                      onChange={(e) => setNewBundleLocation(e.target.value)}
+                      placeholder="Enter location"
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                      required
+                      aria-label="Enter location"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="male-workers" className="block text-gray-700 font-medium mb-2">Male Workers</label>
+                    <input
+                      id="male-workers"
+                      type="number"
+                      value={newBundleMaleWorkers}
+                      onChange={(e) => setNewBundleMaleWorkers(e.target.value)}
+                      placeholder="Enter number of male workers"
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                      min="0"
+                      aria-label="Enter number of male workers"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="female-workers" className="block text-gray-700 font-medium mb-2">Female Workers</label>
+                    <input
+                      id="female-workers"
+                      type="number"
+                      value={newBundleFemaleWorkers}
+                      onChange={(e) => setNewBundleFemaleWorkers(e.target.value)}
+                      placeholder="Enter number of female workers"
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                      min="0"
+                      aria-label="Enter number of female workers"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="male-wages" className="block text-gray-700 font-medium mb-2">Male Wages</label>
+                    <input
+                      id="male-wages"
+                      type="number"
+                      value={newBundleMaleWages}
+                      onChange={(e) => setNewBundleMaleWages(e.target.value)}
+                      placeholder="Enter male wages"
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                      min="0"
+                      step="0.01"
+                      required
+                      aria-label="Enter male wages"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="female-wages" className="block text-gray-700 font-medium mb-2">Female Wages</label>
+                    <input
+                      id="female-wages"
+                      type="number"
+                      value={newBundleFemaleWages}
+                      onChange={(e) => setNewBundleFemaleWages(e.target.value)}
+                      placeholder="Enter female wages"
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                      min="0"
+                      step="0.01"
+                      required
+                      aria-label="Enter female wages"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="driver-wages" className="block text-gray-700 font-medium mb-2">Driver Wages</label>
+                    <input
+                      id="driver-wages"
+                      type="number"
+                      value={newBundleDriverWages}
+                      onChange={(e) => setNewBundleDriverWages(e.target.value)}
+                      placeholder="Enter driver wages"
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                      min="0"
+                      step="0.01"
+                      aria-label="Enter driver wages"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="time-range" className="block text-gray-700 font-medium mb-2">Time Range</label>
+                    <select
+                      id="time-range"
+                      value={newBundleTimeRange}
+                      onChange={(e) => setNewBundleTimeRange(e.target.value)}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-600"
+                      required
+                      aria-label="Select time range"
+                    >
+                      <option value="">Select time range</option>
+                      {timeRangeOptions.map((range) => (
+                        <option key={range} value={range}>
+                          {range}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="submit"
+                    className="flex items-center justify-center bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors md:col-span-2"
+                    disabled={loading}
+                    aria-label={editingBundleId ? 'Edit Bundle' : 'Add Bundle'}
+                  >
+                    <CheckCircleIcon className="w-5 h-5 mr-2" />
+                    {editingBundleId ? 'Edit Bundle' : 'Add Bundle'}
+                  </button>
+                </form>
+                <div>
+                  <h4 className="text-lg font-semibold mb-2 text-gray-700">{t.yourBundles}</h4>
+                  {bundles.length === 0 ? (
+                    <p className="text-gray-600">{t.noBundles}</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {bundles.map((bundle) => (
+                        <div key={bundle.id} className="border border-gray-200 p-4 rounded-lg hover:shadow-md transition-shadow">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <p><strong>Bundle Name:</strong> {bundle.name}</p>
+                            <p><strong>Price:</strong> ₹{bundle.price.toFixed(2)}</p>
+                            <p><strong>Availability Status:</strong> {t[bundle.availabilityStatus?.toLowerCase()] || bundle.availabilityStatus}</p>
+                            <p><strong>Availability Date:</strong> {bundle.availabilityDate ? formatDate(bundle.availabilityDate) : 'N/A'}</p>
+                            <p><strong>Location:</strong> {bundle.location}</p>
+                            <p><strong>Male Workers:</strong> {bundle.maleWorkers}</p>
+                            <p><strong>Female Workers:</strong> {bundle.femaleWorkers}</p>
+                            <p><strong>Male Wages:</strong> ₹{bundle.maleWages.toFixed(2)}</p>
+                            <p><strong>Female Wages:</strong> ₹{bundle.femaleWages.toFixed(2)}</p>
+                            <p><strong>Driver Wages:</strong> ₹{bundle.driverWages.toFixed(2)}</p>
+                            <p><strong>Vehicle Skills:</strong> {bundle.vehicleSkills?.length > 0 ? bundle.vehicleSkills.join(', ') : t.none}</p>
+                            <p><strong>Time Range:</strong> {bundle.timeRange}</p>
+                            <p><strong>Driver Name:</strong> {bundle.driverName}</p>
+                          </div>
+                          <div className="mt-3 flex gap-2">
+                            <button
+                              onClick={() => handleEditBundle(bundle)}
+                              className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                              disabled={loading}
+                              title={t.editBundle}
+                            >
+                              <CheckCircleIcon className="w-5 h-5 mr-2" />
+                              {t.editBundle}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteBundle(bundle.id)}
+                              className="flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 transition-colors"
+                              disabled={loading}
+                              title={t.deleteBundle}
+                            >
+                              <XCircleIcon className="w-5 h-5 mr-2" />
+                              {t.deleteBundle}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

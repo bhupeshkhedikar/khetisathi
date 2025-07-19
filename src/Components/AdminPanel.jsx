@@ -70,6 +70,13 @@ const AdminPanel = () => {
   const [editBundleDriverWages, setEditBundleDriverWages] = useState('');
   const [editBundleTimeRange, setEditBundleTimeRange] = useState('');
   const [editBundleLocation, setEditBundleLocation] = useState('');
+  // Add state for new bundle availability fields
+  const [newBundleAvailabilityStatus, setNewBundleAvailabilityStatus] = useState('Available');
+  const [newBundleAvailabilityDate, setNewBundleAvailabilityDate] = useState('');
+
+  // Add state for edit bundle availability fields
+  const [editBundleAvailabilityStatus, setEditBundleAvailabilityStatus] = useState('Available');
+  const [editBundleAvailabilityDate, setEditBundleAvailabilityDate] = useState('');
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       if (user) {
@@ -306,6 +313,8 @@ const AdminPanel = () => {
         location: newBundleLocation || '',
         driverId: newBundleDriverId || null,
         vehicleSkills: newBundleVehicleSkills || [],
+        availabilityStatus: newBundleAvailabilityStatus || 'Available',
+        availabilityDate: newBundleAvailabilityDate || '',
         createdAt: serverTimestamp(),
       };
       await addDoc(collection(db, `services/${farmWorkersService.id}/bundles`), bundleData);
@@ -320,6 +329,8 @@ const AdminPanel = () => {
       setNewBundleDriverWages('');
       setNewBundleTimeRange('');
       setNewBundleLocation('');
+      setNewBundleAvailabilityStatus('Available');
+      setNewBundleAvailabilityDate('');
       alert('Bundle added successfully!');
     } catch (err) {
       console.error('Error adding bundle:', err);
@@ -329,37 +340,41 @@ const AdminPanel = () => {
     }
   };
 
+
 const handleEditBundle = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  try {
-    const farmWorkersService = services.find((s) => s.type === 'farm-workers');
-    if (!farmWorkersService) throw new Error('Farm Workers service not found');
-    const bundleRef = doc(db, `services/${farmWorkersService.id}/bundles`, currentBundle.id);
-    await updateDoc(bundleRef, {
-      name: editBundleName,
-      maleWorkers: parseInt(editBundleMaleWorkers) || 0,
-      femaleWorkers: parseInt(editBundleFemaleWorkers) || 0,
-      price: parseFloat(editBundlePrice) || 0,
-      maleWages: parseFloat(editBundleMaleWages) || 0,
-      femaleWages: parseFloat(editBundleFemaleWages) || 0,
-      driverWages: parseFloat(editBundleDriverWages) || 0,
-      timeRange: editBundleTimeRange || '',
-      location: editBundleLocation || '',
-      driverId: editBundleDriverId || null,
-      vehicleSkills: editBundleVehicleSkills || [],
-      updatedAt: serverTimestamp(),
-    });
-    setShowEditBundleModal(false);
-    setCurrentBundle(null);
-    
-    alert('Bundle updated successfully!');
-  } catch (err) {
-    setError(`Error updating bundle: ${err.message}`);
-  } finally {
-    setLoading(false);
-  }
-};
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const farmWorkersService = services.find((s) => s.type === 'farm-workers');
+      if (!farmWorkersService) throw new Error('Farm Workers service not found');
+      const bundleRef = doc(db, `services/${farmWorkersService.id}/bundles`, currentBundle.id);
+      await updateDoc(bundleRef, {
+        name: editBundleName,
+        maleWorkers: parseInt(editBundleMaleWorkers) || 0,
+        femaleWorkers: parseInt(editBundleFemaleWorkers) || 0,
+        price: parseFloat(editBundlePrice) || 0,
+        maleWages: parseFloat(editBundleMaleWages) || 0,
+        femaleWages: parseFloat(editBundleFemaleWages) || 0,
+        driverWages: parseFloat(editBundleDriverWages) || 0,
+        timeRange: editBundleTimeRange || '',
+        location: editBundleLocation || '',
+        driverId: editBundleDriverId || null,
+        vehicleSkills: editBundleVehicleSkills || [],
+        availabilityStatus: editBundleAvailabilityStatus || 'Available',
+        availabilityDate: editBundleAvailabilityDate || '',
+        updatedAt: serverTimestamp(),
+      });
+      setShowEditBundleModal(false);
+      setCurrentBundle(null);
+      setEditBundleAvailabilityStatus('Available');
+      setEditBundleAvailabilityDate('');
+      alert('Bundle updated successfully!');
+    } catch (err) {
+      setError(`Error updating bundle: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDeleteBundle = async (bundleId) => {
     setLoading(true);
@@ -820,21 +835,23 @@ const handleAssignDriver = async (orderId, driverIds) => {
     setShowEditServiceModal(true);
   };
 
-const openEditBundleModal = (bundle) => {
-  setCurrentBundle(bundle);
-  setEditBundleName(bundle.name);
-  setEditBundleMaleWorkers(bundle.maleWorkers.toString() || '0');
-  setEditBundleFemaleWorkers(bundle.femaleWorkers.toString() || '0');
-  setEditBundlePrice(bundle.price.toString() || '');
-  setEditBundleDriverId(bundle.driverId || '');
-  setEditBundleVehicleSkills(bundle.vehicleSkills || []);
-  setShowEditBundleModal(true);
-  setEditBundleMaleWages(bundle.maleWages?.toString() || '');
-  setEditBundleFemaleWages(bundle.femaleWages?.toString() || '');
-  setEditBundleDriverWages(bundle.driverWages?.toString() || '');
-  setEditBundleTimeRange(bundle.timeRange || '');
-  setEditBundleLocation(bundle.location || '');
-};
+  const openEditBundleModal = (bundle) => {
+    setCurrentBundle(bundle);
+    setEditBundleName(bundle.name);
+    setEditBundleMaleWorkers(bundle.maleWorkers.toString() || '0');
+    setEditBundleFemaleWorkers(bundle.femaleWorkers.toString() || '0');
+    setEditBundlePrice(bundle.price.toString() || '');
+    setEditBundleDriverId(bundle.driverId || '');
+    setEditBundleVehicleSkills(bundle.vehicleSkills || []);
+    setEditBundleMaleWages(bundle.maleWages?.toString() || '');
+    setEditBundleFemaleWages(bundle.femaleWages?.toString() || '');
+    setEditBundleDriverWages(bundle.driverWages?.toString() || '');
+    setEditBundleTimeRange(bundle.timeRange || '');
+    setEditBundleLocation(bundle.location || '');
+    setEditBundleAvailabilityStatus(bundle.availabilityStatus || 'Available');
+    setEditBundleAvailabilityDate(bundle.availabilityDate || '');
+    setShowEditBundleModal(true);
+  };
   
 
   if (error) {
@@ -979,6 +996,14 @@ const openEditBundleModal = (bundle) => {
           setEditBundleTimeRange={setEditBundleTimeRange}
           editBundleLocation={editBundleLocation}
           setEditBundleLocation={setEditBundleLocation}
+          newBundleAvailabilityStatus={newBundleAvailabilityStatus}
+          setNewBundleAvailabilityStatus={setNewBundleAvailabilityStatus}
+          newBundleAvailabilityDate={newBundleAvailabilityDate}
+          setNewBundleAvailabilityDate={setNewBundleAvailabilityDate}
+          editBundleAvailabilityStatus={editBundleAvailabilityStatus}
+          setEditBundleAvailabilityStatus={setEditBundleAvailabilityStatus}
+          editBundleAvailabilityDate={editBundleAvailabilityDate}
+          setEditBundleAvailabilityDate={setEditBundleAvailabilityDate}
         />
 <OrderManagement
           orders={orders}

@@ -1278,6 +1278,42 @@ a:hover {
   background: rgba(0, 0, 0, 0.3);
 }
 
+.bundle-status-chip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 0.6rem;
+  color: #fff;
+  background-color: #10B981;
+  padding: 0.2rem 0.4rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 45%;
+  white-space: normal;
+  line-height: 1.2;
+}
+.bundle-status-chip--unavailable {
+  background-color: #EF4444;
+}
+.bundle-date-chip {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.6rem;
+  color: #fff;
+  background-color: #3B82F6;
+  padding: 0.2rem 0.4rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 45%;
+  white-space: normal;
+  line-height: 1.2;
+}
+
 .bundle-content {
   padding: 0.5rem;
   text-align: left;
@@ -1331,7 +1367,6 @@ a:hover {
   line-height: 1.2;
   min-height: 44px;
 }
-
 .order-now-button:hover {
   background-color: #2A5C4A;
 }
