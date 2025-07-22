@@ -70,6 +70,10 @@ const AdminPanel = () => {
   const [editBundleDriverWages, setEditBundleDriverWages] = useState('');
   const [editBundleTimeRange, setEditBundleTimeRange] = useState('');
   const [editBundleLocation, setEditBundleLocation] = useState('');
+  const [newPriceUnit, setNewPriceUnit] = useState('Per Day');
+  const [newActiveStatus, setNewActiveStatus] = useState(true);
+  const [editPriceUnit, setEditPriceUnit] = useState('');
+  const [editActiveStatus, setEditActiveStatus] = useState(false);
   // Add state for new bundle availability fields
   const [newBundleAvailabilityStatus, setNewBundleAvailabilityStatus] = useState('Available');
   const [newBundleAvailabilityDate, setNewBundleAvailabilityDate] = useState('');
@@ -224,65 +228,70 @@ const AdminPanel = () => {
     }));
   };
 
-  const handleAddService = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const serviceData = {
-        name: newServiceName,
-        type: newServiceType,
-        image: newServiceImage || 'https://via.placeholder.com/150',
-        createdAt: serverTimestamp(),
-      };
-      if (newServiceType === 'farm-workers') {
-        serviceData.maleCost = parseFloat(newMaleCost) || 0;
-        serviceData.femaleCost = parseFloat(newFemaleCost) || 0;
-      } else {
-        serviceData.cost = parseFloat(newServiceCost) || 0;
-      }
-      await addDoc(collection(db, 'services'), serviceData);
-      setNewServiceName('');
-      setNewServiceType('');
-      setNewServiceCost('');
-      setNewMaleCost('');
-      setNewFemaleCost('');
-      setNewServiceImage('');
-      alert('Service added successfully!');
-    } catch (err) {
-      setError(`Error adding service: ${err.message}`);
-    } finally {
-      setLoading(false);
+const handleAddService = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  try {
+    const serviceData = {
+      name: newServiceName,
+      type: newServiceType,
+      image: newServiceImage || 'https://via.placeholder.com/150',
+      createdAt: serverTimestamp(),
+      priceUnit: newPriceUnit, // Use the state value from the form
+      activeStatus: newActiveStatus,
+    };
+    if (newServiceType === 'farm-workers') {
+      serviceData.maleCost = parseFloat(newMaleCost) || 0;
+      serviceData.femaleCost = parseFloat(newFemaleCost) || 0;
+    } else {
+      serviceData.cost = parseFloat(newServiceCost) || 0;
     }
-  };
+    await addDoc(collection(db, 'services'), serviceData);
+    setNewServiceName('');
+    setNewServiceType('');
+    setNewServiceCost('');
+    setNewMaleCost('');
+    setNewFemaleCost('');
+    setNewServiceImage('');
+    setNewPriceUnit('Per Acre'); // Reset to default, adjust as needed
+    setNewActiveStatus(true); // Reset to default
+    alert('Service added successfully!');
+  } catch (err) {
+    setError(`Error adding service: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const handleEditService = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const serviceRef = doc(db, 'services', currentService.id);
-      const serviceData = {
-        name: editServiceName,
-        type: editServiceType,
-        image: editServiceImage || 'https://via.placeholder.com/150',
-        updatedAt: serverTimestamp(),
-      };
-      if (editServiceType === 'farm-workers') {
-        serviceData.maleCost = parseFloat(editMaleCost) || 0;
-        serviceData.femaleCost = parseFloat(editFemaleCost) || 0;
-      } else {
-        serviceData.cost = parseFloat(editServiceCost) || 0;
-      }
-      await updateDoc(serviceRef, serviceData);
-      setShowEditServiceModal(false);
-      setCurrentService(null);
-      alert('Service updated successfully!');
-    } catch (err) {
-      setError(`Error updating service: ${err.message}`);
-    } finally {
-      setLoading(false);
+const handleEditService = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  try {
+    const serviceRef = doc(db, 'services', currentService.id);
+    const serviceData = {
+      name: editServiceName,
+      type: editServiceType,
+      image: editServiceImage || 'https://via.placeholder.com/150',
+      updatedAt: serverTimestamp(),
+      priceUnit: editPriceUnit, // Use the state value from the edit modal
+      activeStatus: editActiveStatus,
+    };
+    if (editServiceType === 'farm-workers') {
+      serviceData.maleCost = parseFloat(editMaleCost) || 0;
+      serviceData.femaleCost = parseFloat(editFemaleCost) || 0;
+    } else {
+      serviceData.cost = parseFloat(editServiceCost) || 0;
     }
-  };
-
+    await updateDoc(serviceRef, serviceData);
+    setShowEditServiceModal(false);
+    setCurrentService(null);
+    alert('Service updated successfully!');
+  } catch (err) {
+    setError(`Error updating service: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
   const handleDeleteService = async (serviceId) => {
     setLoading(true);
     try {
@@ -825,14 +834,16 @@ const handleAssignDriver = async (orderId, driverIds) => {
   };
 
   const openEditServiceModal = (service) => {
-    setCurrentService(service);
-    setEditServiceName(service.name);
-    setEditServiceType(service.type);
-    setEditServiceCost(service.cost || '');
-    setEditMaleCost(service.maleCost || '');
-    setEditFemaleCost(service.femaleCost || '');
-    setEditServiceImage(service.image || '');
-    setShowEditServiceModal(true);
+setCurrentService(service);
+  setEditServiceName(service.name);
+  setEditServiceType(service.type);
+  setEditServiceCost(service.cost || '');
+  setEditMaleCost(service.maleCost || '');
+  setEditFemaleCost(service.femaleCost || '');
+  setEditServiceImage(service.image || '');
+  setEditPriceUnit(service.priceUnit || (service.type === 'ownertc' ? 'Per Hour' : service.type === 'fertilizer-applicator' ? 'Per Bag' : 'Per Acre'));
+  setEditActiveStatus(service.activeStatus || false);
+  setShowEditServiceModal(true);
   };
 
   const openEditBundleModal = (bundle) => {
@@ -939,6 +950,15 @@ const handleAssignDriver = async (orderId, driverIds) => {
           handleEditService={handleEditService}
           setShowEditServiceModal={setShowEditServiceModal}
           loading={loading}
+          newPriceUnit={newPriceUnit} // Added
+  setNewPriceUnit={setNewPriceUnit} // Added
+  newActiveStatus={newActiveStatus} // Added
+  setNewActiveStatus={setNewActiveStatus} // Added
+  editPriceUnit={editPriceUnit} // Added
+  setEditPriceUnit={setEditPriceUnit} // Added
+  editActiveStatus={editActiveStatus} // Added
+  setEditActiveStatus={setEditActiveStatus} // Added
+
         />
         <BundleManagement
           bundles={bundles}

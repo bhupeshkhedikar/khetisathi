@@ -1,5 +1,5 @@
 import React from 'react';
-
+import { SKILL_LABELS } from '../../../utils/skills';
 const ServiceManagement = ({
   services,
   newServiceName,
@@ -34,6 +34,14 @@ const ServiceManagement = ({
   handleEditService,
   setShowEditServiceModal,
   loading,
+  newPriceUnit,
+  setNewPriceUnit,
+  newActiveStatus,
+  setNewActiveStatus,
+  editPriceUnit,
+  setEditPriceUnit,
+  editActiveStatus,
+  setEditActiveStatus,
 }) => {
   return (
     <section className="mb-8">
@@ -48,8 +56,9 @@ const ServiceManagement = ({
               <p className={s.type === 'farm-workers' ? 'text-green-600 font-semibold' : 'text-green-600 font-bold'}>
                 {s.type === 'farm-workers'
                   ? `Male: ₹${s.maleCost || 0}/day, Female: ₹${s.femaleCost || 0}/day`
-                  : `₹${s.cost || 0}${s.type === 'ownertc' ? '/hour' : ''}`}
+                  : `₹${s.cost || 0} ${s.priceUnit || (s.type === 'ownertc' ? 'Per Hour' : s.type === 'fertilizer-applicator' ? 'Per Bag' : 'Per Acre')}`}
               </p>
+              <p className="text-gray-600">Status: {s.activeStatus ? 'Active' : 'Inactive'}</p>
               <div className="flex space-x-2 mt-4">
                 <button
                   type="button"
@@ -86,20 +95,42 @@ const ServiceManagement = ({
           </div>
           <div>
             <label className="block text-gray-700">Service Type:</label>
-            <select
-              value={newServiceType}
-              onChange={(e) => setNewServiceType(e.target.value)}
-              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
-              required
-            >
-                    <option value="">Select Type</option>
-                    <option value="farm-workers">Farm Workers शेतमजूर </option>
-                    <option value="ownertc">Tractor ट्रॅक्टर मालक (ड्रायव्हरसह सेवा)</option>
-                    <option value="tractor-driver">Tractor Driver फक्त ट्रॅक्टर चालक</option>
-                    <option value="sower">Sower पेंडकर</option>
-                    <option value="fertilizer-applicator">Fertilizer Applicator खत मारणारा</option>
-                    <option value="irrigation">Irrigation</option>
-                  </select>
+<select
+  value={newServiceType}
+  onChange={(e) => {
+    setNewServiceType(e.target.value);
+    setNewPriceUnit(
+      e.target.value === 'ownertc' ? 'Per Hour' :
+      e.target.value === 'fertilizer-applicator' ? 'Per Bag' :
+      e.target.value === 'farm-workers' ? 'Per Day' : 'Per Acre'
+    );
+  }}
+  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+  required
+>
+  <option value="">Select Type</option>
+  <option value="farm-workers">{SKILL_LABELS['farm-worker'].marathi} ({SKILL_LABELS['farm-worker'].english})</option>
+  <option value="sower">{SKILL_LABELS.sower.marathi} ({SKILL_LABELS.sower.english})</option>
+  <option value="paddy-spreader">{SKILL_LABELS['paddy-spreader'].marathi} ({SKILL_LABELS['paddy-spreader'].english})</option>
+  <option value="tractor-driver">{SKILL_LABELS['tractor-driver'].marathi} ({SKILL_LABELS['tractor-driver'].english})</option>
+  <option value="ownertc">{SKILL_LABELS.ownertc.marathi} ({SKILL_LABELS.ownertc.english})</option>
+  <option value="harvester">{SKILL_LABELS.harvester.marathi} ({SKILL_LABELS.harvester.english})</option>
+  <option value="harvester-operator">{SKILL_LABELS['harvester-operator'].marathi} ({SKILL_LABELS['harvester-operator'].english})</option>
+  <option value="owner-harvester">{SKILL_LABELS['owner-harvester'].marathi} ({SKILL_LABELS['owner-harvester'].english})</option>
+  <option value="pesticide-applicator">{SKILL_LABELS['pesticide-applicator'].marathi} ({SKILL_LABELS['pesticide-applicator'].english})</option>
+  <option value="fertilizer-applicator">{SKILL_LABELS['fertilizer-applicator'].marathi} ({SKILL_LABELS['fertilizer-applicator'].english})</option>
+  <option value="grass-cutter">{SKILL_LABELS['grass-cutter'].marathi} ({SKILL_LABELS['grass-cutter'].english})</option>
+  <option value="cow-milker">{SKILL_LABELS['cow-milker'].marathi} ({SKILL_LABELS['cow-milker'].english})</option>
+  <option value="buffalo-milker">{SKILL_LABELS['buffalo-milker'].marathi} ({SKILL_LABELS['buffalo-milker'].english})</option>
+  <option value="ploughman-with-bull">{SKILL_LABELS['ploughman-with-bull'].marathi} ({SKILL_LABELS['ploughman-with-bull'].english})</option>
+  <option value="crop-sorter">{SKILL_LABELS['crop-sorter'].marathi} ({SKILL_LABELS['crop-sorter'].english})</option>
+  <option value="watering-laborer">{SKILL_LABELS['watering-laborer'].marathi} ({SKILL_LABELS['watering-laborer'].english})</option>
+  <option value="dung-cleaner">{SKILL_LABELS['dung-cleaner'].marathi} ({SKILL_LABELS['dung-cleaner'].english})</option>
+  <option value="bullockcart-owner">{SKILL_LABELS['bullockcart-owner'].marathi} ({SKILL_LABELS['bullockcart-owner'].english})</option>
+  <option value="bullock-cart-only">{SKILL_LABELS['bullock-cart-only'].marathi} ({SKILL_LABELS['bullock-cart-only'].english})</option>
+  <option value="bullock-cart-driver">{SKILL_LABELS['bullock-cart-driver'].marathi} ({SKILL_LABELS['bullock-cart-driver'].english})</option>
+  <option value="irrigation">{SKILL_LABELS['irrigation-specialist'].marathi} ({SKILL_LABELS['irrigation-specialist'].english})</option>
+</select>
           </div>
           {newServiceType === 'farm-workers' ? (
             <>
@@ -130,7 +161,7 @@ const ServiceManagement = ({
             </>
           ) : (
             <div>
-              <label className="block text-gray-700">Cost (₹/{newServiceType === 'ownertc' ? 'hour' : 'job'}):</label>
+              <label className="block text-gray-700">Base Price (₹):</label>
               <input
                 type="number"
                 value={newServiceCost}
@@ -143,6 +174,20 @@ const ServiceManagement = ({
             </div>
           )}
           <div>
+            <label className="block text-gray-700">Price Unit:</label>
+            <select
+              value={newPriceUnit}
+              onChange={(e) => setNewPriceUnit(e.target.value)}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+            >
+              <option value="Per Acre">Per Acre</option>
+              <option value="Per Hour">Per Hour</option>
+              <option value="Per Day">Per Day</option>
+              <option value="Per Bag">Per Bag</option>
+              <option value="Fixed Price">Fixed Price</option>
+            </select>
+          </div>
+          <div>
             <label className="block text-gray-700">Image URL (optional):</label>
             <input
               type="text"
@@ -150,6 +195,18 @@ const ServiceManagement = ({
               onChange={(e) => setNewServiceImage(e.target.value)}
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
             />
+          </div>
+          <div>
+            <label className="block text-gray-700">Active Status:</label>
+            <label className="inline-flex items-center">
+              <input
+                type="checkbox"
+                checked={newActiveStatus}
+                onChange={(e) => setNewActiveStatus(e.target.checked)}
+                className="form-checkbox h-5 w-5 text-green-600"
+              />
+              <span className="ml-2 text-gray-700">Toggle to make this service visible to farmers</span>
+            </label>
           </div>
         </div>
         <button
@@ -178,20 +235,42 @@ const ServiceManagement = ({
                 </div>
                 <div>
                   <label className="block text-gray-700">Service Type:</label>
-                  <select
-                    value={editServiceType}
-                    onChange={(e) => setEditServiceType(e.target.value)}
-                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
-                    required
-                  >
-                    <option value="">Select Type</option>
-                    <option value="farm-workers">Farm Workers शेतमजूर </option>
-                    <option value="ownertc">Tractor ट्रॅक्टर मालक (ड्रायव्हरसह सेवा)</option>
-                    <option value="tractor-driver">Tractor Driver फक्त ट्रॅक्टर चालक</option>
-                    <option value="sower">Sower पेंडकर</option>
-                    <option value="fertilizer-applicator">Fertilizer Applicator खत मारणारा</option>
-                    <option value="irrigation">Irrigation</option>
-                  </select>
+<select
+  value={newServiceType}
+  onChange={(e) => {
+    setNewServiceType(e.target.value);
+    setNewPriceUnit(
+      e.target.value === 'ownertc' ? 'Per Hour' :
+      e.target.value === 'fertilizer-applicator' ? 'Per Bag' :
+      e.target.value === 'farm-workers' ? 'Per Day' : 'Per Acre'
+    );
+  }}
+  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+  required
+>
+  <option value="">Select Type</option>
+  <option value="farm-workers">{SKILL_LABELS['farm-worker'].marathi} ({SKILL_LABELS['farm-worker'].english})</option>
+  <option value="sower">{SKILL_LABELS.sower.marathi} ({SKILL_LABELS.sower.english})</option>
+  <option value="paddy-spreader">{SKILL_LABELS['paddy-spreader'].marathi} ({SKILL_LABELS['paddy-spreader'].english})</option>
+  <option value="tractor-driver">{SKILL_LABELS['tractor-driver'].marathi} ({SKILL_LABELS['tractor-driver'].english})</option>
+  <option value="ownertc">{SKILL_LABELS.ownertc.marathi} ({SKILL_LABELS.ownertc.english})</option>
+  <option value="harvester">{SKILL_LABELS.harvester.marathi} ({SKILL_LABELS.harvester.english})</option>
+  <option value="harvester-operator">{SKILL_LABELS['harvester-operator'].marathi} ({SKILL_LABELS['harvester-operator'].english})</option>
+  <option value="owner-harvester">{SKILL_LABELS['owner-harvester'].marathi} ({SKILL_LABELS['owner-harvester'].english})</option>
+  <option value="pesticide-applicator">{SKILL_LABELS['pesticide-applicator'].marathi} ({SKILL_LABELS['pesticide-applicator'].english})</option>
+  <option value="fertilizer-applicator">{SKILL_LABELS['fertilizer-applicator'].marathi} ({SKILL_LABELS['fertilizer-applicator'].english})</option>
+  <option value="grass-cutter">{SKILL_LABELS['grass-cutter'].marathi} ({SKILL_LABELS['grass-cutter'].english})</option>
+  <option value="cow-milker">{SKILL_LABELS['cow-milker'].marathi} ({SKILL_LABELS['cow-milker'].english})</option>
+  <option value="buffalo-milker">{SKILL_LABELS['buffalo-milker'].marathi} ({SKILL_LABELS['buffalo-milker'].english})</option>
+  <option value="ploughman-with-bull">{SKILL_LABELS['ploughman-with-bull'].marathi} ({SKILL_LABELS['ploughman-with-bull'].english})</option>
+  <option value="crop-sorter">{SKILL_LABELS['crop-sorter'].marathi} ({SKILL_LABELS['crop-sorter'].english})</option>
+  <option value="watering-laborer">{SKILL_LABELS['watering-laborer'].marathi} ({SKILL_LABELS['watering-laborer'].english})</option>
+  <option value="dung-cleaner">{SKILL_LABELS['dung-cleaner'].marathi} ({SKILL_LABELS['dung-cleaner'].english})</option>
+  <option value="bullockcart-owner">{SKILL_LABELS['bullockcart-owner'].marathi} ({SKILL_LABELS['bullockcart-owner'].english})</option>
+  <option value="bullock-cart-only">{SKILL_LABELS['bullock-cart-only'].marathi} ({SKILL_LABELS['bullock-cart-only'].english})</option>
+  <option value="bullock-cart-driver">{SKILL_LABELS['bullock-cart-driver'].marathi} ({SKILL_LABELS['bullock-cart-driver'].english})</option>
+  <option value="irrigation">{SKILL_LABELS['irrigation-specialist'].marathi} ({SKILL_LABELS['irrigation-specialist'].english})</option>
+</select>
                 </div>
                 {editServiceType === 'farm-workers' ? (
                   <>
@@ -222,11 +301,9 @@ const ServiceManagement = ({
                   </>
                 ) : (
                   <div>
-                    <label className="block text-gray-700">
-                      Cost (₹/{editServiceType === 'ownertc' ? 'hour' : 'job'}):
-                    </label>
+                    <label className="block text-gray-700">Base Price (₹):</label>
                     <input
-                      type="[number"
+                      type="number"
                       value={editServiceCost}
                       onChange={(e) => setEditServiceCost(e.target.value)}
                       min="0"
@@ -237,6 +314,20 @@ const ServiceManagement = ({
                   </div>
                 )}
                 <div>
+                  <label className="block text-gray-700">Price Unit:</label>
+                  <select
+                    value={editPriceUnit}
+                    onChange={(e) => setEditPriceUnit(e.target.value)}
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
+                  >
+                    <option value="Per Acre">Per Acre</option>
+                    <option value="Per Hour">Per Hour</option>
+                    <option value="Per Day">Per Day</option>
+                    <option value="Per Bag">Per Bag</option>
+                    <option value="Fixed Price">Fixed Price</option>
+                  </select>
+                </div>
+                <div>
                   <label className="block text-gray-700">Image URL (optional):</label>
                   <input
                     type="text"
@@ -244,6 +335,18 @@ const ServiceManagement = ({
                     onChange={(e) => setEditServiceImage(e.target.value)}
                     className="w-full p-2 border rounded-md focus:ring-2 focus:ring-green-600"
                   />
+                </div>
+                <div>
+                  <label className="block text-gray-700">Active Status:</label>
+                  <label className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={editActiveStatus}
+                      onChange={(e) => setEditActiveStatus(e.target.checked)}
+                      className="form-checkbox h-5 w-5 text-green-600"
+                    />
+                    <span className="ml-2 text-gray-700">Toggle to make this service visible to farmers</span>
+                  </label>
                 </div>
               </div>
               <div className="mt-4 flex space-x-2">

@@ -155,6 +155,21 @@ const Register = () => {
     setError('');
   };
 
+  const generateNext30Days = () => {
+    const days = [];
+    const today = new Date();
+    for (let i = 0; i < 30; i++) {
+      const nextDate = new Date(today);
+      nextDate.setDate(today.getDate() + i);
+      const yyyy = nextDate.getFullYear();
+      const mm = String(nextDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(nextDate.getDate()).padStart(2, '0');
+      days.push(`${yyyy}-${mm}-${dd}`);
+    }
+    return days;
+  };
+
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (type === 'checkbox') {
@@ -234,13 +249,14 @@ const Register = () => {
         userData.gender = gender;
         userData.skills = skills;
         userData.workerStatus = 'ready';
-        userData.availability = { workingDays: [], offDays: [] };
+        userData.availability = { workingDays: generateNext30Days(), offDays: [] };
       } else if (role === 'driver') {
         userData.vehicleSkills = vehicleSkills;
         userData.driverStatus = 'available';
-        userData.availability = { workingDays: [], offDays: [] };
+        userData.availability = { workingDays: generateNext30Days(), offDays: [] };
         if (gender) userData.gender = gender; // Optional gender for drivers
       }
+
       await setDoc(doc(db, 'users', user.uid), userData);
 
       alert(t.registrationSuccessful);
@@ -272,27 +288,24 @@ const Register = () => {
         <button
           type="button"
           onClick={() => handleTabChange('farmer')}
-          className={`flex-1 py-3 text-center font-semibold rounded-l-lg transition duration-300 ${
-            activeTab === 'farmer' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
+          className={`flex-1 py-3 text-center font-semibold rounded-l-lg transition duration-300 ${activeTab === 'farmer' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
         >
           {t.farmer}
         </button>
         <button
           type="button"
           onClick={() => handleTabChange('worker')}
-          className={`flex-1 py-3 text-center font-semibold transition duration-300 ${
-            activeTab === 'worker' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
+          className={`flex-1 py-3 text-center font-semibold transition duration-300 ${activeTab === 'worker' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
         >
           {t.worker}
         </button>
         <button
           type="button"
           onClick={() => handleTabChange('driver')}
-          className={`flex-1 py-3 text-center font-semibold rounded-r-lg transition duration-300 ${
-            activeTab === 'driver' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
+          className={`flex-1 py-3 text-center font-semibold rounded-r-lg transition duration-300 ${activeTab === 'driver' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
         >
           {t.driver}
         </button>
@@ -389,60 +402,60 @@ const Register = () => {
             <p className="text-sm text-gray-500 mt-1">{t.selectVehicleSkills}</p>
           </div>
         )}
-<div className="mb-4">
-  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'nowrap' }}>
-    {/* District */}
-    <div style={{ flex: 1 }}>
-      <label className="block text-gray-700">{t.district}</label>
-      <select
-        name="district"
-        value={formData.district}
-        onChange={handleChange}
-        className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
-        required
-      >
-        <option value="">{t.selectDistrict}</option>
-        <option value="Bhandara">
-          {language === 'marathi' ? 'भंडारा' : language === 'hindi' ? 'भंडारा' : 'Bhandara'}
-        </option>
-      </select>
-    </div>
+        <div className="mb-4">
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'nowrap' }}>
+            {/* District */}
+            <div style={{ flex: 1 }}>
+              <label className="block text-gray-700">{t.district}</label>
+              <select
+                name="district"
+                value={formData.district}
+                onChange={handleChange}
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
+                required
+              >
+                <option value="">{t.selectDistrict}</option>
+                <option value="Bhandara">
+                  {language === 'marathi' ? 'भंडारा' : language === 'hindi' ? 'भंडारा' : 'Bhandara'}
+                </option>
+              </select>
+            </div>
 
-    {/* Tahsil */}
-    <div style={{ flex: 1 }}>
-      <label className="block text-gray-700">{t.tahsil}</label>
-      <select
-        name="tahsil"
-        value={formData.tahsil}
-        onChange={handleChange}
-        className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
-        required
-      >
-        <option value="">{t.selectTahsil}</option>
-        <option value="Lakhani">
-          {language === 'marathi' ? 'लाखनी' : language === 'hindi' ? 'लखनी' : 'Lakhani'}
-        </option>
-      </select>
-    </div>
+            {/* Tahsil */}
+            <div style={{ flex: 1 }}>
+              <label className="block text-gray-700">{t.tahsil}</label>
+              <select
+                name="tahsil"
+                value={formData.tahsil}
+                onChange={handleChange}
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
+                required
+              >
+                <option value="">{t.selectTahsil}</option>
+                <option value="Lakhani">
+                  {language === 'marathi' ? 'लाखनी' : language === 'hindi' ? 'लखनी' : 'Lakhani'}
+                </option>
+              </select>
+            </div>
 
-    {/* Village */}
-    <div style={{ flex: 1 }}>
-      <label className="block text-gray-700">{t.village}</label>
-      <select
-        name="village"
-        value={formData.village}
-        onChange={handleChange}
-        className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
-        required
-      >
-        <option value="">{t.selectVillage}</option>
-        <option value="Lakhori">
-          {language === 'marathi' ? 'लाखोरी' : language === 'hindi' ? 'लखोरी' : 'Lakhori'}
-        </option>
-      </select>
-    </div>
-  </div>
-</div>
+            {/* Village */}
+            <div style={{ flex: 1 }}>
+              <label className="block text-gray-700">{t.village}</label>
+              <select
+                name="village"
+                value={formData.village}
+                onChange={handleChange}
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
+                required
+              >
+                <option value="">{t.selectVillage}</option>
+                <option value="Lakhori">
+                  {language === 'marathi' ? 'लाखोरी' : language === 'hindi' ? 'लखोरी' : 'Lakhori'}
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
 
         <div className="mb-4">
           <label className="block text-gray-700">{t.pincode}</label>
