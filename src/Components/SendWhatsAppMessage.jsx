@@ -67,11 +67,11 @@ KhetiSathi वापरल्याबद्दल धन्यवाद 🌾
     `,
   },
   {
-  label: '✅ Booking Confirmation (Farmlabour)',
-  value: 'booking_confirmation_farmlabour',
-  contentSid: 'HX8a2c94b9401b393e315ff8c58dfb86b0',
-  variables: ['1', '2', '3', '4', '5', '6', '7', '8'],
-  preview: `
+    label: '✅ Booking Confirmation (Farmlabour)',
+    value: 'booking_confirmation_farmlabour',
+    contentSid: 'HX8a2c94b9401b393e315ff8c58dfb86b0',
+    variables: ['1', '2', '3', '4', '5', '6', '7', '8'],
+    preview: `
 🙏 नमस्कार {{1}} शेतकरी राजा,
 
 🌾 तुमची ऑर्डर रोवणी शेतमजूर बंडल: {{2}} यशस्वीरीत्या बुक झाली आहे ✅
@@ -87,14 +87,14 @@ KhetiSathi वापरल्याबद्दल धन्यवाद 🌾
 🧾 तुम्ही बुक केलेले शेतमजूर वेळेवर शेतावर पोहोचतील. निश्चिंत रहा 🙌
 
 🙏 KhetiSathi वापरल्याबद्दल धन्यवाद!
-  `.trim(),
-},
-{
-  label: '❌ Order Cancelled + Refund (Farmer Friendly)',
-  value: 'booking_cancelled_refunded_farmer',
-  contentSid: 'HXbe0d7876ef230820304bdeec3e43d957',
-  variables: ['1', '2', '3', '4'],
-  preview: `
+    `.trim(),
+  },
+  {
+    label: '❌ Order Cancelled + Refund (Farmer Friendly)',
+    value: 'booking_cancelled_refunded_farmer',
+    contentSid: 'HXbe0d7876ef230820304bdeec3e43d957',
+    variables: ['1', '2', '3', '4'],
+    preview: `
 🙏 नमस्कार {{1}} शेतकरी राजा,
 
 🙇‍♂️ क्षमस्व! तुमची रोवणी शेतमजूर बंडल: {{2}} ही ऑर्डर आम्हाला रद्द करावी लागली आहे ❌
@@ -112,21 +112,21 @@ KhetiSathi वापरल्याबद्दल धन्यवाद 🌾
 🚜 *KhetiSathi* — तुमच्या शेतात तुमच्यासोबत!
 
 ❤️ तुमचा विश्वास आमचं बळ आहे.
-  `.trim(),
-},
-{
-  label: '🧪Media Template (Media,Poster)',
-  value: 'bannersend',
-  contentSid: 'HX85535aba595a331555beec1d88f63101',
-  variables: [], // No variables
-  preview: `
+    `.trim(),
+  },
+  {
+    label: '🧪Media Template (Media,Poster)',
+    value: 'bannersend',
+    contentSid: 'HX85535aba595a331555beec1d88f63101',
+    variables: [],
+    preview: `
 🙏 नमस्कार,
 
 ही एक टेस्ट WhatsApp संदेश आहे, KhetiSathi साठी Twilio Template चाचणी केली जात आहे ✅
 
 धन्यवाद!
-  `.trim(),
-},
+    `.trim(),
+  },
 ];
 
 const SendWhatsAppMessage = () => {
@@ -158,16 +158,28 @@ const SendWhatsAppMessage = () => {
       return;
     }
 
+    const currentTemplate = contentTemplates.find(t => t.value === selectedTemplate);
+    const requiredVars = currentTemplate?.variables || [];
+
+    if (!contentSid) {
+      setStatus('Please select a valid template.');
+      return;
+    }
+
+    if (requiredVars.length > 0) {
+      const hasEmpty = requiredVars.some((v) => !contentVariables[v]);
+      if (hasEmpty) {
+        setStatus('Please fill in all required variables.');
+        return;
+      }
+    }
+
     setStatus('Sending messages...');
 
     for (const mobile of numbers) {
       let ok = false;
       let messageSent = '';
 
-      if (!contentSid || Object.keys(contentVariables).length === 0) {
-        setStatus('Please provide content SID and all required variables.');
-        return;
-      }
       ok = await sendWhatsAppMessage(mobile, 'content', '', contentSid, contentVariables);
       messageSent = `[Content Message] SID: ${contentSid}, variables: ${JSON.stringify(contentVariables)}`;
 
@@ -218,7 +230,7 @@ const SendWhatsAppMessage = () => {
         />
       ))}
 
-      {Object.keys(contentVariables).length > 0 && (
+      {selectedTemplate && contentTemplates.find(t => t.value === selectedTemplate)?.variables.length > 0 && (
         <div style={styles.previewBox}>
           <strong>📄 Preview:</strong>
           <pre style={styles.preview}>{generateContentPreview()}</pre>
