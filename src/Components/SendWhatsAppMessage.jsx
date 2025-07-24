@@ -113,9 +113,20 @@ KhetiSathi वापरल्याबद्दल धन्यवाद 🌾
 
 ❤️ तुमचा विश्वास आमचं बळ आहे.
   `.trim(),
-}
+},
+{
+  label: '🧪Media Template (Media,Poster)',
+  value: 'bannersend',
+  contentSid: 'HX85535aba595a331555beec1d88f63101',
+  variables: [], // No variables
+  preview: `
+🙏 नमस्कार,
 
+ही एक टेस्ट WhatsApp संदेश आहे, KhetiSathi साठी Twilio Template चाचणी केली जात आहे ✅
 
+धन्यवाद!
+  `.trim(),
+},
 ];
 
 const SendWhatsAppMessage = () => {
