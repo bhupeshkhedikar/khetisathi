@@ -76,6 +76,20 @@ const OrderManagement = ({
     return 0;
   });
 
+  // Function to render payment status with amount
+  const renderPaymentStatus = (order) => {
+    const status = order.paymentStatus?.status || 'Not Paid';
+    if (status === 'service_fee_paid' && order.serviceFee) {
+      return `Service Fee Paid (₹${order.serviceFee.toFixed(2)})`;
+    } else if (status === 'paid' && order.totalCost) {
+      return `Fully Paid (₹${order.totalCost.toFixed(2)})`;
+    } else if (status === 'failed') {
+      return 'Failed';
+    } else {
+      return 'Not Paid';
+    }
+  };
+
   return (
     <section className="mb-8">
       <h3 className="text-2xl font-semibold mb-6 text-gray-800">All Orders</h3>
@@ -233,7 +247,7 @@ const OrderManagement = ({
                     <td className="py-2 px-4">
                       {order.completedAt ? new Date(order.completedAt.toDate()).toLocaleString() : 'N/A'}
                     </td>
-                    <td className="py-2 px-4">{order.paymentStatus?.status || 'Not Paid'}</td>
+                    <td className="py-2 px-4">{renderPaymentStatus(order)}</td>
                     <td className="py-2 px-4">
                       {order.status === 'pending' && !order.workerId && (
                         <div className="flex flex-col gap-2">
