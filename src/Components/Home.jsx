@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db, onAuthStateChanged } from './firebaseConfig.js';
-import { collection, query, getDocs, addDoc } from 'firebase/firestore';
+import { collection, query, getDocs, addDoc,doc,getDoc } from 'firebase/firestore';
 import { Link, useNavigate } from 'react-router-dom';
 import Carousel from './Carousel';
 import Footer from './Footer';
@@ -41,6 +41,7 @@ const Home = () => {
   const [tahsil, setTahsil] = useState('');
   const [village, setVillage] = useState('');
   const navigate = useNavigate();
+  const [profile, setProfile] = useState({ name: '', village: '', pincode: '', mobile: '' });
 
   const t = translations[language];
 
@@ -61,6 +62,26 @@ const Home = () => {
       document.body.removeChild(script);
     };
   }, []);
+
+   useEffect(() => {
+      const fetchProfile = async () => {
+        if (auth.currentUser) {
+          const userRef = doc(db, 'users', auth.currentUser.uid);
+          const userDoc = await getDoc(userRef);
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const fullProfile = {
+              name: userData.name || 'Unknown Farmer',
+              village: userData.village || 'Unknown Village',
+              pincode: userData.pincode || '',
+              mobile: userData.mobile || ''
+            };
+            setProfile(fullProfile);
+          }
+        }
+      };
+      fetchProfile();
+    }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -232,7 +253,7 @@ const Home = () => {
     }
   };
 
-  const validateStep = () => {
+const validateStep = () => {
     setError('');
     if (currentStep === 0) {
       if (!selectedService) {
@@ -269,10 +290,14 @@ const Home = () => {
         setError('Please fill in all date and time fields.');
         return false;
       }
-      const currentDate = new Date('2025-07-22T08:12:00Z'); // 01:42 PM IST in UTC
-      const start = new Date(startDate);
-      if (start < currentDate) {
-        setError('Start date must be on or after July 22, 2025, 01:42 PM IST.');
+      const currentDate = new Date();
+      currentDate.setHours(0, 0, 0, 0); // Normalize to midnight
+      const minSelectableDate = new Date(currentDate);
+      minSelectableDate.setDate(currentDate.getDate() + 1); // Set to tomorrow
+      const selectedStartDate = new Date(startDate);
+      selectedStartDate.setHours(0, 0, 0, 0); // Normalize to midnight
+      if (selectedStartDate < minSelectableDate) {
+        setError(`Start date must be on or after ${(minSelectableDate.toISOString().split('T')[0])}.`);
         return false;
       }
     } else if (currentStep === 2) {
@@ -441,13 +466,14 @@ const Home = () => {
     totalCost = workersCost + serviceFee;
   }
 
-  const farmerName = user.displayName || 'शेतकरी';
+  const farmerName = profile.name || 'शेतकरी';
   const serviceName = service
     ? language === 'marathi'
       ? service.nameMarathi || service.name
       : service.name
     : selectedService;
-  const pinCode = user.pinCode || 'प्रदान केले नाही';
+  const pinCode = profile.pincode || 'प्रदान केले नाही';
+  const village=profile.village || 'प्रदान केले नाही';
   const adminWhatsAppNumber = '+918788647637';
 
   // Map priceUnit to translation for clarity in message
@@ -461,7 +487,7 @@ const Home = () => {
   const unitText = unitTextMap[service?.priceUnit] || t.perDay || 'Per Day';
 
   const contentVariables = {
-    "1": farmerName,
+    "1": farmerName,village,
     "2": serviceName,
     "3": (maleWorkersCount + femaleWorkersCount).toString(),
     "4": maleWorkersCount.toString(),
@@ -576,13 +602,13 @@ const sendFarmerWhatsAppMessage = async () => {
     totalCost = workersCost + serviceFee;
   }
 
-  const farmerName = user.displayName || 'शेतकरी';
+  const farmerName = profile.name || 'शेतकरी';
   const serviceName = service
     ? language === 'marathi'
       ? service.nameMarathi || service.name
       : service.name
     : selectedService;
-  const pinCode = user.pinCode || 'प्रदान केले नाही';
+  const pinCode = profile.pincode || 'प्रदान केले नाही';
 
   // Map priceUnit to translation for clarity in message
   const unitTextMap = {
@@ -761,7 +787,7 @@ const sendFarmerWhatsAppMessage = async () => {
 
       if (paymentMethod === 'razorpay' || paymentMethod === 'cash') {
         const options = {
-          key: 'rzp_live_2dmmin7Uu7tyRI',
+          key: 'rzp_test_ty410dtUIacM8N',
           amount: Math.round(paymentAmount * 100),
           currency: 'INR',
           name: 'KhetiSathi',
@@ -1050,6 +1076,10 @@ const sendFarmerWhatsAppMessage = async () => {
   };
 
   const renderStepContent = () => {
+    const currentDate = new Date();
+    const minSelectableDate = new Date(currentDate);
+    minSelectableDate.setDate(currentDate.getDate() + 1); // Set to tomorrow
+    const minDateString = minSelectableDate.toISOString().split('T')[0]; // 
     switch (currentStep) {
       case 0:
         return (
@@ -1217,7 +1247,7 @@ const sendFarmerWhatsAppMessage = async () => {
                 className="input-field"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                min="2025-07-22"
+                min={minDateString}
                 required
               />
             </div>
