@@ -204,15 +204,15 @@ const OrderManagement = ({
                       {services.find((s) => s.id === order.serviceId)?.name || order.serviceType || 'N/A'}
                       {order.serviceType === 'farm-workers' && (
                         <span className="block text-xs text-gray-600">
-                          {order.orderType === 'bundle'
-                            ? `Bundle: ${order.bundleDetails?.name || 'N/A'} (${order.bundleDetails?.maleWorkers || 0} Male, ${order.bundleDetails?.femaleWorkers || 0} Female)`
+                          {order.bundleDetails
+                            ? `Bundle: ${order.bundleDetails?.name || 'N/A'} (${order.bundleDetails?.maleWorkers || 0} Male, ${order.bundleDetails?.femaleWorkers || 0} Female)${order.bundleDetails?.driverId ? `, Driver: ${users[order.bundleDetails.driverId]?.name || 'N/A'}` : ''}`
                             : `(${order.maleWorkers || 0} Male, ${order.femaleWorkers || 0} Female)`}
                         </span>
                       )}
                       {order.serviceType === 'ownertc' && (
                         <span className="block text-xs text-gray-600">{order.hours || 0} hours</span>
                       )}
-                      {order.serviceType !== 'farm-workers' && (
+                      {order.serviceType !== 'farm-workers' && order.serviceType !== 'ownertc' && (
                         <span className="block text-xs text-gray-600">{order.totalWorkers || 1} Worker(s)</span>
                       )}
                     </td>
