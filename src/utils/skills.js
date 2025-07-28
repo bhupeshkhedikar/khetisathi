@@ -20,6 +20,7 @@ export const SKILLS = [
   'bullockcart-owner',
   'bullock-cart-only',
   'bullock-cart-driver',
+  'e-crop-survey-assistant'
 ];
 
 export const SKILL_LABELS = {
@@ -133,7 +134,11 @@ export const SKILL_LABELS = {
     hindi: 'सिर्फ बैलगाड़ी चालक',
     marathi: 'बैल गाडी चालक',
   },
-
+  'e-crop-survey-assistant': {
+    english: 'e-Crop Survey Assistant',
+    hindi: 'ई-फसल सर्वेक्षण सहायक',
+    marathi: 'ई-पीक पाहणी मदतनिस',
+  }
 };
 
 

@@ -130,6 +130,7 @@ const ServiceManagement = ({
   <option value="bullock-cart-only">{SKILL_LABELS['bullock-cart-only'].marathi} ({SKILL_LABELS['bullock-cart-only'].english})</option>
   <option value="bullock-cart-driver">{SKILL_LABELS['bullock-cart-driver'].marathi} ({SKILL_LABELS['bullock-cart-driver'].english})</option>
   <option value="irrigation">{SKILL_LABELS['irrigation-specialist'].marathi} ({SKILL_LABELS['irrigation-specialist'].english})</option>
+  <option value="e-crop-survey-assistant">{SKILL_LABELS['e-crop-survey-assistant'].marathi} ({SKILL_LABELS['e-crop-survey-assistant'].english})</option>
 </select>
           </div>
           {newServiceType === 'farm-workers' ? (
@@ -270,6 +271,7 @@ const ServiceManagement = ({
   <option value="bullock-cart-only">{SKILL_LABELS['bullock-cart-only'].marathi} ({SKILL_LABELS['bullock-cart-only'].english})</option>
   <option value="bullock-cart-driver">{SKILL_LABELS['bullock-cart-driver'].marathi} ({SKILL_LABELS['bullock-cart-driver'].english})</option>
   <option value="irrigation">{SKILL_LABELS['irrigation-specialist'].marathi} ({SKILL_LABELS['irrigation-specialist'].english})</option>
+ <option value="e-crop-survey-assistant">{SKILL_LABELS['e-crop-survey-assistant'].marathi} ({SKILL_LABELS['e-crop-survey-assistant'].english})</option>
 </select>
                 </div>
                 {editServiceType === 'farm-workers' ? (
