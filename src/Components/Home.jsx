@@ -787,7 +787,7 @@ const sendFarmerWhatsAppMessage = async () => {
 
       if (paymentMethod === 'razorpay' || paymentMethod === 'cash') {
         const options = {
-          key: 'rzp_live_2dmmin7Uu7tyRI',
+          key: 'rzp_test_ty410dtUIacM8N',
           amount: Math.round(paymentAmount * 100),
           currency: 'INR',
           name: 'KhetiSathi',
