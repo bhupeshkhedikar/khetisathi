@@ -123,11 +123,11 @@ const Login = () => {
       <p className="mt-4 text-center">
         {t.dontHaveAccount}
       </p> <br/>
-              <button
+            <Link to="/register">  <button
           className="w-full bg-green-600 text-white p-3 rounded-full font-semibold hover:bg-green-700 transition"
         >
-         <Link to="/register">{t.register}</Link> 
-        </button>
+         {t.register}
+        </button></Link> 
     </div>
   );
 };
