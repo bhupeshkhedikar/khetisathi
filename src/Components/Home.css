@@ -1402,3 +1402,91 @@ a:hover {
 .bluee {
   color: #3B82F6;
 }
+.worker-availability-section {
+  padding: 1rem;
+  background-color: #f9fafb;
+}
+
+.services-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #111827;
+  text-align: center;
+  /* margin-bottom: 1rem; */
+}
+
+/* Grid - 3 per row always */
+.worker-availability-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem;
+}
+
+/* Card base */
+.worker-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 1rem 0.5rem;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Hover effect */
+.worker-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+}
+
+/* Accent border + text color */
+.worker-card.orange-border {
+  border-top: 3px solid #f59e0b;
+  color: #f59e0b;
+}
+
+.worker-card.green-border {
+  border-top: 3px solid #10b981;
+  color: #10b981;
+}
+
+.worker-card.blue-border {
+  border-top: 3px solid #3b82f6;
+  color: #3b82f6;
+}
+
+/* Inner content centered */
+.worker-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* gap: 0.4rem; */
+}
+
+/* Count as badge */
+.worker-count {
+  font-size: 1.6rem;
+  font-weight: bold;
+  /* line-height: 1; */
+  text-align: center;
+}
+
+/* Service name below count */
+.worker-service {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Footer */
+.total-workers {
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+}

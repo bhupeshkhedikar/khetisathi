@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db, onAuthStateChanged } from './firebaseConfig.js';
-import { collection, query, getDocs, addDoc,doc,getDoc } from 'firebase/firestore';
+import { collection, query, getDocs, addDoc, doc, getDoc, where } from 'firebase/firestore';
 import { Link, useNavigate } from 'react-router-dom';
 import Carousel from './Carousel';
 import Footer from './Footer';
 import './Home.css';
 import translations from './translations';
+import { SKILL_LABELS } from '../utils/skills.js';
 
 const Home = () => {
   const [user, setUser] = useState(null);
@@ -42,7 +43,8 @@ const Home = () => {
   const [village, setVillage] = useState('');
   const navigate = useNavigate();
   const [profile, setProfile] = useState({ name: '', village: '', pincode: '', mobile: '' });
-
+  const [workerCounts, setWorkerCounts] = useState({});
+  const todayDateString = new Date().toISOString().split('T')[0];
   const t = translations[language];
 
   const steps = [
@@ -63,25 +65,195 @@ const Home = () => {
     };
   }, []);
 
-   useEffect(() => {
-      const fetchProfile = async () => {
-        if (auth.currentUser) {
-          const userRef = doc(db, 'users', auth.currentUser.uid);
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (auth.currentUser) {
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        try {
           const userDoc = await getDoc(userRef);
           if (userDoc.exists()) {
             const userData = userDoc.data();
             const fullProfile = {
               name: userData.name || 'Unknown Farmer',
-              village: userData.village || 'Unknown Village',
+              village: userData.village ? userData.village.trim().toLowerCase() : 'unknown village',
               pincode: userData.pincode || '',
               mobile: userData.mobile || ''
             };
+
+            // store full object
+            localStorage.setItem('profile', JSON.stringify(fullProfile));
+
             setProfile(fullProfile);
+            console.log('Profile fetched:', fullProfile);
+          } else {
+            console.error('User document does not exist');
+            setError(t.errorLoadingProfile || 'Error loading profile');
           }
+        } catch (err) {
+          console.error('Error fetching profile:', err);
+          setError(t.errorLoadingProfile || 'Error loading profile');
         }
-      };
+      }
+    };
+
+    // First check localStorage before fetching from Firestore
+    const savedProfile = localStorage.getItem('profile');
+    if (savedProfile) {
+      setProfile(JSON.parse(savedProfile));
+    } else {
       fetchProfile();
-    }, []);
+    }
+  }, [t]); // 🚀 removed profile from dependency
+
+
+  useEffect(() => {
+    const fetchWorkers = async () => {
+      console.log('Querying workers for village: Lakhori-------', localStorage.getItem('profile'));
+      let profilee = localStorage.getItem('profile') || "";
+
+      if (profilee && typeof profile === "string") {
+        profilee = profile.charAt(0).toUpperCase() + profile.slice(1);
+      }
+
+      console.log('Formatted village name:', profilee);
+      const workersQuery = query(
+        collection(db, 'users'),
+        where('role', '==', 'worker'),
+        where('status', '==', 'approved'),
+        where('village', '==', profilee),
+        where('availability.workingDays', 'array-contains', todayDateString)
+      );
+      try {
+        const workersSnapshot = await getDocs(workersQuery);
+        const workersData = workersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Fetched Workers:', workersData.map(w => ({
+          id: w.id,
+          name: w.name,
+          village: w.village,
+          skills: w.skills,
+          availability: w.availability,
+        })));
+        console.log('Total Workers Fetched:', workersData.length);
+
+        // Count workers by skill
+        const counts = {};
+        workersData.forEach(worker => {
+          if (worker.skills && Array.isArray(worker.skills)) {
+            worker.skills.forEach(skill => {
+              counts[skill] = (counts[skill] || 0) + 1;
+            });
+          } else {
+            console.warn(`Worker ${worker.id} has no valid skills array`);
+          }
+        });
+        console.log('Worker Counts by Skill:', counts);
+        setWorkerCounts(counts);
+      } catch (err) {
+        console.error('Error fetching workers:', err);
+        setError(t.errorLoadingWorkers || 'Error loading workers');
+        setWorkerCounts({});
+      }
+    };
+    if (services.length > 0) {
+      fetchWorkers();
+    }
+  }, [services, t, todayDateString]);
+
+  const renderWorkerAvailability = () => {
+    if (Object.keys(workerCounts).length === 0) {
+      return (
+        <div className="worker-availability-section">
+          <h2 className="services-title">
+            {t.workerAvailability || 'Worker Availability'}
+          </h2>
+          <div className="worker-availability-grid">
+            {Object.entries(workerCounts).map(([skill, count], index) => {
+              const service = services.find(s => s.type === skill);
+              const serviceName = SKILL_LABELS[skill]
+                ? SKILL_LABELS[skill][language] || SKILL_LABELS[skill].english || skill
+                : service
+                  ? (language === 'marathi' ? service.nameMarathi || service.name : service.name)
+                  : skill;
+
+              return (
+                <div
+                  key={skill}
+                  className={`worker-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`}
+                >
+                  <div className="worker-content">
+                    <span className="worker-count">{count}</span>
+                    <span className="worker-service">{serviceName}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="total-workers">
+            {t.totalWorkers || 'Total Workers Available'}:{' '}
+            {Object.values(workerCounts).reduce((sum, count) => sum + count, 0)}
+          </p>
+        </div>
+
+      );
+    }
+
+    // Fallback translations for missing nameMarathi
+    const fallbackTranslations = {
+      'tractor-driver': 'ट्रॅक्टर ड्रायव्हर',
+      'tractor-with-driver': 'ट्रॅक्टर (ड्रायव्हरसह)',
+      'ploughman-with-bull': 'नांगरणारा (बैलांसह)',
+      'bullockcart-owner': 'बैलगाडी मालक',
+      'bullock-cart-only': 'फक्त बैलगाडी',
+      'bullock-cart-driver': 'बैलगाडी चालक',
+      'farm-worker': 'शेतमजूर',
+      'pendkar': 'पेंडकर',
+      'paddy-spreader': 'भात पसरवणारा',
+      'fertilizer-applicator': 'खत मारणारा',
+      'grass-cutter': 'गवत कापणारा',
+      'cow-milker': 'गाय दूध काढणारा',
+      'pesticide-sprayer': 'कीटकनाशक फवारणी',
+      'buffalo-milker': 'म्हैस दूध काढणारा',
+      'watering-laborer': 'पाणी देणारा मजूर',
+      'e-crop-survey-assistant': 'ई-पीक पाहणी सहाय्यक',
+      'weeding-laborer': 'निंदन मजूर',
+      'dung-cleaner': 'शेण साफ करणारा'
+    };
+
+    return (
+      <div className="worker-availability-section">
+        <h2 className="services-title">{t.workerAvailability || 'Worker Availability'}</h2>
+        <div className="worker-availability-grid">
+          {Object.entries(workerCounts).map(([skill, count], index) => {
+            const service = services.find(s => s.type === skill);
+            const serviceName = SKILL_LABELS[skill]
+              ? SKILL_LABELS[skill][language] || SKILL_LABELS[skill].english || skill
+              : service ? (language === 'marathi' ? service.nameMarathi || service.name : service.name) : skill;
+            return (
+              <div
+                key={skill}
+                className={`worker-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`}
+              >
+                <div className="worker-content">
+                  <span className={`worker-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                    {count}
+                  </span> <br />
+                  <span className={`worker-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                    {serviceName}
+                  </span>
+                  {/* <p>{t.availableWorkers || 'Available Workers'}: {count}</p> */}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className="total-workers">
+          {t.totalWorkers || 'Total Workers Available'}: {Object.values(workerCounts).reduce((sum, count) => sum + count, 0)}
+        </p>
+      </div>
+    );
+  };
+
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -253,7 +425,7 @@ const Home = () => {
     }
   };
 
-const validateStep = () => {
+  const validateStep = () => {
     setError('');
     if (currentStep === 0) {
       if (!selectedService) {
@@ -407,277 +579,277 @@ const validateStep = () => {
     );
   };
 
- const sendAdminWhatsAppMessage = async () => {
-  const service = services.find(s => s.type === selectedService);
-  const days = parseInt(numberOfDays) || 1;
-  let workersCost = 0;
-  let serviceFee = 0;
-  const serviceFeeRate = 0.05;
-  let totalCost = 0;
-  let maleWorkersCount = 0;
-  let femaleWorkersCount = 0;
-  let unitValue = days;
+  const sendAdminWhatsAppMessage = async () => {
+    const service = services.find(s => s.type === selectedService);
+    const days = parseInt(numberOfDays) || 1;
+    let workersCost = 0;
+    let serviceFee = 0;
+    const serviceFeeRate = 0.05;
+    let totalCost = 0;
+    let maleWorkersCount = 0;
+    let femaleWorkersCount = 0;
+    let unitValue = days;
 
-  // Determine unitValue based on priceUnit
-  if (service?.priceUnit === 'Per Acre') {
-    unitValue = parseInt(acres) || 1;
-  } else if (service?.priceUnit === 'Per Hour') {
-    unitValue = parseInt(hours) || 1;
-  } else if (service?.priceUnit === 'Per Bag') {
-    unitValue = parseInt(bags) || 1;
-  } else if (service?.priceUnit === 'Fixed Price') {
-    unitValue = 1; // No unit multiplier for fixed price
-  } else {
-    unitValue = days; // Default to days for Per Day or undefined
-  }
+    // Determine unitValue based on priceUnit
+    if (service?.priceUnit === 'Per Acre') {
+      unitValue = parseInt(acres) || 1;
+    } else if (service?.priceUnit === 'Per Hour') {
+      unitValue = parseInt(hours) || 1;
+    } else if (service?.priceUnit === 'Per Bag') {
+      unitValue = parseInt(bags) || 1;
+    } else if (service?.priceUnit === 'Fixed Price') {
+      unitValue = 1; // No unit multiplier for fixed price
+    } else {
+      unitValue = days; // Default to days for Per Day or undefined
+    }
 
-  if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
-    if (selectedBundle) {
-      const bundle = bundles.find(b => b.id === selectedBundle);
-      if (bundle) {
-        workersCost = bundle.price * unitValue;
+    if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
+      if (selectedBundle) {
+        const bundle = bundles.find(b => b.id === selectedBundle);
+        if (bundle) {
+          workersCost = bundle.price * unitValue;
+          serviceFee = workersCost * serviceFeeRate;
+          totalCost = workersCost + serviceFee;
+          maleWorkersCount = bundle.maleWorkers;
+          femaleWorkersCount = bundle.femaleWorkers;
+        }
+      } else {
+        workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * unitValue;
         serviceFee = workersCost * serviceFeeRate;
-        totalCost = workersCost + serviceFee;
-        maleWorkersCount = bundle.maleWorkers;
-        femaleWorkersCount = bundle.femaleWorkers;
+        totalCost = (workersCost + vehicleCost) + serviceFee;
+        maleWorkersCount = maleWorkers;
+        femaleWorkersCount = femaleWorkers;
       }
-    } else {
-      workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * unitValue;
+    } else if (selectedService === 'ownertc') {
+      if (service.priceUnit === 'Fixed Price') {
+        workersCost = (service.fixedPrice || 0) * otherWorkers;
+      } else {
+        workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * unitValue;
+      }
       serviceFee = workersCost * serviceFeeRate;
-      totalCost = (workersCost + vehicleCost) + serviceFee;
-      maleWorkersCount = maleWorkers;
-      femaleWorkersCount = femaleWorkers;
-    }
-  } else if (selectedService === 'ownertc') {
-    if (service.priceUnit === 'Fixed Price') {
-      workersCost = (service.fixedPrice || 0) * otherWorkers;
+      totalCost = workersCost + serviceFee;
     } else {
-      workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * unitValue;
+      if (service.priceUnit === 'Fixed Price') {
+        workersCost = (service.fixedPrice || 0) * otherWorkers;
+      } else {
+        workersCost = (service.cost || 0) * otherWorkers * unitValue;
+      }
+      serviceFee = workersCost * serviceFeeRate;
+      totalCost = workersCost + serviceFee;
     }
-    serviceFee = workersCost * serviceFeeRate;
-    totalCost = workersCost + serviceFee;
-  } else {
-    if (service.priceUnit === 'Fixed Price') {
-      workersCost = (service.fixedPrice || 0) * otherWorkers;
-    } else {
-      workersCost = (service.cost || 0) * otherWorkers * unitValue;
-    }
-    serviceFee = workersCost * serviceFeeRate;
-    totalCost = workersCost + serviceFee;
-  }
 
-  const farmerName = profile.name || 'शेतकरी';
-  const serviceName = service
-    ? language === 'marathi'
-      ? service.nameMarathi || service.name
-      : service.name
-    : selectedService;
-  const pinCode = profile.pincode || 'प्रदान केले नाही';
-  const village=profile.village || 'प्रदान केले नाही';
-  const adminWhatsAppNumber = '+918788647637';
+    const farmerName = profile.name || 'शेतकरी';
+    const serviceName = service
+      ? language === 'marathi'
+        ? service.nameMarathi || service.name
+        : service.name
+      : selectedService;
+    const pinCode = profile.pincode || 'प्रदान केले नाही';
+    const village = profile.village || 'प्रदान केले नाही';
+    const adminWhatsAppNumber = '+918788647637';
 
-  // Map priceUnit to translation for clarity in message
-  const unitTextMap = {
-    'Per Acre': t.acre || 'Per Acre',
-    'Per Hour': t.hour || 'Per Hour',
-    'Per Bag': t.bag || 'Per Bag',
-    'Per Day': t.perDay || 'Per Day',
-    'Fixed Price': t.fixedPrice || 'Fixed Price',
-  };
-  const unitText = unitTextMap[service?.priceUnit] || t.perDay || 'Per Day';
+    // Map priceUnit to translation for clarity in message
+    const unitTextMap = {
+      'Per Acre': t.acre || 'Per Acre',
+      'Per Hour': t.hour || 'Per Hour',
+      'Per Bag': t.bag || 'Per Bag',
+      'Per Day': t.perDay || 'Per Day',
+      'Fixed Price': t.fixedPrice || 'Fixed Price',
+    };
+    const unitText = unitTextMap[service?.priceUnit] || t.perDay || 'Per Day';
 
-  const contentVariables = {
-    "1": farmerName,village,
-    "2": serviceName,
-    "3": (maleWorkersCount + femaleWorkersCount).toString(),
-    "4": maleWorkersCount.toString(),
-    "5": femaleWorkersCount.toString(),
-    "6": vehicleType || 'काही नाही',
-    "7": vehicleCost.toString() || '0',
-    "8": workersCost.toFixed(2),
-    "9": serviceFee.toFixed(2),
-    "10": totalCost.toFixed(2),
-    "11": startDate || 'प्रदान केले नाही',
-    "12": address || 'प्रदान केले नाही',
-    "13": pinCode,
-    "14": contactNumber || 'प्रदान केले नाही',
-    "15": paymentMethod === 'razorpay'
-      ? 'ऑनलाइन (Razorpay)'
-      : paymentMethod === 'cash'
-      ? 'रोख (सेवा शुल्क ऑनलाइन)'
-      : 'अज्ञात',
-    "16": paymentStatus === 'service_fee_paid'
-      ? 'सेवा शुल्क भरले'
-      : paymentStatus === 'paid'
-      ? 'पूर्ण भरले'
-      : paymentStatus === 'failed'
-      ? 'अयशस्वी'
-      : 'प्रलंबित',
-    "17": service?.priceUnit === 'Per Acre' && acres ? acres.toString() : '',
-    "18": service?.priceUnit === 'Per Hour' && hours ? hours.toString() : '',
-    "19": service?.priceUnit === 'Per Bag' && bags ? bags.toString() : '',
-    "20": unitText,
-  };
+    const contentVariables = {
+      "1": farmerName, village,
+      "2": serviceName,
+      "3": (maleWorkersCount + femaleWorkersCount).toString(),
+      "4": maleWorkersCount.toString(),
+      "5": femaleWorkersCount.toString(),
+      "6": vehicleType || 'काही नाही',
+      "7": vehicleCost.toString() || '0',
+      "8": workersCost.toFixed(2),
+      "9": serviceFee.toFixed(2),
+      "10": totalCost.toFixed(2),
+      "11": startDate || 'प्रदान केले नाही',
+      "12": address || 'प्रदान केले नाही',
+      "13": pinCode,
+      "14": contactNumber || 'प्रदान केले नाही',
+      "15": paymentMethod === 'razorpay'
+        ? 'ऑनलाइन (Razorpay)'
+        : paymentMethod === 'cash'
+          ? 'रोख (सेवा शुल्क ऑनलाइन)'
+          : 'अज्ञात',
+      "16": paymentStatus === 'service_fee_paid'
+        ? 'सेवा शुल्क भरले'
+        : paymentStatus === 'paid'
+          ? 'पूर्ण भरले'
+          : paymentStatus === 'failed'
+            ? 'अयशस्वी'
+            : 'प्रलंबित',
+      "17": service?.priceUnit === 'Per Acre' && acres ? acres.toString() : '',
+      "18": service?.priceUnit === 'Per Hour' && hours ? hours.toString() : '',
+      "19": service?.priceUnit === 'Per Bag' && bags ? bags.toString() : '',
+      "20": unitText,
+    };
 
-  try {
-    const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: adminWhatsAppNumber,
-        contentSid: 'HX3dfc5ca3689783b05c3c3e4522a289de',
-        contentVariables,
-      }),
-    });
+    try {
+      const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: adminWhatsAppNumber,
+          contentSid: 'HX3dfc5ca3689783b05c3c3e4522a289de',
+          contentVariables,
+        }),
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Failed to send WhatsApp to admin:', errorData);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to send WhatsApp to admin:', errorData);
+        setError('ऑर्डर बुक झाली, पण WhatsApp सूचना पाठवण्यात अयशस्वी.');
+      }
+    } catch (err) {
+      console.error('Error sending WhatsApp to admin:', err);
       setError('ऑर्डर बुक झाली, पण WhatsApp सूचना पाठवण्यात अयशस्वी.');
     }
-  } catch (err) {
-    console.error('Error sending WhatsApp to admin:', err);
-    setError('ऑर्डर बुक झाली, पण WhatsApp सूचना पाठवण्यात अयशस्वी.');
-  }
-};
+  };
 
-const sendFarmerWhatsAppMessage = async () => {
-  const service = services.find(s => s.type === selectedService);
-  const days = parseInt(numberOfDays) || 1;
-  let workersCost = 0;
-  let serviceFee = 0;
-  const serviceFeeRate = 0.05;
-  let totalCost = 0;
-  let maleWorkersCount = 0;
-  let femaleWorkersCount = 0;
-  let unitValue = days;
+  const sendFarmerWhatsAppMessage = async () => {
+    const service = services.find(s => s.type === selectedService);
+    const days = parseInt(numberOfDays) || 1;
+    let workersCost = 0;
+    let serviceFee = 0;
+    const serviceFeeRate = 0.05;
+    let totalCost = 0;
+    let maleWorkersCount = 0;
+    let femaleWorkersCount = 0;
+    let unitValue = days;
 
-  // Determine unitValue based on priceUnit
-  if (service?.priceUnit === 'Per Acre') {
-    unitValue = parseInt(acres) || 1;
-  } else if (service?.priceUnit === 'Per Hour') {
-    unitValue = parseInt(hours) || 1;
-  } else if (service?.priceUnit === 'Per Bag') {
-    unitValue = parseInt(bags) || 1;
-  } else if (service?.priceUnit === 'Fixed Price') {
-    unitValue = 1; // No unit multiplier for fixed price
-  } else {
-    unitValue = days; // Default to days for Per Day or undefined
-  }
+    // Determine unitValue based on priceUnit
+    if (service?.priceUnit === 'Per Acre') {
+      unitValue = parseInt(acres) || 1;
+    } else if (service?.priceUnit === 'Per Hour') {
+      unitValue = parseInt(hours) || 1;
+    } else if (service?.priceUnit === 'Per Bag') {
+      unitValue = parseInt(bags) || 1;
+    } else if (service?.priceUnit === 'Fixed Price') {
+      unitValue = 1; // No unit multiplier for fixed price
+    } else {
+      unitValue = days; // Default to days for Per Day or undefined
+    }
 
-  if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
-    if (selectedBundle) {
-      const bundle = bundles.find(b => b.id === selectedBundle);
-      if (bundle) {
-        workersCost = bundle.price * unitValue;
+    if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
+      if (selectedBundle) {
+        const bundle = bundles.find(b => b.id === selectedBundle);
+        if (bundle) {
+          workersCost = bundle.price * unitValue;
+          serviceFee = workersCost * serviceFeeRate;
+          totalCost = workersCost + serviceFee;
+          maleWorkersCount = bundle.maleWorkers;
+          femaleWorkersCount = bundle.femaleWorkers;
+        }
+      } else {
+        workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * unitValue;
         serviceFee = workersCost * serviceFeeRate;
-        totalCost = workersCost + serviceFee;
-        maleWorkersCount = bundle.maleWorkers;
-        femaleWorkersCount = bundle.femaleWorkers;
+        totalCost = (workersCost + vehicleCost) + serviceFee;
+        maleWorkersCount = maleWorkers;
+        femaleWorkersCount = femaleWorkers;
       }
-    } else {
-      workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * unitValue;
+    } else if (selectedService === 'ownertc') {
+      if (service.priceUnit === 'Fixed Price') {
+        workersCost = (service.fixedPrice || 0) * otherWorkers;
+      } else {
+        workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * unitValue;
+      }
       serviceFee = workersCost * serviceFeeRate;
-      totalCost = (workersCost + vehicleCost) + serviceFee;
-      maleWorkersCount = maleWorkers;
-      femaleWorkersCount = femaleWorkers;
-    }
-  } else if (selectedService === 'ownertc') {
-    if (service.priceUnit === 'Fixed Price') {
-      workersCost = (service.fixedPrice || 0) * otherWorkers;
+      totalCost = workersCost + serviceFee;
     } else {
-      workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * unitValue;
+      if (service.priceUnit === 'Fixed Price') {
+        workersCost = (service.fixedPrice || 0) * otherWorkers;
+      } else {
+        workersCost = (service.cost || 0) * otherWorkers * unitValue;
+      }
+      serviceFee = workersCost * serviceFeeRate;
+      totalCost = workersCost + serviceFee;
     }
-    serviceFee = workersCost * serviceFeeRate;
-    totalCost = workersCost + serviceFee;
-  } else {
-    if (service.priceUnit === 'Fixed Price') {
-      workersCost = (service.fixedPrice || 0) * otherWorkers;
-    } else {
-      workersCost = (service.cost || 0) * otherWorkers * unitValue;
-    }
-    serviceFee = workersCost * serviceFeeRate;
-    totalCost = workersCost + serviceFee;
-  }
 
-  const farmerName = profile.name || 'शेतकरी';
-  const serviceName = service
-    ? language === 'marathi'
-      ? service.nameMarathi || service.name
-      : service.name
-    : selectedService;
-  const pinCode = profile.pincode || 'प्रदान केले नाही';
+    const farmerName = profile.name || 'शेतकरी';
+    const serviceName = service
+      ? language === 'marathi'
+        ? service.nameMarathi || service.name
+        : service.name
+      : selectedService;
+    const pinCode = profile.pincode || 'प्रदान केले नाही';
 
-  // Map priceUnit to translation for clarity in message
-  const unitTextMap = {
-    'Per Acre': t.acre || 'Per Acre',
-    'Per Hour': t.hour || 'Per Hour',
-    'Per Bag': t.bag || 'Per Bag',
-    'Per Day': t.perDay || 'Per Day',
-    'Fixed Price': t.fixedPrice || 'Fixed Price',
-  };
-  const unitText = unitTextMap[service?.priceUnit] || t.perDay || 'Per Day';
+    // Map priceUnit to translation for clarity in message
+    const unitTextMap = {
+      'Per Acre': t.acre || 'Per Acre',
+      'Per Hour': t.hour || 'Per Hour',
+      'Per Bag': t.bag || 'Per Bag',
+      'Per Day': t.perDay || 'Per Day',
+      'Fixed Price': t.fixedPrice || 'Fixed Price',
+    };
+    const unitText = unitTextMap[service?.priceUnit] || t.perDay || 'Per Day';
 
-  const contentVariables = {
-    "1": farmerName,
-    "2": serviceName,
-    "3": (maleWorkersCount + femaleWorkersCount).toString(),
-    "4": maleWorkersCount.toString(),
-    "5": femaleWorkersCount.toString(),
-    "6": vehicleType || 'काही नाही',
-    "7": vehicleCost.toString() || '0',
-    "8": workersCost.toFixed(2),
-    "9": serviceFee.toFixed(2),
-    "10": totalCost.toFixed(2),
-    "11": startDate || 'प्रदान केले नाही',
-    "12": endDate || 'प्रदान केले नाही',
-    "13": startTime || 'प्रदान केले नाही',
-    "14": address || 'प्रदान केले नाही',
-    "15": pinCode,
-    "16": contactNumber || 'प्रदान केले नाही',
-    "17": paymentMethod === 'razorpay'
-      ? 'ऑनलाइन (Razorpay)'
-      : paymentMethod === 'cash'
-      ? 'रोख (सेवा शुल्क ऑनलाइन)'
-      : 'अज्ञात',
-    "18": paymentStatus === 'service_fee_paid'
-      ? 'सेवा शुल्क भरले'
-      : paymentStatus === 'paid'
-      ? 'पूर्ण भरले'
-      : paymentStatus === 'failed'
-      ? 'अयशस्वी'
-      : 'प्रलंबित',
-    "19": service?.priceUnit === 'Per Acre' && acres ? acres.toString() : '',
-    "20": service?.priceUnit === 'Per Hour' && hours ? hours.toString() : '',
-    "21": service?.priceUnit === 'Per Bag' && bags ? bags.toString() : '',
-    "22": unitText,
-  };
+    const contentVariables = {
+      "1": farmerName,
+      "2": serviceName,
+      "3": (maleWorkersCount + femaleWorkersCount).toString(),
+      "4": maleWorkersCount.toString(),
+      "5": femaleWorkersCount.toString(),
+      "6": vehicleType || 'काही नाही',
+      "7": vehicleCost.toString() || '0',
+      "8": workersCost.toFixed(2),
+      "9": serviceFee.toFixed(2),
+      "10": totalCost.toFixed(2),
+      "11": startDate || 'प्रदान केले नाही',
+      "12": endDate || 'प्रदान केले नाही',
+      "13": startTime || 'प्रदान केले नाही',
+      "14": address || 'प्रदान केले नाही',
+      "15": pinCode,
+      "16": contactNumber || 'प्रदान केले नाही',
+      "17": paymentMethod === 'razorpay'
+        ? 'ऑनलाइन (Razorpay)'
+        : paymentMethod === 'cash'
+          ? 'रोख (सेवा शुल्क ऑनलाइन)'
+          : 'अज्ञात',
+      "18": paymentStatus === 'service_fee_paid'
+        ? 'सेवा शुल्क भरले'
+        : paymentStatus === 'paid'
+          ? 'पूर्ण भरले'
+          : paymentStatus === 'failed'
+            ? 'अयशस्वी'
+            : 'प्रलंबित',
+      "19": service?.priceUnit === 'Per Acre' && acres ? acres.toString() : '',
+      "20": service?.priceUnit === 'Per Hour' && hours ? hours.toString() : '',
+      "21": service?.priceUnit === 'Per Bag' && bags ? bags.toString() : '',
+      "22": unitText,
+    };
 
-  try {
-    const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: `+91${contactNumber}`,
-        contentSid: 'HXe4314b0088e9ef328b084ead9056ae9f',
-        contentVariables,
-      }),
-    });
+    try {
+      const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: `+91${contactNumber}`,
+          contentSid: 'HXe4314b0088e9ef328b084ead9056ae9f',
+          contentVariables,
+        }),
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Failed to send WhatsApp to farmer:', errorData);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to send WhatsApp to farmer:', errorData);
+        setError('ऑर्डर बुक झाली, पण शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
+      }
+    } catch (err) {
+      console.error('Error sending WhatsApp to farmer:', err);
       setError('ऑर्डर बुक झाली, पण शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
     }
-  } catch (err) {
-    console.error('Error sending WhatsApp to farmer:', err);
-    setError('ऑर्डर बुक झाली, पण शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
-  }
-};
+  };
 
   const handleBookService = async () => {
     if (!user) {
@@ -1593,96 +1765,147 @@ const sendFarmerWhatsAppMessage = async () => {
           translations={translations}
         />
       </section>
-
-      <section className="bundles-section">
-        <h2 className="services-title">{t.newBundlesAvailable}</h2>
-        {isServicesLoading ? (
-          <div className="services-loader-container">
-            <div className="services-loader"></div>
-          </div>
-        ) : (
-          <div className="bundles-grid">
-            {bundles.map((b, index) => (
-              <div
-                key={b.id}
-                className={`bundle-card ${index % 3 === 0 ? 'bundle-orange-border' : index % 3 === 1 ? 'bundle-green-border' : 'bundle-blue-border'}`}
-                onClick={() => handleBundleOrder(b.id)}
-              >
-                <div className="bundle-image-container">
-                  <img
-                    src={b.image || 'https://i.ibb.co/Z1Wfs935/e814b809-5fee-497d-a0b7-a215e49f7111.jpg'}
-                    alt={b.name}
-                    className="bundle-image"
-                  />
-                  <div className="bundle-chip-stack">
-                    <span className={`bundle-status-chip ${b.availabilityStatus === 'Unavailable' ? 'bundle-status-chip--unavailable' : ''}`}>
-                      <i className="fas fa-check-circle"></i>
-                      {t.availabilityStatus}{' '}
-                      {
-                        language === 'english' ? (b.availabilityStatus === 'Available' ? 'Available' : 'Unavailable') :
-                          language === 'hindi' ? (b.availabilityStatus === 'Available' ? 'उपलब्ध' : 'अनुपलब्ध') :
-                            (b.availabilityStatus === 'Available' ? 'उपलब्ध' : 'अनुपलब्ध')
-                      }
-                    </span>
-
-                    <span className="bundle-date-chip">
-                      <i className="fas fa-calendar-alt"></i>
-                      {
-                        language === 'english' ? `from ${b.availabilityDate}` :
-                          language === 'hindi' ? `से ${b.availabilityDate}` :
-                            `${b.availabilityDate} पासून`
-                      }
-                    </span>
-                  </div>
-                </div>
-                <div className="bundle-content">
-                  <div className="bundle-name-container">
-                    <span className={`bundle-name ${index % 3 === 0 ? 'orangee' : index % 3 === 1 ? 'greenn' : 'bluee'}`}>
-                      {language === 'english' ? b.name : language === 'hindi' ? b.nameHindi || b.name : b.nameMarathi || b.name}
-                    </span>
-                  </div>
-                  <div className="bundle-details">
-                    <p><i className="fas fa-male"></i> {b.maleWorkers} {t.maleWorkers}</p>
-                    <p><i className="fas fa-female"></i> {b.femaleWorkers} {t.femaleWorkers}</p>
-                    <p className="bundle-details-highlight">
-                      <i className="fas fa-money-bill"></i> {t.maleWages}: ₹{b.maleWages}/{t.perDay}
-                    </p>
-                    <p className="bundle-details-highlight">
-                      <i className="fas fa-money-bill"></i> {t.femaleWages}: ₹{b.femaleWages}/{t.perDay}
-                    </p>
-                    {b.driverWages > 0 && (
-                      <p className="bundle-details-highlight">
-                        <i className="fas fa-money-bill"></i> {t.driverWages}: ₹{b.driverWages}/{t.perDay}
-                      </p>
-                    )}
-                    <p className="bundle-details-highlight">
-                      <i className="fas fa-clock"></i> {t.timeRange}: {b.timeRange}
-                    </p>
-                    <p className="bundle-details-highlight">
-                      <i className="fas fa-map-marker-alt"></i> {t.location}: {b.location}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  disabled={b.availabilityStatus === 'Unavailable'}
-                  className="order-now-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleBundleOrder(b.id);
-                  }}
+      {/* <section className="worker-availability-section">
+        {renderWorkerAvailability()}
+      </section> */}
+      {bundles.length > 1 && bundles.some(b => b.availabilityStatus === 'Available') && (
+        <section className="bundles-section">
+          <h2 className="services-title">{t.newBundlesAvailable}</h2>
+          {isServicesLoading ? (
+            <div className="services-loader-container">
+              <div className="services-loader"></div>
+            </div>
+          ) : (
+            <div className="bundles-grid">
+              {bundles.map((b, index) => (
+                <div
+                  key={b.id}
+                  className={`bundle-card ${index % 3 === 0
+                      ? 'bundle-orange-border'
+                      : index % 3 === 1
+                        ? 'bundle-green-border'
+                        : 'bundle-blue-border'
+                    }`}
+                  onClick={() => handleBundleOrder(b.id)}
                 >
-                  <p className="bundle-price" style={{ marginBottom: '10px' }}>
-                    ₹{b.price}/{t.perDay}
-                  </p>
-                  <p style={{ marginBottom: '12px' }}>
-                    {b.availabilityStatus === 'Unavailable' ? t.orderClosed : t.orderNow}
-                  </p>
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+                  <div className="bundle-image-container">
+                    <img
+                      src={
+                        b.image ||
+                        'https://i.ibb.co/Z1Wfs935/e814b809-5fee-497d-a0b7-a215e49f7111.jpg'
+                      }
+                      alt={b.name}
+                      className="bundle-image"
+                    />
+                    <div className="bundle-chip-stack">
+                      <span
+                        className={`bundle-status-chip ${b.availabilityStatus === 'Unavailable'
+                            ? 'bundle-status-chip--unavailable'
+                            : ''
+                          }`}
+                      >
+                        <i className="fas fa-check-circle"></i>
+                        {t.availabilityStatus}{' '}
+                        {language === 'english'
+                          ? b.availabilityStatus === 'Available'
+                            ? 'Available'
+                            : 'Unavailable'
+                          : language === 'hindi'
+                            ? b.availabilityStatus === 'Available'
+                              ? 'उपलब्ध'
+                              : 'अनुपलब्ध'
+                            : b.availabilityStatus === 'Available'
+                              ? 'उपलब्ध'
+                              : 'अनुपलब्ध'}
+                      </span>
+
+                      <span className="bundle-date-chip">
+                        <i className="fas fa-calendar-alt"></i>
+                        {language === 'english'
+                          ? `from ${b.availabilityDate}`
+                          : language === 'hindi'
+                            ? `से ${b.availabilityDate}`
+                            : `${b.availabilityDate} पासून`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bundle-content">
+                    <div className="bundle-name-container">
+                      <span
+                        className={`bundle-name ${index % 3 === 0
+                            ? 'orangee'
+                            : index % 3 === 1
+                              ? 'greenn'
+                              : 'bluee'
+                          }`}
+                      >
+                        {language === 'english'
+                          ? b.name
+                          : language === 'hindi'
+                            ? b.nameHindi || b.name
+                            : b.nameMarathi || b.name}
+                      </span>
+                    </div>
+
+                    <div className="bundle-details">
+                      <p>
+                        <i className="fas fa-male"></i> {b.maleWorkers}{' '}
+                        {t.maleWorkers}
+                      </p>
+                      <p>
+                        <i className="fas fa-female"></i> {b.femaleWorkers}{' '}
+                        {t.femaleWorkers}
+                      </p>
+                      <p className="bundle-details-highlight">
+                        <i className="fas fa-money-bill"></i> {t.maleWages}: ₹
+                        {b.maleWages}/{t.perDay}
+                      </p>
+                      <p className="bundle-details-highlight">
+                        <i className="fas fa-money-bill"></i> {t.femaleWages}: ₹
+                        {b.femaleWages}/{t.perDay}
+                      </p>
+                      {b.driverWages > 0 && (
+                        <p className="bundle-details-highlight">
+                          <i className="fas fa-money-bill"></i> {t.driverWages}: ₹
+                          {b.driverWages}/{t.perDay}
+                        </p>
+                      )}
+                      <p className="bundle-details-highlight">
+                        <i className="fas fa-clock"></i> {t.timeRange}: {b.timeRange}
+                      </p>
+                      <p className="bundle-details-highlight">
+                        <i className="fas fa-map-marker-alt"></i> {t.location}:{' '}
+                        {b.location}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    disabled={b.availabilityStatus === 'Unavailable'}
+                    className="order-now-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleBundleOrder(b.id);
+                    }}
+                  >
+                    <p className="bundle-price" style={{ marginBottom: '10px' }}>
+                      ₹{b.price}/{t.perDay}
+                    </p>
+                    <p style={{ marginBottom: '12px' }}>
+                      {b.availabilityStatus === 'Unavailable'
+                        ? t.orderClosed
+                        : t.orderNow}
+                    </p>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+
 
       <section className="services-section">
         <h2 className="services-title">{t.ourServices}</h2>

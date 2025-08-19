@@ -304,6 +304,10 @@ PerAcre: "प्रति एकड़",
     perDay: "प्रति दिवस",
     fixedPrice: "निश्चित किंमत",
     perAcre: "एकर",
+    errorLoadingWorkers: 'कामगार लोड करण्यात त्रुटी',
+    workerAvailability: 'लाखोरी मध्ये उपलब्ध कामगार',
+    noWorkersAvailable: 'लाखोरी मध्ये कोणतेही कामगार उपलब्ध नाहीत',
+    totalWorkers: 'एकूण उपलब्ध कामगार'
   },
 };
 
