@@ -7,7 +7,6 @@ import Footer from './Footer';
 import './Home.css';
 import translations from './translations';
 import { SKILL_LABELS } from '../utils/skills.js';
-
 const Home = () => {
   const [user, setUser] = useState(null);
   const [services, setServices] = useState([]);
@@ -46,7 +45,7 @@ const Home = () => {
   const [workerCounts, setWorkerCounts] = useState({});
   const todayDateString = new Date().toISOString().split('T')[0];
   const t = translations[language];
-
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const steps = [
     { label: t.service, icon: 'fas fa-briefcase' },
     { label: t.schedule || "Schedule", icon: 'fas fa-calendar-alt' },
@@ -54,7 +53,6 @@ const Home = () => {
     { label: t.review || "Review", icon: 'fas fa-check-circle' },
     { label: t.success || "Success", icon: 'fas fa-check-double' }
   ];
-
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -64,7 +62,6 @@ const Home = () => {
       document.body.removeChild(script);
     };
   }, []);
-
   useEffect(() => {
     const fetchProfile = async () => {
       if (auth.currentUser) {
@@ -79,10 +76,8 @@ const Home = () => {
               pincode: userData.pincode || '',
               mobile: userData.mobile || ''
             };
-
             // store full object
             localStorage.setItem('profile', JSON.stringify(fullProfile));
-
             setProfile(fullProfile);
             console.log('Profile fetched:', fullProfile);
           } else {
@@ -95,7 +90,6 @@ const Home = () => {
         }
       }
     };
-
     // First check localStorage before fetching from Firestore
     const savedProfile = localStorage.getItem('profile');
     if (savedProfile) {
@@ -104,17 +98,13 @@ const Home = () => {
       fetchProfile();
     }
   }, [t]); // 🚀 removed profile from dependency
-
-
   useEffect(() => {
     const fetchWorkers = async () => {
       console.log('Querying workers for village: Lakhori-------', localStorage.getItem('profile'));
       let profilee = localStorage.getItem('profile') || "";
-
       if (profilee && typeof profile === "string") {
         profilee = profile.charAt(0).toUpperCase() + profile.slice(1);
       }
-
       console.log('Formatted village name:', profilee);
       const workersQuery = query(
         collection(db, 'users'),
@@ -134,7 +124,6 @@ const Home = () => {
           availability: w.availability,
         })));
         console.log('Total Workers Fetched:', workersData.length);
-
         // Count workers by skill
         const counts = {};
         workersData.forEach(worker => {
@@ -158,7 +147,6 @@ const Home = () => {
       fetchWorkers();
     }
   }, [services, t, todayDateString]);
-
   const renderWorkerAvailability = () => {
     if (Object.keys(workerCounts).length === 0) {
       return (
@@ -174,7 +162,6 @@ const Home = () => {
                 : service
                   ? (language === 'marathi' ? service.nameMarathi || service.name : service.name)
                   : skill;
-
               return (
                 <div
                   key={skill}
@@ -193,10 +180,8 @@ const Home = () => {
             {Object.values(workerCounts).reduce((sum, count) => sum + count, 0)}
           </p>
         </div>
-
       );
     }
-
     // Fallback translations for missing nameMarathi
     const fallbackTranslations = {
       'tractor-driver': 'ट्रॅक्टर ड्रायव्हर',
@@ -218,7 +203,6 @@ const Home = () => {
       'weeding-laborer': 'निंदन मजूर',
       'dung-cleaner': 'शेण साफ करणारा'
     };
-
     return (
       <div className="worker-availability-section">
         <h2 className="services-title">{t.workerAvailability || 'Worker Availability'}</h2>
@@ -252,9 +236,6 @@ const Home = () => {
       </div>
     );
   };
-
-
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
@@ -265,7 +246,6 @@ const Home = () => {
           .filter(service => service.activeStatus); // Only show active services
         console.log('servicesData', servicesData);
         setServices(servicesData);
-
         const targetService = servicesData.find(s => s.type === 'farm-workers' || s.type === 'ploughing-laborer');
         if (targetService) {
           const bundlesSnapshot = await getDocs(collection(db, `services/${targetService.id}/bundles`));
@@ -279,10 +259,8 @@ const Home = () => {
         setIsServicesLoading(false);
       }
     });
-
     return () => unsubscribe();
   }, []);
-
   useEffect(() => {
     if (startDate && numberOfDays) {
       const start = new Date(startDate);
@@ -293,12 +271,10 @@ const Home = () => {
       setEndDate('');
     }
   }, [startDate, numberOfDays]);
-
   useEffect(() => {
     const addressComponents = [village, tahsil, district].filter(Boolean).join(', ');
     setAddress(addressComponents);
   }, [village, tahsil, district]);
-
   useEffect(() => {
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       if (selectedBundle) {
@@ -331,7 +307,6 @@ const Home = () => {
       setVehicleCost(0);
     }
   }, [selectedService, maleWorkers, femaleWorkers, selectedBundle, bundles]);
-
   useEffect(() => {
     if (selectedService) {
       const service = services.find(s => s.type === selectedService);
@@ -356,7 +331,6 @@ const Home = () => {
       }
     }
   }, [selectedService, services]);
-
   const handleServiceChange = (type) => {
     setSelectedService(type);
     setMaleWorkers(0);
@@ -384,13 +358,11 @@ const Home = () => {
     setVehicleType('');
     setVehicleCost(0);
     setShowCashModal(false);
-
     const orderSection = document.getElementById('order');
     if (orderSection) {
       orderSection.scrollIntoView({ behavior: 'smooth' });
     }
   };
-
   const handleBundleOrder = (bundleId) => {
     setSelectedService('farm-workers');
     setSelectedBundle(bundleId);
@@ -418,13 +390,11 @@ const Home = () => {
     setVehicleType('');
     setVehicleCost(0);
     setShowCashModal(false);
-
     const orderSection = document.getElementById('order');
     if (orderSection) {
       orderSection.scrollIntoView({ behavior: 'smooth' });
     }
   };
-
   const validateStep = () => {
     setError('');
     if (currentStep === 0) {
@@ -488,26 +458,21 @@ const Home = () => {
     }
     return true;
   };
-
   const handleNext = () => {
     if (!user) {
-      setError('Please log in to book a service.');
-      navigate('/login');
+      setShowAuthModal(true);
       return;
     }
-
     if (validateStep()) {
       setCurrentStep(currentStep < steps.length - 1 ? currentStep + 1 : currentStep);
     }
   };
-
   const handlePrevious = () => {
     setError('');
     setPaymentStatus('');
     setShowCashModal(false);
     setCurrentStep(currentStep - 1);
   };
-
   const handlePaymentMethodChange = (e) => {
     const method = e.target.value;
     setPaymentMethod(method);
@@ -517,22 +482,18 @@ const Home = () => {
       setShowCashModal(false);
     }
   };
-
   const closeCashModal = () => {
     setShowCashModal(false);
   };
-
   const renderCashModal = () => {
     if (!showCashModal) return null;
     const service = services.find(s => s.type === selectedService);
     if (!service) return null;
-
     const days = parseInt(numberOfDays || 0);
     let workersCost = 0;
     let serviceFee = 0;
     const serviceFeeRate = 0.05;
     let unitValue = days;
-
     if (service.priceUnit === 'Per Acre') {
       unitValue = parseInt(acres) || 1;
     } else if (service.priceUnit === 'Per Hour') {
@@ -540,7 +501,6 @@ const Home = () => {
     } else if (service.priceUnit === 'Per Bag') {
       unitValue = parseInt(bags) || 1;
     }
-
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       if (selectedBundle) {
         const bundle = bundles.find(b => b.id === selectedBundle);
@@ -559,7 +519,6 @@ const Home = () => {
       workersCost = service.cost * otherWorkers * unitValue;
       serviceFee = workersCost * serviceFeeRate;
     }
-
     return (
       <div className="modal-overlay">
         <div className="modal-content">
@@ -578,7 +537,37 @@ const Home = () => {
       </div>
     );
   };
-
+  const renderAuthModal = () => {
+    if (!showAuthModal) return null;
+    return (
+<div className="modal-overlay">
+        <div className="modal-content">
+          <h3>{t.pleaseLoginOrRegister}</h3>
+          <p>{t.loginOrRegisterMessage}</p>
+          <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+            <button
+              className="modal-button"
+              onClick={() => {
+                setShowAuthModal(false);
+                navigate('/login');
+              }}
+            >
+              {t.login}
+            </button>
+            <button
+              className="modal-button"
+              onClick={() => {
+                setShowAuthModal(false);
+                navigate('/register');
+              }}
+            >
+              {t.register}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
   const sendAdminWhatsAppMessage = async () => {
     const service = services.find(s => s.type === selectedService);
     const days = parseInt(numberOfDays) || 1;
@@ -589,7 +578,6 @@ const Home = () => {
     let maleWorkersCount = 0;
     let femaleWorkersCount = 0;
     let unitValue = days;
-
     // Determine unitValue based on priceUnit
     if (service?.priceUnit === 'Per Acre') {
       unitValue = parseInt(acres) || 1;
@@ -602,7 +590,6 @@ const Home = () => {
     } else {
       unitValue = days; // Default to days for Per Day or undefined
     }
-
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       if (selectedBundle) {
         const bundle = bundles.find(b => b.id === selectedBundle);
@@ -637,7 +624,6 @@ const Home = () => {
       serviceFee = workersCost * serviceFeeRate;
       totalCost = workersCost + serviceFee;
     }
-
     const farmerName = profile.name || 'शेतकरी';
     const serviceName = service
       ? language === 'marathi'
@@ -647,7 +633,6 @@ const Home = () => {
     const pinCode = profile.pincode || 'प्रदान केले नाही';
     const village = profile.village || 'प्रदान केले नाही';
     const adminWhatsAppNumber = '+918788647637';
-
     // Map priceUnit to translation for clarity in message
     const unitTextMap = {
       'Per Acre': t.acre || 'Per Acre',
@@ -657,7 +642,6 @@ const Home = () => {
       'Fixed Price': t.fixedPrice || 'Fixed Price',
     };
     const unitText = unitTextMap[service?.priceUnit] || t.perDay || 'Per Day';
-
     const contentVariables = {
       "1": farmerName, village,
       "2": serviceName,
@@ -690,7 +674,6 @@ const Home = () => {
       "19": service?.priceUnit === 'Per Bag' && bags ? bags.toString() : '',
       "20": unitText,
     };
-
     try {
       const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
         method: 'POST',
@@ -703,7 +686,6 @@ const Home = () => {
           contentVariables,
         }),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Failed to send WhatsApp to admin:', errorData);
@@ -714,7 +696,6 @@ const Home = () => {
       setError('ऑर्डर बुक झाली, पण WhatsApp सूचना पाठवण्यात अयशस्वी.');
     }
   };
-
   const sendFarmerWhatsAppMessage = async () => {
     const service = services.find(s => s.type === selectedService);
     const days = parseInt(numberOfDays) || 1;
@@ -725,7 +706,6 @@ const Home = () => {
     let maleWorkersCount = 0;
     let femaleWorkersCount = 0;
     let unitValue = days;
-
     // Determine unitValue based on priceUnit
     if (service?.priceUnit === 'Per Acre') {
       unitValue = parseInt(acres) || 1;
@@ -738,7 +718,6 @@ const Home = () => {
     } else {
       unitValue = days; // Default to days for Per Day or undefined
     }
-
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       if (selectedBundle) {
         const bundle = bundles.find(b => b.id === selectedBundle);
@@ -773,7 +752,6 @@ const Home = () => {
       serviceFee = workersCost * serviceFeeRate;
       totalCost = workersCost + serviceFee;
     }
-
     const farmerName = profile.name || 'शेतकरी';
     const serviceName = service
       ? language === 'marathi'
@@ -781,7 +759,6 @@ const Home = () => {
         : service.name
       : selectedService;
     const pinCode = profile.pincode || 'प्रदान केले नाही';
-
     // Map priceUnit to translation for clarity in message
     const unitTextMap = {
       'Per Acre': t.acre || 'Per Acre',
@@ -791,7 +768,6 @@ const Home = () => {
       'Fixed Price': t.fixedPrice || 'Fixed Price',
     };
     const unitText = unitTextMap[service?.priceUnit] || t.perDay || 'Per Day';
-
     const contentVariables = {
       "1": farmerName,
       "2": serviceName,
@@ -826,7 +802,6 @@ const Home = () => {
       "21": service?.priceUnit === 'Per Bag' && bags ? bags.toString() : '',
       "22": unitText,
     };
-
     try {
       const response = await fetch('https://whatsapp-api-cyan-gamma.vercel.app/api/send-whatsapp.js', {
         method: 'POST',
@@ -839,7 +814,6 @@ const Home = () => {
           contentVariables,
         }),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Failed to send WhatsApp to farmer:', errorData);
@@ -850,13 +824,11 @@ const Home = () => {
       setError('ऑर्डर बुक झाली, पण शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
     }
   };
-
   const handleBookService = async () => {
     if (!user) {
-      setError('Please log in to book a service.');
+      setShowAuthModal(true);
       return;
     }
-
     setLoading(true);
     let orderData = {
       farmerId: user.uid,
@@ -875,13 +847,11 @@ const Home = () => {
       workerId: null,
       paymentStatus: { status: 'pending' },
     };
-
     try {
       const service = services.find(s => s.type === selectedService);
       if (!service) {
         throw new Error('Selected service not found.');
       }
-
       let workersCost = 0;
       const serviceFeeRate = 0.05;
       let serviceFee = 0;
@@ -889,9 +859,7 @@ const Home = () => {
       let maleWorkersCount = 0;
       let femaleWorkersCount = 0;
       let unitValue = parseInt(numberOfDays) || 1;
-
       orderData.serviceId = service.id;
-
       if (service.priceUnit === 'Per Acre') {
         unitValue = parseInt(acres) || 1;
         orderData.acres = unitValue;
@@ -902,7 +870,6 @@ const Home = () => {
         unitValue = parseInt(bags) || 1;
         orderData.bags = unitValue;
       }
-
       if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
         if (selectedBundle) {
           const bundle = bundles.find(b => b.id === selectedBundle);
@@ -948,15 +915,12 @@ const Home = () => {
         serviceFee = workersCost * serviceFeeRate;
         totalCost = workersCost + serviceFee;
       }
-
       orderData.cost = workersCost;
       orderData.serviceFee = serviceFee;
       orderData.workersCost = workersCost;
       orderData.totalCost = totalCost;
       orderData.priceUnit = service.priceUnit || 'Per Day';
-
       const paymentAmount = paymentMethod === 'cash' ? serviceFee : totalCost;
-
       if (paymentMethod === 'razorpay' || paymentMethod === 'cash') {
         const options = {
           key: 'rzp_live_2dmmin7Uu7tyRI',
@@ -976,7 +940,6 @@ const Home = () => {
               setPaymentStatus(paymentMethod === 'cash' ? 'service_fee_paid' : 'paid');
               setError('');
               handleNext();
-
               await sendAdminWhatsAppMessage();
               await sendFarmerWhatsAppMessage();
             } catch (err) {
@@ -1000,7 +963,6 @@ const Home = () => {
             color: '#F59E0B',
           },
         };
-
         const razorpay = new window.Razorpay(options);
         razorpay.on('payment.failed', async (response) => {
           setError(`Payment failed: ${response.error.description}`);
@@ -1034,7 +996,6 @@ const Home = () => {
       setLoading(false);
     }
   };
-
   const resetForm = () => {
     setSelectedService('');
     setMaleWorkers(0);
@@ -1064,7 +1025,6 @@ const Home = () => {
     setShowCashModal(false);
     window.location.href = '/farmer-dashboard';
   };
-
   const generateTimeOptions = () => {
     const times = [];
     for (let hour = 6; hour <= 18; hour++) {
@@ -1075,14 +1035,12 @@ const Home = () => {
     }
     return times;
   };
-
   const handleContactNumberChange = (e) => {
     const value = e.target.value;
     if (/^\d{0,10}$/.test(value)) {
       setContactNumber(value);
     }
   };
-
   const getVehicleIcon = (type) => {
     switch (type) {
       case 'Bike':
@@ -1099,7 +1057,6 @@ const Home = () => {
         return '';
     }
   };
-
   const renderCostBreakdown = () => {
     const service = services.find(s => s.type === selectedService);
     const days = parseInt(numberOfDays) || 1;
@@ -1108,7 +1065,6 @@ const Home = () => {
     const serviceFeeRate = 0.05;
     let totalCost = 0;
     let unitValue = days;
-
     // Determine unitValue based on priceUnit
     if (service?.priceUnit === 'Per Acre') {
       unitValue = parseInt(acres) || 1;
@@ -1121,7 +1077,6 @@ const Home = () => {
     } else {
       unitValue = days; // Default to days for Per Day or undefined
     }
-
     // Map priceUnit to translation key
     const unitTextMap = {
       'Per Acre': t.acre || 'Per Acre',
@@ -1130,14 +1085,11 @@ const Home = () => {
       'Per Day': t.perDay || 'Per Day',
       'Fixed Price': t.fixedPrice || 'Fixed Price',
     };
-
     // Determine unitText with explicit mapping
     const unitText = unitTextMap[service?.priceUnit] || t.perDay || 'Per Day';
-
     if (!service) {
       return <div className="cost-breakdown"><p>{t.noServiceSelected}</p></div>;
     }
-
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       if (selectedBundle) {
         const bundle = bundles.find(b => b.id === selectedBundle);
@@ -1246,12 +1198,11 @@ const Home = () => {
     }
     return <div className="cost-breakdown"><p>{t.noServiceSelected}</p></div>;
   };
-
   const renderStepContent = () => {
     const currentDate = new Date();
     const minSelectableDate = new Date(currentDate);
     minSelectableDate.setDate(currentDate.getDate() + 1); // Set to tomorrow
-    const minDateString = minSelectableDate.toISOString().split('T')[0]; // 
+    const minDateString = minSelectableDate.toISOString().split('T')[0]; //
     switch (currentStep) {
       case 0:
         return (
@@ -1701,7 +1652,6 @@ const Home = () => {
         return null;
     }
   };
-
   useEffect(() => {
     if (currentStep === 4 && paymentStatus !== 'failed') {
       const canvas = document.getElementById('confetti-canvas');
@@ -1709,10 +1659,8 @@ const Home = () => {
         const ctx = canvas.getContext('2d');
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
-
         const confetti = [];
         const colors = ['#F59E0B', '#10B981', '#3B82F6'];
-
         for (let i = 0; i < 100; i++) {
           confetti.push({
             x: Math.random() * canvas.width,
@@ -1724,7 +1672,6 @@ const Home = () => {
             tiltAngle: Math.random() * Math.PI
           });
         }
-
         let animationFrame;
         const animate = () => {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1733,12 +1680,10 @@ const Home = () => {
             c.y += c.d;
             c.x += Math.sin(c.tiltAngle) * 0.5;
             c.tilt = Math.sin(c.tiltAngle) * 15;
-
             if (c.y > canvas.height) {
               c.y = -c.r;
               c.x = Math.random() * canvas.width;
             }
-
             ctx.beginPath();
             ctx.lineWidth = c.r;
             ctx.strokeStyle = c.color;
@@ -1748,13 +1693,11 @@ const Home = () => {
           });
           animationFrame = requestAnimationFrame(animate);
         };
-
         animate();
         return () => cancelAnimationFrame(animationFrame);
       }
     }
   }, [currentStep, paymentStatus]);
-
   return (
     <div className="home-container">
       <section className="hero-section">
@@ -1818,7 +1761,6 @@ const Home = () => {
                               ? 'उपलब्ध'
                               : 'अनुपलब्ध'}
                       </span>
-
                       <span className="bundle-date-chip">
                         <i className="fas fa-calendar-alt"></i>
                         {language === 'english'
@@ -1829,7 +1771,6 @@ const Home = () => {
                       </span>
                     </div>
                   </div>
-
                   <div className="bundle-content">
                     <div className="bundle-name-container">
                       <span
@@ -1847,7 +1788,6 @@ const Home = () => {
                             : b.nameMarathi || b.name}
                       </span>
                     </div>
-
                     <div className="bundle-details">
                       <p>
                         <i className="fas fa-male"></i> {b.maleWorkers}{' '}
@@ -1880,7 +1820,6 @@ const Home = () => {
                       </p>
                     </div>
                   </div>
-
                   <button
                     disabled={b.availabilityStatus === 'Unavailable'}
                     className="order-now-button"
@@ -1904,9 +1843,6 @@ const Home = () => {
           )}
         </section>
       )}
-
-
-
       <section className="services-section">
         <h2 className="services-title">{t.ourServices}</h2>
         {isServicesLoading ? (
@@ -1980,7 +1916,6 @@ const Home = () => {
           </div>
         )}
       </section>
-
       <section id="order" className="order-section">
         <div className="order-container">
           <h2 className="order-title">
@@ -1989,7 +1924,6 @@ const Home = () => {
           </h2>
           {error && <p className="error-message">{error}</p>}
           {success && currentStep < 4 && <p className="success-message">{success}</p>}
-
           <div className="stepper-container">
             <div className="stepper">
               {steps.map((step, index) => (
@@ -2005,9 +1939,7 @@ const Home = () => {
               <div className="progress-bar" style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}></div>
             </div>
           </div>
-
           <div className="step-content">{renderStepContent()}</div>
-
           {currentStep < 4 && (
             <div className="button-group">
               {currentStep > 0 && (
@@ -2030,7 +1962,6 @@ const Home = () => {
           )}
         </div>
       </section>
-
       <section id="testimonials" className="testimonials-section">
         <h2 className="testimonials-title">{t.whatFarmersSay}</h2>
         <div className="testimonials-grid">
@@ -2047,7 +1978,6 @@ const Home = () => {
           ))}
         </div>
       </section>
-
       <section id="app-download" className="app-download-section">
         <div style={{ display: 'flex', justifyContent: 'center' }}><img src='https://i.ibb.co/4nxw7GR6/image-5-removebg-preview.png' height={50} width={150} alt='farmer' /></div>
         <h2 className="app-download-title">{t.downloadApp}</h2>
@@ -2067,15 +1997,13 @@ const Home = () => {
             rel="noopener noreferrer"
             className="app-download-button app-store"
           >
-
             <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg" alt="App Store" />
           </a>
         </div>
       </section>
-
       <Footer language={language} translations={translations} />
+      {renderAuthModal()}
     </div>
   );
 };
-
 export default Home;
