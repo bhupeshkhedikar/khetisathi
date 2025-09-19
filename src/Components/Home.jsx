@@ -395,69 +395,69 @@ const Home = () => {
       orderSection.scrollIntoView({ behavior: 'smooth' });
     }
   };
-  const validateStep = () => {
-    setError('');
-    if (currentStep === 0) {
-      if (!selectedService) {
-        setError('Please select a service.');
+const validateStep = () => {
+  setError('');
+  if (currentStep === 0) {
+    if (!selectedService) {
+      setError(t.pleaseSelectService);
+      return false;
+    }
+    if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
+      if (!selectedBundle && (maleWorkers <= 0 && femaleWorkers <= 0)) {
+        setError(t.selectBundleOrWorker);
         return false;
       }
-      if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
-        if (!selectedBundle && (maleWorkers <= 0 && femaleWorkers <= 0)) {
-          setError('Please select a bundle or specify at least one worker.');
-          return false;
-        }
-      } else {
-        if (otherWorkers <= 0) {
-          setError('Please specify at least 1 worker.');
-          return false;
-        }
-        const service = services.find(s => s.type === selectedService);
-        if (service?.priceUnit === 'Per Acre' && !acres) {
-          setError('Please specify the number of acres.');
-          return false;
-        }
-        if (service?.priceUnit === 'Per Hour' && parseInt(hours) < 1) {
-          setError('Please specify at least 1 hour.');
-          return false;
-        }
-        if (service?.priceUnit === 'Per Bag' && parseInt(bags) < 1) {
-          setError('Please specify at least 1 bag.');
-          return false;
-        }
-      }
-      return true;
-    } else if (currentStep === 1) {
-      if (!numberOfDays || !startDate || !endDate || !startTime) {
-        setError('Please fill in all date and time fields.');
+    } else {
+      if (otherWorkers <= 0) {
+        setError(t.specifyAtLeastOneWorker);
         return false;
       }
-      const currentDate = new Date();
-      currentDate.setHours(0, 0, 0, 0); // Normalize to midnight
-      const minSelectableDate = new Date(currentDate);
-      minSelectableDate.setDate(currentDate.getDate() + 1); // Set to tomorrow
-      const selectedStartDate = new Date(startDate);
-      selectedStartDate.setHours(0, 0, 0, 0); // Normalize to midnight
-      if (selectedStartDate < minSelectableDate) {
-        setError(`Start date must be on or after ${(minSelectableDate.toISOString().split('T')[0])}.`);
+      const service = services.find(s => s.type === selectedService);
+      if (service?.priceUnit === 'Per Acre' && !acres) {
+        setError(t.specifyAcres);
         return false;
       }
-    } else if (currentStep === 2) {
-      if (!address || !contactNumber || !district || !tahsil || !village) {
-        setError('Please fill in all address and contact number fields.');
+      if (service?.priceUnit === 'Per Hour' && parseInt(hours) < 1) {
+        setError(t.specifyAtLeastOneHour);
         return false;
       }
-      if (contactNumber.length !== 10 || !/^\d{10}$/.test(contactNumber)) {
-        setError('Contact number must be exactly 10 digits.');
-        return false;
-      }
-      if (!paymentMethod) {
-        setError('Please select a payment method.');
+      if (service?.priceUnit === 'Per Bag' && parseInt(bags) < 1) {
+        setError(t.specifyAtLeastOneBag);
         return false;
       }
     }
     return true;
-  };
+  } else if (currentStep === 1) {
+    if (!numberOfDays || !startDate || !endDate || !startTime) {
+      setError(t.fillDateTimeFields);
+      return false;
+    }
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0); // Normalize to midnight
+    const minSelectableDate = new Date(currentDate);
+    minSelectableDate.setDate(currentDate.getDate() + 1); // Set to tomorrow
+    const selectedStartDate = new Date(startDate);
+    selectedStartDate.setHours(0, 0, 0, 0); // Normalize to midnight
+    if (selectedStartDate < minSelectableDate) {
+      setError(t.startDateAfter.replace('{date}', minSelectableDate.toISOString().split('T')[0]));
+      return false;
+    }
+  } else if (currentStep === 2) {
+    if (!address || !contactNumber || !district || !tahsil || !village) {
+      setError(t.fillAddressContactFields);
+      return false;
+    }
+    if (contactNumber.length !== 10 || !/^\d{10}$/.test(contactNumber)) {
+      setError(t.contactNumberTenDigits);
+      return false;
+    }
+    if (!paymentMethod) {
+      setError(t.selectPaymentMethod);
+      return false;
+    }
+  }
+  return true;
+};
   const handleNext = () => {
     if (!user) {
       setShowAuthModal(true);
