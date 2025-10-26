@@ -20,7 +20,9 @@ export const SKILLS = [
   'bullockcart-owner',
   'bullock-cart-only',
   'bullock-cart-driver',
-  'e-crop-survey-assistant'
+  'e-crop-survey-assistant',
+  'paddy-bundling',
+  'bag-lifting'
 ];
 
 export const SKILL_LABELS = {
@@ -138,7 +140,19 @@ export const SKILL_LABELS = {
     english: 'e-Crop Survey Assistant',
     hindi: 'ई-फसल सर्वेक्षण सहायक',
     marathi: 'ई-पीक पाहणी मदतनिस',
-  }
+  },
+  'paddy-bundling': {
+    english: 'Paddy Bundling',
+    hindi: 'धान बांधना',
+    marathi: 'धान बांधणे',
+  },
+
+  'bag-lifting': {
+    english: 'Bag Lifting',
+    hindi: 'बोरी उठाना',
+    marathi: 'धानाची पोती उचलणे',
+  },
+
 };
 
 
