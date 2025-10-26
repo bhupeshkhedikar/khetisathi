@@ -8,6 +8,7 @@ import { SKILLS, SKILL_LABELS, VEHICLE_SKILLS, VEHICLE_SKILL_LABELS } from '../u
 const Register = () => {
   const [activeTab, setActiveTab] = useState('farmer');
   const [language, setLanguage] = useState('marathi');
+  const [showPassword, setShowPassword] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -71,6 +72,8 @@ const Register = () => {
       invalidEmail: "Invalid email format.",
       emailAlreadyInUse: "Email is already registered.",
       weakPassword: "Password is too weak.",
+      show: "Show",
+      hide: "Hide",
     },
     hindi: {
       register: "पंजीकरण करें",
@@ -114,6 +117,8 @@ const Register = () => {
       invalidEmail: "ईमेल प्रारूप गलत है।",
       emailAlreadyInUse: "ईमेल पहले से पंजीकृत है।",
       weakPassword: "पासवर्ड बहुत कमजोर है।",
+      show: "दिखाएं",
+      hide: "छिपाएं",
     },
     marathi: {
       register: "नोंदणी करा",
@@ -157,6 +162,8 @@ const Register = () => {
       invalidEmail: "ईमेल फॉर्मॅट चुकीचा आहे.",
       emailAlreadyInUse: "ईमेल आधीच नोंदणीकृत आहे.",
       weakPassword: "पासवर्ड खूप कमकुवत आहे.",
+      show: "दाखवा",
+      hide: "लपवा",
     },
   };
 
@@ -399,16 +406,23 @@ const Register = () => {
         </div>
 
         {/* Password */}
-        <div className="mb-4">
+        <div className="relative mb-4">
           <label className="block text-gray-700">{t.password}</label>
           <input
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             name="password"
             value={formData.password}
             onChange={handleChange}
-            className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
+            className="w-full p-2 pr-10 border rounded focus:ring-2 focus:ring-green-600"
             required
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500 hover:text-gray-700 focus:outline-none"
+          >
+            {showPassword ? t.hide : t.show}
+          </button>
         </div>
 
         {/* Name */}
