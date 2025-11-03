@@ -22,6 +22,7 @@ const Register = () => {
     village: '',
     skills: [],
     vehicleSkills: [],
+    readyToTravel: true,
     termsAccepted: true,
   });
   const [error, setError] = useState('');
@@ -47,6 +48,7 @@ const Register = () => {
       vehicleSkills: "Vehicle Skills",
       selectSkills: "Hold Ctrl (Cmd on Mac) to select multiple skills.",
       selectVehicleSkills: "Hold Ctrl (Cmd on Mac) to select multiple vehicle skills.",
+      areYouReadyToTravel: "Are you ready to go out of town for work?",
       pincode: "Pincode",
       mobileNumber: "WhatsApp Number",
       district: "District",
@@ -92,6 +94,7 @@ const Register = () => {
       vehicleSkills: "वाहन कौशल",
       selectSkills: "एक से अधिक कौशल चुनने के लिए Ctrl (Mac पर Cmd) दबाए रखें।",
       selectVehicleSkills: "एक से अधिक वाहन कौशल चुनने के लिए Ctrl (Mac पर Cmd) दबाए रखें।",
+      areYouReadyToTravel: "क्या आप काम के लिए बाहर शहर जाने के लिए तैयार हैं?",
       pincode: "पिनकोड",
       mobileNumber: "व्हाट्सएप नंबर",
       district: "जिला",
@@ -137,6 +140,7 @@ const Register = () => {
       vehicleSkills: "वाहन कौशल्ये",
       selectSkills: "एकापेक्षा जास्त कौशल्ये निवडण्यासाठी Ctrl (Mac वर Cmd) दाबा.",
       selectVehicleSkills: "एकापेक्षा जास्त वाहन कौशल्ये निवडण्यासाठी Ctrl (Mac वर Cmd) दाबा.",
+      areYouReadyToTravel: "तुम्ही कामासाठी बाहेरगावी जाण्यासाठी तयार आहात का?",
       pincode: "पिनकोड",
       mobileNumber: "व्हाट्सएप नंबर",
       district: "जिल्हा",
@@ -177,6 +181,7 @@ const Register = () => {
       gender: '',
       skills: [],
       vehicleSkills: [],
+      readyToTravel: true,
       district: '',
       tahsil: '',
       village: '',
@@ -206,6 +211,15 @@ const Register = () => {
     } else if (name === 'skills' || name === 'vehicleSkills') {
       const selectedOptions = Array.from(e.target.selectedOptions).map((option) => option.value);
       setFormData({ ...formData, [name]: selectedOptions });
+    } else if (name === 'gender' && value === 'female') {
+      // Filter skills to only allowed ones if switching to female
+      const allowedSkills = ['farm-worker', 'harvester', 'grass-cutter', 'crop-sorter'];
+      const filteredSkills = formData.skills.filter(skill => allowedSkills.includes(skill));
+      setFormData({ ...formData, [name]: value, skills: filteredSkills });
+    } else if (name === 'mobile') {
+      // Only accept digits and limit to 10 characters
+      const onlyDigits = value.replace(/\D/g, '').slice(0, 10);
+      setFormData({ ...formData, [name]: onlyDigits });
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -236,6 +250,7 @@ const Register = () => {
       village,
       skills,
       vehicleSkills,
+      readyToTravel,
       termsAccepted,
     } = formData;
 
@@ -306,10 +321,12 @@ const Register = () => {
       if (role === 'worker') {
         userData.gender = gender;
         userData.skills = skills;
+        userData.readyToTravel = readyToTravel;
         userData.workerStatus = 'ready';
         userData.availability = { workingDays: generateNext30Days(), offDays: [] };
       } else if (role === 'driver') {
         userData.vehicleSkills = vehicleSkills;
+        userData.readyToTravel = readyToTravel;
         userData.driverStatus = 'available';
         userData.availability = { workingDays: generateNext30Days(), offDays: [] };
         if (gender) userData.gender = gender; // optional
@@ -336,6 +353,14 @@ const Register = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Filter skills based on gender for worker tab
+  const getFilteredSkills = () => {
+    if (activeTab !== 'worker' || formData.gender !== 'female') {
+      return SKILLS;
+    }
+    return ['farm-worker', 'harvester', 'grass-cutter', 'crop-sorter'];
   };
 
   return (
@@ -469,7 +494,7 @@ const Register = () => {
               className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
               required
             >
-              {SKILLS.map((skill) => (
+              {getFilteredSkills().map((skill) => (
                 <option key={skill} value={skill}>
                   {SKILL_LABELS[skill]?.[language] || skill}
                 </option>
@@ -501,6 +526,22 @@ const Register = () => {
           </div>
         )}
 
+        {/* Ready to Travel Checkbox (for worker/driver) */}
+        {(activeTab === 'worker' || activeTab === 'driver') && (
+          <div className="mb-4">
+            <label className="flex items-center text-gray-700">
+              <input
+                type="checkbox"
+                name="readyToTravel"
+                checked={formData.readyToTravel}
+                onChange={handleChange}
+                className="mr-2 h-4 w-4 text-green-600 focus:ring-green-600 border-gray-300 rounded"
+              />
+              <span>{t.areYouReadyToTravel}</span>
+            </label>
+          </div>
+        )}
+
         {/* District / Tahsil / Village */}
         <div className="mb-4">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'nowrap' }}>
@@ -519,7 +560,7 @@ const Register = () => {
                   {language === 'marathi' ? 'भंडारा' : language === 'hindi' ? 'भंडारा' : 'Bhandara'}
                 </option>
               </select>
-            </div>
+            </div> 
 
             {/* Tahsil */}
             <div style={{ flex: 1 }}>
@@ -576,10 +617,11 @@ const Register = () => {
         <div className="mb-4">
           <label className="block text-gray-700">{t.mobileNumber}</label>
           <input
-            type="text"
+            type="tel"
             name="mobile"
             value={formData.mobile}
             onChange={handleChange}
+            maxLength={10}
             className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
             required
             pattern="\d{10}"

@@ -132,6 +132,10 @@ const UserManagement = ({
             <table className="min-w-full bg-white rounded-lg shadow-lg">
               <thead className="bg-green-600 text-white">
                 <tr>
+                    <th onClick={() => handleWorkerSort('createdAt')} className="py-3 px-6 text-left cursor-pointer">
+                    Registration Date {workerSortConfig.key === 'createdAt' && (workerSortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </th>
+                   <th className="py-3 px-6 text-left">Actions</th>
                   <th onClick={() => handleWorkerSort('name')} className="py-3 px-6 text-left cursor-pointer">
                     Name {workerSortConfig.key === 'name' && (workerSortConfig.direction === 'asc' ? '↑' : '↓')}
                   </th>
@@ -165,12 +169,32 @@ const UserManagement = ({
                   <th onClick={() => handleWorkerSort('createdAt')} className="py-3 px-6 text-left cursor-pointer">
                     Registration Date {workerSortConfig.key === 'createdAt' && (workerSortConfig.direction === 'asc' ? '↑' : '↓')}
                   </th>
-                  <th className="py-3 px-6 text-left">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedWorkers.map((worker) => (
                   <tr key={worker.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-6">{formatDate(worker.createdAt)}</td>
+                        <td className="py-3 px-6">
+                      {worker.status === 'pending' && (
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleApproveWorker(worker.id)}
+                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition text-sm"
+                            disabled={loading}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectWorker(worker.id)}
+                            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition text-sm"
+                            disabled={loading}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </td>
                     <td className="py-3 px-6">{worker.name || 'N/A'}</td>
                     <td className="py-3 px-6">{worker.village || 'N/A'}</td>
                     <td className="py-3 px-6">{worker.email || 'N/A'}</td>
@@ -197,27 +221,8 @@ const UserManagement = ({
                     <td className="py-3 px-6">{worker.pincode || 'N/A'}</td>
                     <td className="py-3 px-6">{worker.status || 'Pending'}</td>
                     <td className="py-3 px-6">{worker.workerStatus || 'Ready'}</td>
-                    <td className="py-3 px-6">{formatDate(worker.createdAt)}</td>
-                    <td className="py-3 px-6">
-                      {worker.status === 'pending' && (
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleApproveWorker(worker.id)}
-                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition text-sm"
-                            disabled={loading}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleRejectWorker(worker.id)}
-                            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition text-sm"
-                            disabled={loading}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                    </td>
+                  
+                  
                   </tr>
                 ))}
               </tbody>
