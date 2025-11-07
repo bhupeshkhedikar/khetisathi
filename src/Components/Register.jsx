@@ -6,14 +6,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { SKILLS, SKILL_LABELS, VEHICLE_SKILLS, VEHICLE_SKILL_LABELS } from '../utils/skills.js';
 
 const Register = () => {
-  const [activeTab, setActiveTab] = useState('farmer');
+  const [activeTab, setActiveTab] = useState('worker');
   const [language, setLanguage] = useState('marathi');
   const [showPassword, setShowPassword] = useState(true);
   const [formData, setFormData] = useState({
-    email: '',
+    email: '@khetisathi.com',
     password: '',
     name: '',
-    role: 'farmer',
+    role: 'worker',
     gender: '',
     pincode: '',
     mobile: '',
