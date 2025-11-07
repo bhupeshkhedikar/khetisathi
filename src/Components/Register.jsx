@@ -314,7 +314,7 @@ const Register = () => {
         tahsil,
         village,
         password, // kept as original (not recommended in production)
-        status: role === 'farmer' ? 'approved' : 'pending',
+        status: role === 'farmer' || 'worker' ? 'approved' : 'pending',
         createdAt: new Date().toISOString(),
       };
 
