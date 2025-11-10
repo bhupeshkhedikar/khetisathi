@@ -1970,7 +1970,7 @@ const Home = () => {
                                         `${maleCount} पुरुष/ ${femaleCount} महिला`} {/* प for Purush, म for Mahila */}
                                   </span>
                                 ) : (
-                                  <span className="text-yellow-600">
+                                  <span className="text-white-600">
                                     {language === 'english' ? 'Limited Availability' :
                                       language === 'hindi' ? 'सीमित उपलब्धता' : 'मर्यादित उपलब्धता'}
                                   </span>
@@ -1984,7 +1984,7 @@ const Home = () => {
                                       language === 'hindi' ? `${availableWorkers} साथी उपलब्ध` : `${availableWorkers} साथी उपलब्ध`}
                                   </span>
                                 ) : (
-                                  <span className="text-yellow-600">
+                                  <span className="text-white-600">
                                     {language === 'english' ? 'Limited Availability' :
                                       language === 'hindi' ? 'सीमित उपलब्धता' : 'मर्यादित उपलब्धता'}
                                   </span>
