@@ -83,7 +83,6 @@ const translationsDriverDashboard = {
     // Task Details
     type: 'Type',
     date: 'Date',
-    location: 'Location',
     workers: 'Workers',
     accept: 'Accept',
     reject: 'Reject',
@@ -95,7 +94,6 @@ const translationsDriverDashboard = {
     pending: 'Pending',
     accepted: 'Accepted',
     rejected: 'Rejected',
-    completed: 'Completed',
 
     // Error Messages
     errorFirebaseNotInitialized: 'Firebase not initialized.',
@@ -256,7 +254,6 @@ Khetisathi 🚜`,
     // Task Details
     type: 'प्रकार',
     date: 'तारीख',
-    location: 'स्थान',
     workers: 'कामगार',
     accept: 'स्वीकार करें',
     reject: 'अस्वीकार करें',
@@ -268,7 +265,6 @@ Khetisathi 🚜`,
     pending: 'लंबित',
     accepted: 'स्वीकार किया गया',
     rejected: 'अस्वीकार किया गया',
-    completed: 'पूरा हुआ',
 
     // Error Messages
     errorFirebaseNotInitialized: 'Firebase प्रारंभ नहीं हुआ।',
@@ -427,7 +423,6 @@ Khetisathi 🚜`,
     // Task Details
     type: 'प्रकार',
     date: 'तारीख',
-    location: 'स्थान',
     workers: 'कामगार',
     accept: 'स्वीकारा',
     reject: 'नाकारा',
@@ -439,7 +434,6 @@ Khetisathi 🚜`,
     pending: 'प्रलंबित',
     accepted: 'स्वीकारले',
     rejected: 'नाकारले',
-    completed: 'पूर्ण झाले',
     maleWages: "पुरुष मजुरी",
     yourBundles: "तुमचे बंडल",
     noBundles: "कोणतेही बंडल सापडले नाहीत",

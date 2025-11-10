@@ -24,7 +24,6 @@ const translationsWorkerDashboard = {
     errorFetchingRejectedOrders: "Error fetching rejected orders",
 
     // Pending Tasks Section
-    pendingTasks: "Pending Tasks",
     noTasksAssigned: "No tasks assigned yet.",
     serviceFeeWarning: "Please pay your outstanding service fee of ₹{amount} to accept new orders.",
     earningsAfterFee: "Earnings: ₹{amount} (after 2% service fee)",
@@ -141,7 +140,6 @@ const translationsWorkerDashboard = {
     // Skills
     'farm-worker': "Farm Worker",
     'tractor-driver': "Tractor Driver",
-    'ploughing-laborer': "Ploughing Laborer",
 
     // WhatsApp Messages (for handleAcceptOrder, handleCompleteOrder, handleRejectOrder)
     orderAccepted: "Order accepted on KhetiSathi! 🚜\n\nI am {name} (Contact: {mobile}), your assigned worker for the {service} service. I will arrive soon at {address}. For any queries, please contact me. Regards, KhetiSathi",
@@ -173,7 +171,6 @@ const translationsWorkerDashboard = {
     errorFetchingRejectedOrders: "अस्वीकृत ऑर्डर प्राप्त करने में त्रुटि",
 
     // Pending Tasks Section
-    pendingTasks: "लंबित कार्य",
     noTasksAssigned: "अभी तक कोई कार्य सौंपा नहीं गया।",
     serviceFeeWarning: "कृपया नए ऑर्डर स्वीकार करने के लिए ₹{amount} की बकाया सेवा शुल्क का भुगतान करें।",
     earningsAfterFee: "आय: ₹{amount} (2% सेवा शुल्क के बाद)",
@@ -290,7 +287,7 @@ const translationsWorkerDashboard = {
     // Skills
     'farm-worker': "खेत श्रमिक",
     'tractor-driver': "ट्रैक्टर चालक",
-    'ploughing-laborer': "जुताई श्रमिक",
+
 
     // WhatsApp Messages
     orderAccepted: "खेतीसाथी पर ऑर्डर स्वीकार किया गया! 🚜\n\nमैं {name} (संपर्क: {mobile}) हूँ, आपके {service} सेवा के लिए नियुक्त श्रमिक। मैं जल्द ही {address} पर पहुँचूँगा। किसी भी प्रश्न के लिए, कृपया मुझसे संपर्क करें। सादर, खेतीसाथी",
@@ -322,7 +319,6 @@ const translationsWorkerDashboard = {
     errorFetchingRejectedOrders: "अस्वीकृत ऑर्डर प्राप्त करण्यात त्रुटी",
 
     // Pending Tasks Section
-    pendingTasks: "प्रलंबित कार्य",
     noTasksAssigned: "अजून कोणतेही कार्य नियुक्त केलेले नाही.",
     serviceFeeWarning: "कृपया नवीन ऑर्डर स्वीकारण्यासाठी ₹{amount} ची थकित सेवा शुल्क भरा.",
     earningsAfterFee: "कमाई: ₹{amount} (2% सेवा शुल्कानंतर)",
@@ -439,7 +435,6 @@ const translationsWorkerDashboard = {
     // Skills
     'farm-worker': "शेत कामगार",
     'tractor-driver': "ट्रॅक्टर चालक",
-    'ploughing-laborer': "नांगरणी कामगार",
 
     // WhatsApp Messages
     orderAccepted: "खेतीसाथीवर ऑर्डर स्वीकारली गेली! 🚜\n\nमी {name} (संपर्क: {mobile}), तुमच्या {service} सेवेसाठी नियुक्त कामगार आहे. मी लवकरच {address} येथे पोहोचेन. काही प्रश्न असल्यास, कृपया माझ्याशी संपर्क साधा. सादर, खेतीसाथी",
