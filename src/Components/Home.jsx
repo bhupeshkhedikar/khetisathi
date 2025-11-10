@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db, onAuthStateChanged } from './firebaseConfig.js';
-import { collection, query, getDocs, addDoc, doc, getDoc, where } from 'firebase/firestore';
+import { collection, query, getDocs, addDoc, doc, getDoc, where, onSnapshot } from 'firebase/firestore';
 import { Link, useNavigate } from 'react-router-dom';
 import Carousel from './Carousel';
 import Footer from './Footer';
@@ -100,53 +100,73 @@ const Home = () => {
   }, [t]); // 🚀 removed profile from dependency
   useEffect(() => {
     const fetchWorkers = async () => {
-      console.log('Querying workers for village: Lakhori-------', localStorage.getItem('profile'));
-      let profilee = localStorage.getItem('profile') || "";
-      if (profilee && typeof profile === "string") {
-        profilee = profile.charAt(0).toUpperCase() + profile.slice(1);
+      if (!profile.village || profile.village === 'unknown village') {
+        console.log('No valid village in profile, skipping worker fetch');
+        setWorkerCounts({});
+        return;
       }
-      console.log('Formatted village name:', profilee);
+      console.log('Fetching all approved workers for processing (like AdminPanel)');
+
+      // Reference from AdminPanel: Query all workers with role 'worker' (no village/availability filter in query)
       const workersQuery = query(
         collection(db, 'users'),
         where('role', '==', 'worker'),
-        where('status', '==', 'approved'),
-        where('village', '==', profilee),
-        where('availability.workingDays', 'array-contains', todayDateString)
+        where('status', '==', 'approved') // Filter approved like in AdminPanel
       );
-      try {
-        const workersSnapshot = await getDocs(workersQuery);
-        const workersData = workersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log('Fetched Workers:', workersData.map(w => ({
-          id: w.id,
-          name: w.name,
-          village: w.village,
-          skills: w.skills,
-          availability: w.availability,
-        })));
-        console.log('Total Workers Fetched:', workersData.length);
-        // Count workers by skill
+
+      // Use onSnapshot for real-time updates (like AdminPanel)
+      const unsubscribe = onSnapshot(workersQuery, (snapshot) => {
+        const allWorkers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('All Approved Workers Fetched:', allWorkers.length);
+
+        // Filter in JS like AdminPanel (by village and availability)
+        const today = new Date().toISOString().split('T')[0];
+        const lowercaseVillage = profile.village.toLowerCase().trim(); // Match lowercase (adjust if needed)
+        const availableWorkers = allWorkers.filter(worker => {
+          const workerVillage = (worker.village || '').toLowerCase().trim();
+          const isAvailableToday = worker.availability?.workingDays?.includes(today) || true; // Like isWorkerAvailable in AdminPanel
+          return workerVillage === lowercaseVillage && isAvailableToday && worker.workerStatus === 'ready'; // Add workerStatus filter like AdminPanel
+        });
+
+        console.log('Filtered Available Workers for Village:', lowercaseVillage, 'Count:', availableWorkers.length);
+        console.log('Sample Available Workers:', availableWorkers.slice(0, 3).map(w => ({ name: w.name, village: w.village, skills: w.skills, gender: w.gender, availability: w.availability })));
+
+        // Count by skill (exact match to service.type, like AdminPanel skill checks)
         const counts = {};
-        workersData.forEach(worker => {
+        availableWorkers.forEach(worker => {
           if (worker.skills && Array.isArray(worker.skills)) {
             worker.skills.forEach(skill => {
+              // Exact match - ensure service.type matches skill (e.g., 'farm-worker' not 'farm-workers')
               counts[skill] = (counts[skill] || 0) + 1;
+
+              // NEW: Gender-specific for 'farm-worker' (like AdminPanel gender filters)
+              if (skill === 'farm-worker' && worker.gender) {
+                const genderKey = `${skill}-${worker.gender}`;
+                counts[genderKey] = (counts[genderKey] || 0) + 1;
+              }
             });
           } else {
             console.warn(`Worker ${worker.id} has no valid skills array`);
           }
         });
-        console.log('Worker Counts by Skill:', counts);
+        console.log('Exact Worker Counts by Skill (with gender for farm-worker):', counts);
         setWorkerCounts(counts);
-      } catch (err) {
+      }, (err) => {
         console.error('Error fetching workers:', err);
         setError(t.errorLoadingWorkers || 'Error loading workers');
         setWorkerCounts({});
-      }
+      });
+
+      // Cleanup
+      return () => unsubscribe();
     };
-    if (services.length > 0) {
+
+    if (services.length > 0 && profile.village) {
       fetchWorkers();
+    } else {
+      setWorkerCounts({});
     }
-  }, [services, t, todayDateString]);
+  }, [services, t, todayDateString, profile.village]); // Add profile.village dependency
   const renderWorkerAvailability = () => {
     if (Object.keys(workerCounts).length === 0) {
       return (
@@ -395,69 +415,69 @@ const Home = () => {
       orderSection.scrollIntoView({ behavior: 'smooth' });
     }
   };
-const validateStep = () => {
-  setError('');
-  if (currentStep === 0) {
-    if (!selectedService) {
-      setError(t.pleaseSelectService);
-      return false;
-    }
-    if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
-      if (!selectedBundle && (maleWorkers <= 0 && femaleWorkers <= 0)) {
-        setError(t.selectBundleOrWorker);
+  const validateStep = () => {
+    setError('');
+    if (currentStep === 0) {
+      if (!selectedService) {
+        setError(t.pleaseSelectService);
         return false;
       }
-    } else {
-      if (otherWorkers <= 0) {
-        setError(t.specifyAtLeastOneWorker);
+      if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
+        if (!selectedBundle && (maleWorkers <= 0 && femaleWorkers <= 0)) {
+          setError(t.selectBundleOrWorker);
+          return false;
+        }
+      } else {
+        if (otherWorkers <= 0) {
+          setError(t.specifyAtLeastOneWorker);
+          return false;
+        }
+        const service = services.find(s => s.type === selectedService);
+        if (service?.priceUnit === 'Per Acre' && !acres) {
+          setError(t.specifyAcres);
+          return false;
+        }
+        if (service?.priceUnit === 'Per Hour' && parseInt(hours) < 1) {
+          setError(t.specifyAtLeastOneHour);
+          return false;
+        }
+        if (service?.priceUnit === 'Per Bag' && parseInt(bags) < 1) {
+          setError(t.specifyAtLeastOneBag);
+          return false;
+        }
+      }
+      return true;
+    } else if (currentStep === 1) {
+      if (!numberOfDays || !startDate || !endDate || !startTime) {
+        setError(t.fillDateTimeFields);
         return false;
       }
-      const service = services.find(s => s.type === selectedService);
-      if (service?.priceUnit === 'Per Acre' && !acres) {
-        setError(t.specifyAcres);
+      const currentDate = new Date();
+      currentDate.setHours(0, 0, 0, 0); // Normalize to midnight
+      const minSelectableDate = new Date(currentDate);
+      minSelectableDate.setDate(currentDate.getDate() + 1); // Set to tomorrow
+      const selectedStartDate = new Date(startDate);
+      selectedStartDate.setHours(0, 0, 0, 0); // Normalize to midnight
+      if (selectedStartDate < minSelectableDate) {
+        setError(t.startDateAfter.replace('{date}', minSelectableDate.toISOString().split('T')[0]));
         return false;
       }
-      if (service?.priceUnit === 'Per Hour' && parseInt(hours) < 1) {
-        setError(t.specifyAtLeastOneHour);
+    } else if (currentStep === 2) {
+      if (!address || !contactNumber || !district || !tahsil || !village) {
+        setError(t.fillAddressContactFields);
         return false;
       }
-      if (service?.priceUnit === 'Per Bag' && parseInt(bags) < 1) {
-        setError(t.specifyAtLeastOneBag);
+      if (contactNumber.length !== 10 || !/^\d{10}$/.test(contactNumber)) {
+        setError(t.contactNumberTenDigits);
+        return false;
+      }
+      if (!paymentMethod) {
+        setError(t.selectPaymentMethod);
         return false;
       }
     }
     return true;
-  } else if (currentStep === 1) {
-    if (!numberOfDays || !startDate || !endDate || !startTime) {
-      setError(t.fillDateTimeFields);
-      return false;
-    }
-    const currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0); // Normalize to midnight
-    const minSelectableDate = new Date(currentDate);
-    minSelectableDate.setDate(currentDate.getDate() + 1); // Set to tomorrow
-    const selectedStartDate = new Date(startDate);
-    selectedStartDate.setHours(0, 0, 0, 0); // Normalize to midnight
-    if (selectedStartDate < minSelectableDate) {
-      setError(t.startDateAfter.replace('{date}', minSelectableDate.toISOString().split('T')[0]));
-      return false;
-    }
-  } else if (currentStep === 2) {
-    if (!address || !contactNumber || !district || !tahsil || !village) {
-      setError(t.fillAddressContactFields);
-      return false;
-    }
-    if (contactNumber.length !== 10 || !/^\d{10}$/.test(contactNumber)) {
-      setError(t.contactNumberTenDigits);
-      return false;
-    }
-    if (!paymentMethod) {
-      setError(t.selectPaymentMethod);
-      return false;
-    }
-  }
-  return true;
-};
+  };
   const handleNext = () => {
     if (!user) {
       setShowAuthModal(true);
@@ -540,7 +560,7 @@ const validateStep = () => {
   const renderAuthModal = () => {
     if (!showAuthModal) return null;
     return (
-<div className="modal-overlay">
+      <div className="modal-overlay">
         <div className="modal-content">
           <h3>{t.pleaseLoginOrRegister}</h3>
           <p>{t.loginOrRegisterMessage}</p>
@@ -870,6 +890,8 @@ const validateStep = () => {
         unitValue = parseInt(bags) || 1;
         orderData.bags = unitValue;
       }
+      // NEW: Log for debugging
+      console.log('Service details:', { type: selectedService, priceUnit: service.priceUnit, cost: service.cost, fixedPrice: service.fixedPrice, otherWorkers, unitValue });
       if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
         if (selectedBundle) {
           const bundle = bundles.find(b => b.id === selectedBundle);
@@ -886,7 +908,7 @@ const validateStep = () => {
           femaleWorkersCount = bundle.femaleWorkers;
           orderData.totalWorkers = bundle.maleWorkers + bundle.femaleWorkers;
           workersCost = bundle.price * unitValue;
-          if (isNaN(workersCost) || workersCost <= 0) {
+          if (isNaN(workersCost) || workersCost < 0) {  // CHANGED: Allow 0 for free bundles
             throw new Error('Invalid workers cost for bundle.');
           }
           serviceFee = workersCost * serviceFeeRate;
@@ -898,7 +920,7 @@ const validateStep = () => {
           femaleWorkersCount = femaleWorkers;
           orderData.totalWorkers = maleWorkers + femaleWorkers;
           workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * unitValue;
-          if (isNaN(workersCost) || workersCost <= 0) {
+          if (isNaN(workersCost) || workersCost < 0) {  // CHANGED: Allow 0 for free workers
             throw new Error('Invalid workers cost for individual workers.');
           }
           serviceFee = workersCost * serviceFeeRate;
@@ -906,11 +928,29 @@ const validateStep = () => {
         }
         orderData.vehicleType = vehicleType;
         orderData.vehicleCost = vehicleCost;
-      } else {
-        orderData.totalWorkers = otherWorkers;
-        workersCost = service.cost * otherWorkers * unitValue;
-        if (isNaN(workersCost) || workersCost <= 0) {
+      } else if (selectedService === 'ownertc') {
+        if (service.priceUnit === 'Fixed Price') {
+          workersCost = (service.fixedPrice || 0) * otherWorkers;
+        } else {
+          workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * unitValue;
+        }
+        if (isNaN(workersCost) || workersCost < 0) {  // NEW: Validation for ownertc, allow 0
           throw new Error(`Invalid workers cost for ${service.priceUnit} service.`);
+        }
+        serviceFee = workersCost * serviceFeeRate;
+        totalCost = workersCost + serviceFee;
+      } else {
+        // FIXED: Handle 'Fixed Price' consistently (like in renderCostBreakdown)
+        orderData.totalWorkers = otherWorkers;
+        if (service.priceUnit === 'Fixed Price') {
+          workersCost = (service.fixedPrice || service.cost || 0) * otherWorkers;  // Fallback to cost if fixedPrice missing
+          unitValue = 1;  // No multiplier for fixed
+        } else {
+          workersCost = (service.cost || 0) * otherWorkers * unitValue;
+        }
+        // IMPROVED: More specific error with debug info, allow 0
+        if (isNaN(workersCost) || workersCost < 0) {
+          throw new Error(`Invalid workers cost for ${service.priceUnit} service (cost: ${service.cost || service.fixedPrice || 'missing'}, workers: ${otherWorkers}, unit: ${unitValue}). Check service data.`);
         }
         serviceFee = workersCost * serviceFeeRate;
         totalCost = workersCost + serviceFee;
@@ -920,6 +960,21 @@ const validateStep = () => {
       orderData.workersCost = workersCost;
       orderData.totalCost = totalCost;
       orderData.priceUnit = service.priceUnit || 'Per Day';
+
+      // NEW: If totalCost is 0 (free service), directly confirm order without payment
+      if (totalCost === 0) {
+        orderData.paymentStatus = { status: 'free' };
+        await addDoc(collection(db, 'orders'), orderData);
+        setSuccess('Service booked successfully for free!');
+        setPaymentStatus('free');
+        setError('');
+        handleNext();
+        await sendAdminWhatsAppMessage();
+        await sendFarmerWhatsAppMessage();
+        setLoading(false);
+        return;  // Exit early, skip payment
+      }
+
       const paymentAmount = paymentMethod === 'cash' ? serviceFee : totalCost;
       if (paymentMethod === 'razorpay' || paymentMethod === 'cash') {
         const options = {
@@ -1724,10 +1779,10 @@ const validateStep = () => {
                 <div
                   key={b.id}
                   className={`bundle-card ${index % 3 === 0
-                      ? 'bundle-orange-border'
-                      : index % 3 === 1
-                        ? 'bundle-green-border'
-                        : 'bundle-blue-border'
+                    ? 'bundle-orange-border'
+                    : index % 3 === 1
+                      ? 'bundle-green-border'
+                      : 'bundle-blue-border'
                     }`}
                   onClick={() => handleBundleOrder(b.id)}
                 >
@@ -1743,8 +1798,8 @@ const validateStep = () => {
                     <div className="bundle-chip-stack">
                       <span
                         className={`bundle-status-chip ${b.availabilityStatus === 'Unavailable'
-                            ? 'bundle-status-chip--unavailable'
-                            : ''
+                          ? 'bundle-status-chip--unavailable'
+                          : ''
                           }`}
                       >
                         <i className="fas fa-check-circle"></i>
@@ -1775,10 +1830,10 @@ const validateStep = () => {
                     <div className="bundle-name-container">
                       <span
                         className={`bundle-name ${index % 3 === 0
-                            ? 'orangee'
-                            : index % 3 === 1
-                              ? 'greenn'
-                              : 'bluee'
+                          ? 'orangee'
+                          : index % 3 === 1
+                            ? 'greenn'
+                            : 'bluee'
                           }`}
                       >
                         {language === 'english'
@@ -1844,7 +1899,7 @@ const validateStep = () => {
         </section>
       )}
       <section className="services-section">
-        <h2 className="services-title">{t.ourServices}</h2>
+        <h3 className="services-title">{t.ourServices}</h3>
         {isServicesLoading ? (
           <div className="services-loader-container">
             <div className="services-loader"></div>
@@ -1854,65 +1909,110 @@ const validateStep = () => {
             {services
               .slice()
               .sort((a, b) => {
-                const isAPopular = a.type === 'farm-workers' || a.type === 'ploughing-laborer';
+                const isAPopular = a.type === 'farm-workers' || a.type === 'ploughing-laborer' ;
                 const isBPopular = b.type === 'farm-workers' || b.type === 'ploughing-laborer';
                 return isBPopular - isAPopular;
               })
-              .map((s, index) => (
-                <div
-                  key={s.id}
-                  onClick={() => handleServiceChange(s.type)}
-                  className={`service-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`}
-                >
-                  <div className="service-image-container">
-                    <img
-                      src={s.image || 'https://images.unsplash.com/photo-1592210454359-9047f8d00805?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'}
-                      alt={s.name}
-                      className="service-image"
-                    />
-                    <div className="service-overlay"></div>
-                  </div>
-                  <div className="service-content">
-                    <div className="service-tags">
-                      <div className="service-pricing">
-                        {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
-                          <>
-                            <span className="male-price">
-                              <i className="fas fa-male"></i> ₹{s.maleCost || 'N/A'}/{language === 'english' ? (s.priceUnit || 'Per Day') : language === 'hindi' ? (s.priceUnit === 'Per Acre' ? 'प्रति एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}
-                            </span>
-                            <span className="female-price">
-                              <i className="fas fa-female"></i> ₹{s.femaleCost || 'N/A'}/{language === 'english' ? (s.priceUnit || 'Per Day') : language === 'hindi' ? (s.priceUnit === 'Per Acre' ? 'प्रति एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}
-                            </span>
-                          </>
-                        )}
-                        <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
-                          {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') ? (language === 'english' ? 'Custom' : language === 'hindi' ? 'कस्टम' : 'कस्टम') : `₹${s.fixedPrice || s.cost || 0}/${language === 'english' ? (s.fixedPrice ? 'Fixed' : s.priceUnit === 'Per Acre' ? 'Per Acre' : s.priceUnit === 'Per Bag' ? 'Per Bag' : s.priceUnit === 'Per Hour' ? 'Per Hour' : 'Per Day') : language === 'hindi' ? (s.fixedPrice ? 'निश्चित' : s.priceUnit === 'Per Acre' ? 'एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.fixedPrice ? 'निश्चित' : s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}`}
-                        </span>
-                        {s.type === 'farm-workers' && (
+              .map((s, index) => {
+                // Get exact count for this service.type (like AdminPanel skill filter)
+                const availableWorkers = workerCounts[s.type] || 0;
+                let maleCount = 0, femaleCount = 0;
+                // FIXED: For 'farm-workers' service, use 'farm-worker' skill keys for gender counts
+                if (s.type === 'farm-workers') {
+                  maleCount = workerCounts['farm-worker-male'] || 0;
+                  femaleCount = workerCounts['farm-worker-female'] || 0;
+                }
+                console.log(`Service ${s.type}: Total=${availableWorkers}, Male=${maleCount}, Female=${femaleCount}`); // Debug log
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => handleServiceChange(s.type)} // Always enable click
+                    className={`service-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`} // Remove gray-border
+                  >
+                    <div className="service-image-container">
+                      <img
+                        src={s.image || 'https://images.unsplash.com/photo-1592210454359-9047f8d00805?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'}
+                        alt={s.name}
+                        className="service-image"
+                      />
+                      <div className="service-overlay"></div>
+                    </div>
+                    <div className="service-content">
+                      <div className="service-tags">
+                        <div className="service-pricing">
+                          {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
+                            <>
+                              <span className="male-price">
+                                <i className="fas fa-male"></i> ₹{s.maleCost || 'N/A'}/{language === 'english' ? (s.priceUnit || 'Per Day') : language === 'hindi' ? (s.priceUnit === 'Per Acre' ? 'प्रति एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}
+                              </span>
+                              <span className="female-price">
+                                <i className="fas fa-female"></i> ₹{s.femaleCost || 'N/A'}/{language === 'english' ? (s.priceUnit || 'Per Day') : language === 'hindi' ? (s.priceUnit === 'Per Acre' ? 'प्रति एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}
+                              </span>
+                            </>
+                          )}
                           <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
-                            वेळ(स.९ ते सायं 5)
+                            {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') ? (language === 'english' ? 'Custom' : language === 'hindi' ? 'कस्टम' : 'कस्टम') : `₹${s.fixedPrice || s.cost || 0}/${language === 'english' ? (s.fixedPrice ? 'Fixed' : s.priceUnit === 'Per Acre' ? 'Per Acre' : s.priceUnit === 'Per Bag' ? 'Per Bag' : s.priceUnit === 'Per Hour' ? 'Per Hour' : 'Per Day') : language === 'hindi' ? (s.fixedPrice ? 'निश्चित' : s.priceUnit === 'Per Acre' ? 'एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.fixedPrice ? 'निश्चित' : s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}`}
                           </span>
-                        )}
+                          {s.type === 'farm-workers' && (
+                            <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
+                              वेळ(स.९ ते सायं ५)
+                            </span>
+                          )}
+                          {/* UPDATED: Availability chip beside pricing - always shown, no disable logic */}
+                          <span className={`service-cost availability-chip ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                            <i className="fas fa-users mr-1"></i>
+                            {s.type === 'farm-workers' ? (
+                              <>
+                                {maleCount + femaleCount > 0 ? (
+                                  <span>
+                                    {language === 'english' ? `${maleCount}M/${femaleCount}F` :
+                                      language === 'hindi' ? `${maleCount}P/${femaleCount}M` : // P for Purush, M for Mahila
+                                        `${maleCount} पुरुष/ ${femaleCount} महिला`} {/* प for Purush, म for Mahila */}
+                                  </span>
+                                ) : (
+                                  <span className="text-yellow-600">
+                                    {language === 'english' ? 'Limited Availability' :
+                                      language === 'hindi' ? 'सीमित उपलब्धता' : 'मर्यादित उपलब्धता'}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span>
+                                {availableWorkers > 0 ? (
+                                  <span>
+                                    {language === 'english' ? `${availableWorkers} Available` :
+                                      language === 'hindi' ? `${availableWorkers} साथी उपलब्ध` : `${availableWorkers} साथी उपलब्ध`}
+                                  </span>
+                                ) : (
+                                  <span className="text-yellow-600">
+                                    {language === 'english' ? 'Limited Availability' :
+                                      language === 'hindi' ? 'सीमित उपलब्धता' : 'मर्यादित उपलब्धता'}
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
-                      <div className="popular-tag-container">
-                        <span className="popular-tag">
-                          <i className="fas fa-star"></i> {language === 'english' ? 'Popular' : language === 'hindi' ? 'लोकप्रिय' : 'लोकप्रिय'}
+                      {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
+                        <div className="popular-tag-container">
+                          <span className="popular-tag">
+                            <i className="fas fa-star"></i> {language === 'english' ? 'Popular' : language === 'hindi' ? 'लोकप्रिय' : 'लोकप्रिय'}
+                          </span>
+                        </div>
+                      )}
+                      <div className="service-name-container">
+                        <span className={`service-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                          {language === 'english' ? s.name : language === 'hindi' ? s.nameHindi || s.name : s.nameMarathi || s.name}
                         </span>
                       </div>
-                    )}
-                    <div className="service-name-container">
-                      <span className={`service-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
-                        {language === 'english' ? s.name : language === 'hindi' ? s.nameHindi || s.name : s.nameMarathi || s.name}
-                      </span>
+                    </div>
+                    <div className={`select-button ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                      {language === 'english' ? 'Select' : language === 'hindi' ? 'चुनें' : 'निवडा'}
                     </div>
                   </div>
-                  <div className={`select-button ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
-                    {language === 'english' ? 'Select' : language === 'hindi' ? 'चुनें' : 'निवडा'}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
           </div>
         )}
       </section>

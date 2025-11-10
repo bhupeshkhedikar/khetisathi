@@ -53,6 +53,21 @@ const FarmerDashboard = () => {
             });
             setOrders(ordersData);
 
+            // Calculate initial time left for cancellable orders
+            const now = new Date().getTime();
+            const initialTimeLeft = {};
+            ordersData.forEach(order => {
+              if (order.createdAt && order.status !== 'completed' && order.status !== 'cancelled') {
+                const createdTime = order.createdAt.toDate().getTime();
+                const timeDiffSeconds = Math.max(0, 300 - (now - createdTime) / 1000);
+                initialTimeLeft[order.id] = {
+                  minutes: Math.floor(timeDiffSeconds / 60),
+                  seconds: Math.floor(timeDiffSeconds % 60)
+                };
+              }
+            });
+            setTimeLeft(initialTimeLeft);
+
             const workerIds = [...new Set(
               ordersData.flatMap(order => 
                 Array.isArray(order.workerId) ? order.workerId : order.workerId ? [order.workerId] : []
@@ -96,15 +111,17 @@ const FarmerDashboard = () => {
     const timer = setInterval(() => {
       const currentTime = new Date().getTime();
       setTimeLeft(prev => {
-        const newTimeLeft = {};
+        const newTimeLeft = { ...prev };
         orders.forEach(order => {
           if (order.createdAt && order.status !== 'completed' && order.status !== 'cancelled') {
             const createdTime = order.createdAt.toDate().getTime();
-            const timeDiffSeconds = Math.max(0, 600 - (currentTime - createdTime) / 1000);
+            const timeDiffSeconds = Math.max(0, 300 - (currentTime - createdTime) / 1000);
             newTimeLeft[order.id] = {
               minutes: Math.floor(timeDiffSeconds / 60),
               seconds: Math.floor(timeDiffSeconds % 60)
             };
+          } else {
+            delete newTimeLeft[order.id]; // Clean up if no longer cancellable
           }
         });
         return newTimeLeft;
@@ -166,7 +183,7 @@ const FarmerDashboard = () => {
     const createdTime = createdAt.toDate().getTime();
     const currentTime = new Date().getTime();
     const timeDiffSeconds = (currentTime - createdTime) / 1000;
-    return timeDiffSeconds <= 600;
+    return timeDiffSeconds <= 300;
   };
 
   if (!user || error.includes(t.errorAccessRestricted) || error.includes(t.errorPleaseLogIn)) {
@@ -256,7 +273,7 @@ const FarmerDashboard = () => {
                   setMessagesSent(prev => ({ ...prev, [order.id]: true }));
                 }
 
-                const isCancellable = canCancelOrder(order.createdAt);
+                const isCancellable = canCancelOrder(order.createdAt) && order.status === 'pending';
                 const remainingTime = timeLeft[order.id] || { minutes: 0, seconds: 0 };
 
                 return (
@@ -264,12 +281,12 @@ const FarmerDashboard = () => {
                     key={order.id}
                     className="bg-white rounded-xl shadow-lg p-6 border border-green-200 hover:shadow-2xl transition-all transform hover:scale-[1.02]"
                   >
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-xl font-bold text-green-700 flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-4">
+                      <h4 className="text-xl font-bold text-green-700 flex items-center gap-2 flex-1">
                         <CheckCircleIcon className="w-6 h-6" />
                         {services.find(s => s.type === order.serviceType)?.name || t[order.serviceType] || order.serviceType.replace('-', ' ').toUpperCase()}
                       </h4>
-                      <div className="flex flex-col items-end space-y-2">
+                      <div className="flex flex-col items-end space-y-2 w-full sm:w-auto">
                         <span
                           className={`inline-block px-4 py-1 rounded-full text-sm font-semibold text-white
                             ${order.status === 'assigned' ? 'bg-green-600' :
@@ -281,10 +298,10 @@ const FarmerDashboard = () => {
                           {t[order.status] || order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                         </span>
                         {isCancellable && (
-                          <div className="text-sm text-gray-600 flex items-center gap-2">
-                            <CalendarIcon className="w-5 h-5 text-red-600" />
-                            {t.cancelWithin}{' '}
+                          <div className="text-sm text-gray-600 flex items-center justify-end gap-2 w-full sm:w-auto">
+                            <CalendarIcon className="w-5 h-5 text-red-600 flex-shrink-0" />
                             <span className="font-semibold text-red-600">
+                              {t.cancelWithin}{' '}
                               {remainingTime.minutes}:{remainingTime.seconds.toString().padStart(2, '0')}
                             </span>
                           </div>
@@ -292,7 +309,7 @@ const FarmerDashboard = () => {
                         {isCancellable && (
                           <button
                             onClick={() => cancelOrder(order.id)}
-                            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all flex items-center gap-2 transform hover:scale-105"
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all flex items-center justify-center gap-2 transform hover:scale-105 w-full sm:w-auto min-w-[120px]"
                             disabled={loadingCancel[order.id]}
                           >
                             <XCircleIcon className="w-5 h-5" />

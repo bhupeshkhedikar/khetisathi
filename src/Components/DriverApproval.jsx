@@ -64,6 +64,18 @@ const DriverApproval = () => {
     return () => unsubscribeAuth();
   }, []);
 
+  // Analytics computations for drivers
+  const totalDrivers = drivers.length;
+
+  // Get unique vehicle skills
+  const allVehicleSkills = [...new Set(drivers.flatMap(d => d.vehicleSkills || []))].sort();
+  // Vehicle skills statistics: count per skill
+  const skillsStats = allVehicleSkills.map(skill => ({
+    skill: skill.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+    key: skill,
+    count: drivers.filter(d => d.vehicleSkills?.includes(skill)).length,
+  })).filter(stat => stat.count > 0); // Only include skills with at least one driver
+
   // Handle approving a driver
   const handleApproveDriver = async (driverId) => {
     if (!window.confirm('Are you sure you want to approve this driver?')) return;
@@ -115,6 +127,43 @@ const DriverApproval = () => {
       <h2 className="text-3xl font-bold mb-8 text-center text-green-700">Driver Approval</h2>
       {error && <p className="text-red-600 mb-4 text-center">{error}</p>}
 
+      {/* Analytics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Total Drivers Card */}
+        <div className="bg-white rounded-lg shadow-lg p-6 border-l-4 border-green-500 col-span-1 md:col-span-2 lg:col-span-1">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-green-100">
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total Drivers</p>
+              <p className="text-3xl font-bold text-gray-900">{totalDrivers}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Skills-Based Statistics Cards */}
+      {skillsStats.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {skillsStats.map(({ skill, count }) => (
+            <div key={skill} className="bg-white rounded-lg shadow-lg p-6 border-l-4 border-purple-500">
+              <div className="flex items-center justify-between mb-4">
+                <h5 className="text-lg font-semibold text-gray-900">{skill}</h5>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between pt-2 border-t">
+                  <span className="text-sm text-gray-600">Total</span>
+                  <span className="font-bold text-gray-900">{count}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Drivers Table */}
       <section>
         <h3 className="text-2xl font-semibold mb-4 text-green-700">Driver Registrations</h3>
@@ -126,6 +175,7 @@ const DriverApproval = () => {
               <thead>
                 <tr className="bg-green-600 text-white">
                   <th className="p-3 text-left">Name</th>
+                  <th className="p-3 text-left">Email</th>
                   <th className="p-3 text-left">Pincode</th>
                   <th className="p-3 text-left">Mobile</th>
                   <th className="p-3 text-left">Vehicle Skills</th>
@@ -137,6 +187,7 @@ const DriverApproval = () => {
                 {drivers.map((driver) => (
                   <tr key={driver.id} className="border-b hover:bg-gray-50">
                     <td className="p-3">{driver.name || 'N/A'}</td>
+                    <td className="p-3">{driver.email || 'N/A'}</td>
                     <td className="p-3">{driver.pincode || 'N/A'}</td>
                     <td className="p-3">{driver.mobile || 'N/A'}</td>
                     <td className="p-3">

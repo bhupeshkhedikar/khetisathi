@@ -315,7 +315,7 @@
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.3s, box-shadow 0.3s;
-  height: 12rem;
+  height: 15rem;
 }
 
 @media (min-width: 768px) {
@@ -1489,4 +1489,11 @@ a:hover {
   font-size: 1rem;
   font-weight: 600;
   color: #1f2937;
+}
+.available-workers-badge {
+  color: #22c55e;
+  font-size: 0.875rem;
+}
+.available-workers-badge .text-xs {
+  font-size: 0.75rem;
 }
