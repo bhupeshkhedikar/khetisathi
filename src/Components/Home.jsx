@@ -173,7 +173,7 @@ const Home = () => {
         <div className="worker-availability-section">
           <h2 className="services-title">
             {t.workerAvailability || 'Worker Availability'}
-          </h2>
+          </h2> 
           <div className="worker-availability-grid">
             {Object.entries(workerCounts).map(([skill, count], index) => {
               const service = services.find(s => s.type === skill);
