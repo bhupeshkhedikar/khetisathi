@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { auth, db, onAuthStateChanged } from './firebaseConfig.js';
 import { collection, query, getDocs, addDoc, doc, getDoc, where, onSnapshot } from 'firebase/firestore';
 import { Link, useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import Footer from './Footer';
 import './Home.css';
 import translations from './translations';
 import { SKILL_LABELS } from '../utils/skills.js';
+
 const Home = () => {
   const [user, setUser] = useState(null);
   const [services, setServices] = useState([]);
@@ -40,6 +41,9 @@ const Home = () => {
   const [district, setDistrict] = useState('');
   const [tahsil, setTahsil] = useState('');
   const [village, setVillage] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // New state for search term
+  const [showSuggestions, setShowSuggestions] = useState(false); // New state for suggestions dropdown
+  const searchRef = useRef(null); // Ref for handling outside clicks
   const navigate = useNavigate();
   const [profile, setProfile] = useState({ name: '', village: '', pincode: '', mobile: '' });
   const [workerCounts, setWorkerCounts] = useState({});
@@ -53,6 +57,57 @@ const Home = () => {
     { label: t.review || "Review", icon: 'fas fa-check-circle' },
     { label: t.success || "Success", icon: 'fas fa-check-double' }
   ];
+
+  // Filter services based on search term and current language
+  const filteredServices = services
+    .filter(service => {
+      const serviceName = language === 'english' 
+        ? service.name 
+        : language === 'hindi' 
+          ? (service.nameHindi || service.name) 
+          : (service.nameMarathi || service.name);
+      return serviceName.toLowerCase().includes(searchTerm.toLowerCase());
+    })
+    .slice()
+    .sort((a, b) => {
+      const isAPopular = a.type === 'farm-workers' || a.type === 'ploughing-laborer' ;
+      const isBPopular = b.type === 'farm-workers' || b.type === 'ploughing-laborer';
+      return isBPopular - isAPopular;
+    });
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setShowSuggestions(value.length > 0 && filteredServices.length > 0);
+  };
+
+  // Handle suggestion select
+  const handleSuggestionSelect = (service) => {
+    const serviceName = language === 'english' 
+      ? service.name 
+      : language === 'hindi' 
+        ? (service.nameHindi || service.name) 
+        : (service.nameMarathi || service.name);
+    setSearchTerm(serviceName);
+    handleServiceChange(service.type);
+    setShowSuggestions(false);
+  };
+
+  // Handle click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -62,6 +117,7 @@ const Home = () => {
       document.body.removeChild(script);
     };
   }, []);
+
   useEffect(() => {
     const fetchProfile = async () => {
       if (auth.currentUser) {
@@ -98,6 +154,7 @@ const Home = () => {
       fetchProfile();
     }
   }, [t]); // 🚀 removed profile from dependency
+
   useEffect(() => {
     const fetchWorkers = async () => {
       if (!profile.village || profile.village === 'unknown village') {
@@ -106,19 +163,16 @@ const Home = () => {
         return;
       }
       console.log('Fetching all approved workers for processing (like AdminPanel)');
-
       // Reference from AdminPanel: Query all workers with role 'worker' (no village/availability filter in query)
       const workersQuery = query(
         collection(db, 'users'),
         where('role', '==', 'worker'),
         where('status', '==', 'approved') // Filter approved like in AdminPanel
       );
-
       // Use onSnapshot for real-time updates (like AdminPanel)
       const unsubscribe = onSnapshot(workersQuery, (snapshot) => {
         const allWorkers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         console.log('All Approved Workers Fetched:', allWorkers.length);
-
         // Filter in JS like AdminPanel (by village and availability)
         const today = new Date().toISOString().split('T')[0];
         const lowercaseVillage = profile.village.toLowerCase().trim(); // Match lowercase (adjust if needed)
@@ -127,10 +181,8 @@ const Home = () => {
           const isAvailableToday = worker.availability?.workingDays?.includes(today) || true; // Like isWorkerAvailable in AdminPanel
           return workerVillage === lowercaseVillage && isAvailableToday && worker.workerStatus === 'ready'; // Add workerStatus filter like AdminPanel
         });
-
         console.log('Filtered Available Workers for Village:', lowercaseVillage, 'Count:', availableWorkers.length);
         console.log('Sample Available Workers:', availableWorkers.slice(0, 3).map(w => ({ name: w.name, village: w.village, skills: w.skills, gender: w.gender, availability: w.availability })));
-
         // Count by skill (exact match to service.type, like AdminPanel skill checks)
         const counts = {};
         availableWorkers.forEach(worker => {
@@ -138,7 +190,6 @@ const Home = () => {
             worker.skills.forEach(skill => {
               // Exact match - ensure service.type matches skill (e.g., 'farm-worker' not 'farm-workers')
               counts[skill] = (counts[skill] || 0) + 1;
-
               // NEW: Gender-specific for 'farm-worker' (like AdminPanel gender filters)
               if (skill === 'farm-worker' && worker.gender) {
                 const genderKey = `${skill}-${worker.gender}`;
@@ -156,24 +207,23 @@ const Home = () => {
         setError(t.errorLoadingWorkers || 'Error loading workers');
         setWorkerCounts({});
       });
-
       // Cleanup
       return () => unsubscribe();
     };
-
     if (services.length > 0 && profile.village) {
       fetchWorkers();
     } else {
       setWorkerCounts({});
     }
   }, [services, t, todayDateString, profile.village]); // Add profile.village dependency
+
   const renderWorkerAvailability = () => {
     if (Object.keys(workerCounts).length === 0) {
       return (
         <div className="worker-availability-section">
           <h2 className="services-title">
             {t.workerAvailability || 'Worker Availability'}
-          </h2> 
+          </h2>
           <div className="worker-availability-grid">
             {Object.entries(workerCounts).map(([skill, count], index) => {
               const service = services.find(s => s.type === skill);
@@ -256,6 +306,7 @@ const Home = () => {
       </div>
     );
   };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
@@ -281,6 +332,7 @@ const Home = () => {
     });
     return () => unsubscribe();
   }, []);
+
   useEffect(() => {
     if (startDate && numberOfDays) {
       const start = new Date(startDate);
@@ -291,10 +343,12 @@ const Home = () => {
       setEndDate('');
     }
   }, [startDate, numberOfDays]);
+
   useEffect(() => {
     const addressComponents = [village, tahsil, district].filter(Boolean).join(', ');
     setAddress(addressComponents);
   }, [village, tahsil, district]);
+
   useEffect(() => {
     if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
       if (selectedBundle) {
@@ -327,6 +381,7 @@ const Home = () => {
       setVehicleCost(0);
     }
   }, [selectedService, maleWorkers, femaleWorkers, selectedBundle, bundles]);
+
   useEffect(() => {
     if (selectedService) {
       const service = services.find(s => s.type === selectedService);
@@ -351,6 +406,7 @@ const Home = () => {
       }
     }
   }, [selectedService, services]);
+
   const handleServiceChange = (type) => {
     setSelectedService(type);
     setMaleWorkers(0);
@@ -383,6 +439,7 @@ const Home = () => {
       orderSection.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
   const handleBundleOrder = (bundleId) => {
     setSelectedService('farm-workers');
     setSelectedBundle(bundleId);
@@ -415,6 +472,7 @@ const Home = () => {
       orderSection.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
   const validateStep = () => {
     setError('');
     if (currentStep === 0) {
@@ -478,6 +536,7 @@ const Home = () => {
     }
     return true;
   };
+
   const handleNext = () => {
     if (!user) {
       setShowAuthModal(true);
@@ -487,12 +546,14 @@ const Home = () => {
       setCurrentStep(currentStep < steps.length - 1 ? currentStep + 1 : currentStep);
     }
   };
+
   const handlePrevious = () => {
     setError('');
     setPaymentStatus('');
     setShowCashModal(false);
     setCurrentStep(currentStep - 1);
   };
+
   const handlePaymentMethodChange = (e) => {
     const method = e.target.value;
     setPaymentMethod(method);
@@ -502,9 +563,11 @@ const Home = () => {
       setShowCashModal(false);
     }
   };
+
   const closeCashModal = () => {
     setShowCashModal(false);
   };
+
   const renderCashModal = () => {
     if (!showCashModal) return null;
     const service = services.find(s => s.type === selectedService);
@@ -557,6 +620,7 @@ const Home = () => {
       </div>
     );
   };
+
   const renderAuthModal = () => {
     if (!showAuthModal) return null;
     return (
@@ -588,6 +652,7 @@ const Home = () => {
       </div>
     );
   };
+
   const sendAdminWhatsAppMessage = async () => {
     const service = services.find(s => s.type === selectedService);
     const days = parseInt(numberOfDays) || 1;
@@ -716,6 +781,7 @@ const Home = () => {
       setError('ऑर्डर बुक झाली, पण WhatsApp सूचना पाठवण्यात अयशस्वी.');
     }
   };
+
   const sendFarmerWhatsAppMessage = async () => {
     const service = services.find(s => s.type === selectedService);
     const days = parseInt(numberOfDays) || 1;
@@ -844,6 +910,7 @@ const Home = () => {
       setError('ऑर्डर बुक झाली, पण शेतकऱ्याला WhatsApp सूचना पाठवण्यात अयशस्वी.');
     }
   };
+
   const handleBookService = async () => {
     if (!user) {
       setShowAuthModal(true);
@@ -908,7 +975,7 @@ const Home = () => {
           femaleWorkersCount = bundle.femaleWorkers;
           orderData.totalWorkers = bundle.maleWorkers + bundle.femaleWorkers;
           workersCost = bundle.price * unitValue;
-          if (isNaN(workersCost) || workersCost < 0) {  // CHANGED: Allow 0 for free bundles
+          if (isNaN(workersCost) || workersCost < 0) { // CHANGED: Allow 0 for free bundles
             throw new Error('Invalid workers cost for bundle.');
           }
           serviceFee = workersCost * serviceFeeRate;
@@ -920,7 +987,7 @@ const Home = () => {
           femaleWorkersCount = femaleWorkers;
           orderData.totalWorkers = maleWorkers + femaleWorkers;
           workersCost = (maleWorkers * (service.maleCost || 0) + femaleWorkers * (service.femaleCost || 0)) * unitValue;
-          if (isNaN(workersCost) || workersCost < 0) {  // CHANGED: Allow 0 for free workers
+          if (isNaN(workersCost) || workersCost < 0) { // CHANGED: Allow 0 for free workers
             throw new Error('Invalid workers cost for individual workers.');
           }
           serviceFee = workersCost * serviceFeeRate;
@@ -934,7 +1001,7 @@ const Home = () => {
         } else {
           workersCost = parseInt(hours) * (service.cost || 0) * otherWorkers * unitValue;
         }
-        if (isNaN(workersCost) || workersCost < 0) {  // NEW: Validation for ownertc, allow 0
+        if (isNaN(workersCost) || workersCost < 0) { // NEW: Validation for ownertc, allow 0
           throw new Error(`Invalid workers cost for ${service.priceUnit} service.`);
         }
         serviceFee = workersCost * serviceFeeRate;
@@ -943,8 +1010,8 @@ const Home = () => {
         // FIXED: Handle 'Fixed Price' consistently (like in renderCostBreakdown)
         orderData.totalWorkers = otherWorkers;
         if (service.priceUnit === 'Fixed Price') {
-          workersCost = (service.fixedPrice || service.cost || 0) * otherWorkers;  // Fallback to cost if fixedPrice missing
-          unitValue = 1;  // No multiplier for fixed
+          workersCost = (service.fixedPrice || service.cost || 0) * otherWorkers; // Fallback to cost if fixedPrice missing
+          unitValue = 1; // No multiplier for fixed
         } else {
           workersCost = (service.cost || 0) * otherWorkers * unitValue;
         }
@@ -960,7 +1027,6 @@ const Home = () => {
       orderData.workersCost = workersCost;
       orderData.totalCost = totalCost;
       orderData.priceUnit = service.priceUnit || 'Per Day';
-
       // NEW: If totalCost is 0 (free service), directly confirm order without payment
       if (totalCost === 0) {
         orderData.paymentStatus = { status: 'free' };
@@ -972,9 +1038,8 @@ const Home = () => {
         await sendAdminWhatsAppMessage();
         await sendFarmerWhatsAppMessage();
         setLoading(false);
-        return;  // Exit early, skip payment
+        return; // Exit early, skip payment
       }
-
       const paymentAmount = paymentMethod === 'cash' ? serviceFee : totalCost;
       if (paymentMethod === 'razorpay' || paymentMethod === 'cash') {
         const options = {
@@ -1051,6 +1116,7 @@ const Home = () => {
       setLoading(false);
     }
   };
+
   const resetForm = () => {
     setSelectedService('');
     setMaleWorkers(0);
@@ -1080,6 +1146,7 @@ const Home = () => {
     setShowCashModal(false);
     window.location.href = '/farmer-dashboard';
   };
+
   const generateTimeOptions = () => {
     const times = [];
     for (let hour = 6; hour <= 18; hour++) {
@@ -1090,12 +1157,14 @@ const Home = () => {
     }
     return times;
   };
+
   const handleContactNumberChange = (e) => {
     const value = e.target.value;
     if (/^\d{0,10}$/.test(value)) {
       setContactNumber(value);
     }
   };
+
   const getVehicleIcon = (type) => {
     switch (type) {
       case 'Bike':
@@ -1112,6 +1181,7 @@ const Home = () => {
         return '';
     }
   };
+
   const renderCostBreakdown = () => {
     const service = services.find(s => s.type === selectedService);
     const days = parseInt(numberOfDays) || 1;
@@ -1253,6 +1323,7 @@ const Home = () => {
     }
     return <div className="cost-breakdown"><p>{t.noServiceSelected}</p></div>;
   };
+
   const renderStepContent = () => {
     const currentDate = new Date();
     const minSelectableDate = new Date(currentDate);
@@ -1707,6 +1778,7 @@ const Home = () => {
         return null;
     }
   };
+
   useEffect(() => {
     if (currentStep === 4 && paymentStatus !== 'failed') {
       const canvas = document.getElementById('confetti-canvas');
@@ -1753,6 +1825,7 @@ const Home = () => {
       }
     }
   }, [currentStep, paymentStatus]);
+
   return (
     <div className="home-container">
       <section className="hero-section">
@@ -1905,115 +1978,274 @@ const Home = () => {
             <div className="services-loader"></div>
           </div>
         ) : (
-          <div className="services-grid">
-            {services
-              .slice()
-              .sort((a, b) => {
-                const isAPopular = a.type === 'farm-workers' || a.type === 'ploughing-laborer' ;
-                const isBPopular = b.type === 'farm-workers' || b.type === 'ploughing-laborer';
-                return isBPopular - isAPopular;
-              })
-              .map((s, index) => {
-                // Get exact count for this service.type (like AdminPanel skill filter)
-                const availableWorkers = workerCounts[s.type] || 0;
-                let maleCount = 0, femaleCount = 0;
-                // FIXED: For 'farm-workers' service, use 'farm-worker' skill keys for gender counts
-                if (s.type === 'farm-workers') {
-                  maleCount = workerCounts['farm-worker-male'] || 0;
-                  femaleCount = workerCounts['farm-worker-female'] || 0;
+          <>
+            {/* Attractive and Responsive Search Bar with Autocomplete */}
+            <div className="search-container" ref={searchRef}>
+              <input
+                type="text"
+                className="search-input"
+                placeholder={
+                  language === 'english' 
+                    ? 'Search services...' 
+                    : language === 'hindi' 
+                      ? 'सेवाओं की खोज...' 
+                      : 'सेवा शोधा...'
                 }
-                console.log(`Service ${s.type}: Total=${availableWorkers}, Male=${maleCount}, Female=${femaleCount}`); // Debug log
-                return (
-                  <div
-                    key={s.id}
-                    onClick={() => handleServiceChange(s.type)} // Always enable click
-                    className={`service-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`} // Remove gray-border
-                  >
-                    <div className="service-image-container">
-                      <img
-                        src={s.image || 'https://images.unsplash.com/photo-1592210454359-9047f8d00805?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'}
-                        alt={s.name}
-                        className="service-image"
-                      />
-                      <div className="service-overlay"></div>
-                    </div>
-                    <div className="service-content">
-                      <div className="service-tags">
-                        <div className="service-pricing">
-                          {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
-                            <>
-                              <span className="male-price">
-                                <i className="fas fa-male"></i> ₹{s.maleCost || 'N/A'}/{language === 'english' ? (s.priceUnit || 'Per Day') : language === 'hindi' ? (s.priceUnit === 'Per Acre' ? 'प्रति एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}
-                              </span>
-                              <span className="female-price">
-                                <i className="fas fa-female"></i> ₹{s.femaleCost || 'N/A'}/{language === 'english' ? (s.priceUnit || 'Per Day') : language === 'hindi' ? (s.priceUnit === 'Per Acre' ? 'प्रति एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}
-                              </span>
-                            </>
-                          )}
-                          <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
-                            {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') ? (language === 'english' ? 'Custom' : language === 'hindi' ? 'कस्टम' : 'कस्टम') : `₹${s.fixedPrice || s.cost || 0}/${language === 'english' ? (s.fixedPrice ? 'Fixed' : s.priceUnit === 'Per Acre' ? 'Per Acre' : s.priceUnit === 'Per Bag' ? 'Per Bag' : s.priceUnit === 'Per Hour' ? 'Per Hour' : 'Per Day') : language === 'hindi' ? (s.fixedPrice ? 'निश्चित' : s.priceUnit === 'Per Acre' ? 'एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.fixedPrice ? 'निश्चित' : s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}`}
-                          </span>
-                          {s.type === 'farm-workers' && (
-                            <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
-                              वेळ(स.९ ते सायं ५)
-                            </span>
-                          )}
-                          {/* UPDATED: Availability chip beside pricing - always shown, no disable logic */}
-                          <span className={`service-cost availability-chip ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
-                            <i className="fas fa-users mr-1"></i>
-                            {s.type === 'farm-workers' ? (
+                value={searchTerm}
+                onChange={handleSearchChange}
+                onFocus={() => setShowSuggestions(searchTerm.length > 0)}
+              />
+              <i className="fas fa-search search-icon"></i>
+              {searchTerm && (
+                <button 
+                  className="clear-search" 
+                  onClick={() => {
+                    setSearchTerm('');
+                    setShowSuggestions(false);
+                  }}
+                  title="Clear search"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              )}
+              {showSuggestions && filteredServices.length > 0 && (
+                <div className="suggestions-dropdown">
+                  {filteredServices.slice(0, 5).map((service) => { // Limit to top 5 suggestions
+                    const serviceName = language === 'english' 
+                      ? service.name 
+                      : language === 'hindi' 
+                        ? (service.nameHindi || service.name) 
+                        : (service.nameMarathi || service.name);
+                    return (
+                      <div 
+                        key={service.id} 
+                        className="suggestion-item"
+                        onClick={() => handleSuggestionSelect(service)}
+                      >
+                        <i className="fas fa-search-plus suggestion-icon"></i>
+                        <span>{serviceName}</span>
+                        <i className="fas fa-arrow-right suggestion-arrow"></i>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="services-grid">
+              {filteredServices.length > 0 ? (
+                filteredServices.map((s, index) => {
+                  // Get exact count for this service.type (like AdminPanel skill filter)
+                  const availableWorkers = workerCounts[s.type] || 0;
+                  let maleCount = 0, femaleCount = 0;
+                  // FIXED: For 'farm-workers' service, use 'farm-worker' skill keys for gender counts
+                  if (s.type === 'farm-workers') {
+                    maleCount = workerCounts['farm-worker-male'] || 0;
+                    femaleCount = workerCounts['farm-worker-female'] || 0;
+                  }
+                  console.log(`Service ${s.type}: Total=${availableWorkers}, Male=${maleCount}, Female=${femaleCount}`); // Debug log
+                  return (
+                    <div
+                      key={s.id}
+                      onClick={() => handleServiceChange(s.type)} // Always enable click
+                      className={`service-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`} // Remove gray-border
+                    >
+                      <div className="service-image-container">
+                        <img
+                          src={s.image || 'https://images.unsplash.com/photo-1592210454359-9047f8d00805?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'}
+                          alt={s.name}
+                          className="service-image"
+                        />
+                        <div className="service-overlay"></div>
+                      </div>
+                      <div className="service-content">
+                        <div className="service-tags">
+                          <div className="service-pricing">
+                            {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
                               <>
-                                {maleCount + femaleCount > 0 ? (
-                                  <span>
-                                    {language === 'english' ? `${maleCount}M/${femaleCount}F` :
-                                      language === 'hindi' ? `${maleCount}P/${femaleCount}M` : // P for Purush, M for Mahila
-                                        `${maleCount} पुरुष/ ${femaleCount} महिला`} {/* प for Purush, म for Mahila */}
-                                  </span>
-                                ) : (
-                                  <span className="text-white-600">
-                                    {language === 'english' ? 'Limited Availability' :
-                                      language === 'hindi' ? 'सीमित उपलब्धता' : 'मर्यादित उपलब्धता'}
-                                  </span>
-                                )}
+                                <span className="male-price">
+                                  <i className="fas fa-male"></i> ₹{s.maleCost || 'N/A'}/{language === 'english' ? (s.priceUnit || 'Per Day') : language === 'hindi' ? (s.priceUnit === 'Per Acre' ? 'प्रति एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}
+                                </span>
+                                <span className="female-price">
+                                  <i className="fas fa-female"></i> ₹{s.femaleCost || 'N/A'}/{language === 'english' ? (s.priceUnit || 'Per Day') : language === 'hindi' ? (s.priceUnit === 'Per Acre' ? 'प्रति एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}
+                                </span>
                               </>
-                            ) : (
-                              <span>
-                                {availableWorkers > 0 ? (
-                                  <span>
-                                    {language === 'english' ? `${availableWorkers} Available` :
-                                      language === 'hindi' ? `${availableWorkers} साथी उपलब्ध` : `${availableWorkers} साथी उपलब्ध`}
-                                  </span>
-                                ) : (
-                                  <span className="text-white-600">
-                                    {language === 'english' ? 'Limited Availability' :
-                                      language === 'hindi' ? 'सीमित उपलब्धता' : 'मर्यादित उपलब्धता'}
-                                  </span>
-                                )}
+                            )}
+                            <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
+                              {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') ? (language === 'english' ? 'Custom' : language === 'hindi' ? 'कस्टम' : 'कस्टम') : `₹${s.fixedPrice || s.cost || 0}/${language === 'english' ? (s.fixedPrice ? 'Fixed' : s.priceUnit === 'Per Acre' ? 'Per Acre' : s.priceUnit === 'Per Bag' ? 'Per Bag' : s.priceUnit === 'Per Hour' ? 'Per Hour' : 'Per Day') : language === 'hindi' ? (s.fixedPrice ? 'निश्चित' : s.priceUnit === 'Per Acre' ? 'एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.fixedPrice ? 'निश्चित' : s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}`}
+                            </span>
+                            {s.type === 'farm-workers' && (
+                              <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
+                                वेळ(स.९ ते सायं ५)
                               </span>
                             )}
+                            {/* UPDATED: Availability chip beside pricing - always shown, no disable logic */}
+                            <span className={`service-cost availability-chip ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                              <i className="fas fa-users mr-1"></i>
+                              {s.type === 'farm-workers' ? (
+                                <>
+                                  {maleCount + femaleCount > 0 ? (
+                                    <span>
+                                      {language === 'english' ? `${maleCount}M/${femaleCount}F` :
+                                        language === 'hindi' ? `${maleCount}P/${femaleCount}M` : // P for Purush, M for Mahila
+                                          `${maleCount} पुरुष/ ${femaleCount} महिला`} {/* प for Purush, म for Mahila */}
+                                    </span>
+                                  ) : (
+                                    <span className="text-white-600">
+                                      {language === 'english' ? 'Limited Availability' :
+                                        language === 'hindi' ? 'सीमित उपलब्धता' : 'मर्यादित उपलब्धता'}
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <span>
+                                  {availableWorkers > 0 ? (
+                                    <span>
+                                      {language === 'english' ? `${availableWorkers} Available` :
+                                        language === 'hindi' ? `${availableWorkers} साथी उपलब्ध` : `${availableWorkers} साथी उपलब्ध`}
+                                    </span>
+                                  ) : (
+                                    <span className="text-white-600">
+                                      {language === 'english' ? 'Limited Availability' :
+                                        language === 'hindi' ? 'सीमित उपलब्धता' : 'मर्यादित उपलब्धता'}
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                        {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
+                          <div className="popular-tag-container">
+                            <span className="popular-tag">
+                              <i className="fas fa-star"></i> {language === 'english' ? 'Popular' : language === 'hindi' ? 'लोकप्रिय' : 'लोकप्रिय'}
+                            </span>
+                          </div>
+                        )}
+                        <div className="service-name-container">
+                          <span className={`service-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                            {language === 'english' ? s.name : language === 'hindi' ? s.nameHindi || s.name : s.nameMarathi || s.name}
                           </span>
                         </div>
                       </div>
-                      {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
-                        <div className="popular-tag-container">
-                          <span className="popular-tag">
-                            <i className="fas fa-star"></i> {language === 'english' ? 'Popular' : language === 'hindi' ? 'लोकप्रिय' : 'लोकप्रिय'}
-                          </span>
-                        </div>
-                      )}
-                      <div className="service-name-container">
-                        <span className={`service-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
-                          {language === 'english' ? s.name : language === 'hindi' ? s.nameHindi || s.name : s.nameMarathi || s.name}
-                        </span>
+                      <div className={`select-button ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                        {language === 'english' ? 'Select' : language === 'hindi' ? 'चुनें' : 'निवडा'}
                       </div>
                     </div>
-                    <div className={`select-button ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
-                      {language === 'english' ? 'Select' : language === 'hindi' ? 'चुनें' : 'निवडा'}
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
+                  );
+                })
+              ) : searchTerm ? (
+                <div className="no-results">
+                  <i className="fas fa-search"></i>
+                  <p>{language === 'english' ? `No services found for "${searchTerm}"` : language === 'hindi' ? `"${searchTerm}" के लिए कोई सेवाएं नहीं मिलीं` : `"${searchTerm}" साठी सेवा सापडल्या नाहीत`}</p>
+                </div>
+              ) : (
+                services
+                  .slice()
+                  .sort((a, b) => {
+                    const isAPopular = a.type === 'farm-workers' || a.type === 'ploughing-laborer';
+                    const isBPopular = b.type === 'farm-workers' || b.type === 'ploughing-laborer';
+                    return isBPopular - isAPopular;
+                  })
+                  .map((s, index) => {
+                    const availableWorkers = workerCounts[s.type] || 0;
+                    let maleCount = 0, femaleCount = 0;
+                    if (s.type === 'farm-workers') {
+                      maleCount = workerCounts['farm-worker-male'] || 0;
+                      femaleCount = workerCounts['farm-worker-female'] || 0;
+                    }
+                    console.log(`Service ${s.type}: Total=${availableWorkers}, Male=${maleCount}, Female=${femaleCount}`);
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={() => handleServiceChange(s.type)}
+                        className={`service-card ${index % 3 === 0 ? 'orange-border' : index % 3 === 1 ? 'green-border' : 'blue-border'}`}
+                      >
+                        <div className="service-image-container">
+                          <img
+                            src={s.image || 'https://images.unsplash.com/photo-1592210454359-9047f8d00805?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'}
+                            alt={s.name}
+                            className="service-image"
+                          />
+                          <div className="service-overlay"></div>
+                        </div>
+                        <div className="service-content">
+                          <div className="service-tags">
+                            <div className="service-pricing">
+                              {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
+                                <>
+                                  <span className="male-price">
+                                    <i className="fas fa-male"></i> ₹{s.maleCost || 'N/A'}/{language === 'english' ? (s.priceUnit || 'Per Day') : language === 'hindi' ? (s.priceUnit === 'Per Acre' ? 'प्रति एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}
+                                  </span>
+                                  <span className="female-price">
+                                    <i className="fas fa-female"></i> ₹{s.femaleCost || 'N/A'}/{language === 'english' ? (s.priceUnit || 'Per Day') : language === 'hindi' ? (s.priceUnit === 'Per Acre' ? 'प्रति एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}
+                                  </span>
+                                </>
+                              )}
+                              <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
+                                {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') ? (language === 'english' ? 'Custom' : language === 'hindi' ? 'कस्टम' : 'कस्टम') : `₹${s.fixedPrice || s.cost || 0}/${language === 'english' ? (s.fixedPrice ? 'Fixed' : s.priceUnit === 'Per Acre' ? 'Per Acre' : s.priceUnit === 'Per Bag' ? 'Per Bag' : s.priceUnit === 'Per Hour' ? 'Per Hour' : 'Per Day') : language === 'hindi' ? (s.fixedPrice ? 'निश्चित' : s.priceUnit === 'Per Acre' ? 'एकड़' : s.priceUnit === 'Per Bag' ? 'बोरी' : s.priceUnit === 'Per Hour' ? 'घंटा' : 'दिन') : (s.fixedPrice ? 'निश्चित' : s.priceUnit === 'Per Acre' ? 'एकर' : s.priceUnit === 'Per Bag' ? 'पोती' : s.priceUnit === 'Per Hour' ? 'तास' : 'दिवस')}`}
+                              </span>
+                              {s.type === 'farm-workers' && (
+                                <span className={`service-cost ${index % 3 === 0 ? 'green' : index % 3 === 1 ? 'blue' : 'orange'}`}>
+                                  वेळ(स.९ ते सायं ५)
+                                </span>
+                              )}
+                              <span className={`service-cost availability-chip ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                                <i className="fas fa-users mr-1"></i>
+                                {s.type === 'farm-workers' ? (
+                                  <>
+                                    {maleCount + femaleCount > 0 ? (
+                                      <span>
+                                        {language === 'english' ? `${maleCount}M/${femaleCount}F` :
+                                          language === 'hindi' ? `${maleCount}P/${femaleCount}M` :
+                                            `${maleCount} पुरुष/ ${femaleCount} महिला`}
+                                      </span>
+                                    ) : (
+                                      <span className="text-white-600">
+                                        {language === 'english' ? 'Limited Availability' :
+                                          language === 'hindi' ? 'सीमित उपलब्धता' : 'मर्यादित उपलब्धता'}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span>
+                                    {availableWorkers > 0 ? (
+                                      <span>
+                                        {language === 'english' ? `${availableWorkers} Available` :
+                                          language === 'hindi' ? `${availableWorkers} साथी उपलब्ध` : `${availableWorkers} साथी उपलब्ध`}
+                                      </span>
+                                    ) : (
+                                      <span className="text-white-600">
+                                        {language === 'english' ? 'Limited Availability' :
+                                          language === 'hindi' ? 'सीमित उपलब्धता' : 'मर्यादित उपलब्धता'}
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                          {(s.type === 'farm-workers' || s.type === 'ploughing-laborer') && (
+                            <div className="popular-tag-container">
+                              <span className="popular-tag">
+                                <i className="fas fa-star"></i> {language === 'english' ? 'Popular' : language === 'hindi' ? 'लोकप्रिय' : 'लोकप्रिय'}
+                              </span>
+                            </div>
+                          )}
+                          <div className="service-name-container">
+                            <span className={`service-name ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                              {language === 'english' ? s.name : language === 'hindi' ? s.nameHindi || s.name : s.nameMarathi || s.name}
+                            </span>
+                          </div>
+                        </div>
+                        <div className={`select-button ${index % 3 === 0 ? 'orange' : index % 3 === 1 ? 'green' : 'blue'}`}>
+                          {language === 'english' ? 'Select' : language === 'hindi' ? 'चुनें' : 'निवडा'}
+                        </div>
+                      </div>
+                    );
+                  })
+              )}
+            </div>
+          </>
         )}
       </section>
       <section id="order" className="order-section">
@@ -2106,4 +2338,5 @@ const Home = () => {
     </div>
   );
 };
+
 export default Home;

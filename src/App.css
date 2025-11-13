@@ -36,3 +36,105 @@
     transform: rotate(360deg);
   }
 }
+/* Ripple Effect */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple:after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.15);
+  display: block;
+  border-radius: 9999px;
+  opacity: 0;
+  transform: scale(1);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.ripple:active:after {
+  opacity: 1;
+  transform: scale(15);
+  transition: 0s;
+}
+.floating-pulse {
+  animation: pulse 1.8s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.08); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+.active-glow {
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.6));
+}
+/* TOP NAV LINKS */
+.toplink {
+  color: white;
+  font-weight: 600;           /* BOLD TEXT */
+  font-size: 0.9rem;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  transition: 0.25s;
+}
+
+.toplink:hover {
+  background: rgba(0, 0, 0, 0.25);
+  transform: scale(1.07);
+  color: #b2f2bb;             /* Light green */
+}
+
+/* LOGIN BUTTON (TOP NAV) */
+.loginbtn {
+  background: #16a34a;
+  padding: 6px 16px;
+  color: white;
+  font-weight: 700;           /* Bold */
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: 0.2s;
+}
+
+.loginbtn:hover {
+  background: #15803d;
+  transform: scale(1.05);
+}
+
+/* LOGOUT BUTTON */
+.logoutbtn {
+  background: #dc2626;
+  padding: 6px 16px;
+  color: white;
+  font-weight: 700;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: 0.2s;
+}
+
+.logoutbtn:hover {
+  background: #b91c1c;
+  transform: scale(1.05);
+}
+
+/* MOBILE MENU LINKS */
+.mobilelink {
+  color: white;
+  font-weight: 600;       /* Bold */
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.mobilelink:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #bbf7d0;
+  transform: scale(1.04);
+}
