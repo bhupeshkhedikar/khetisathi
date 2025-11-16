@@ -69,7 +69,7 @@ const FarmerDashboard = () => {
             setTimeLeft(initialTimeLeft);
 
             const workerIds = [...new Set(
-              ordersData.flatMap(order => 
+              ordersData.flatMap(order =>
                 Array.isArray(order.workerId) ? order.workerId : order.workerId ? [order.workerId] : []
               ).filter(id => id)
             )];
@@ -277,133 +277,132 @@ const FarmerDashboard = () => {
                 const remainingTime = timeLeft[order.id] || { minutes: 0, seconds: 0 };
 
                 return (
-                <div
-  key={order.id}
-  className="bg-white rounded-2xl shadow-lg p-4 border border-green-100 
+                  <div
+                    key={order.id}
+                    className="bg-white rounded-2xl shadow-lg p-4 border border-green-100 
   hover:shadow-xl transition-all active:scale-[0.99] sm:hover:scale-[1.01]"
->
-  {/* Top Section: Title + Status */}
-  <div className="flex justify-between items-start mb-4">
-    <h4 className="text-lg font-bold text-green-700 leading-tight">
-      {services.find(s => s.type === order.serviceType)?.name ||
-        t[order.serviceType] ||
-        order.serviceType.replace('-', ' ').toUpperCase()}
-    </h4>
+                  >
+                    {/* Top Section: Title + Status */}
+                    <div className="flex justify-between items-start mb-4">
+                      <h4 className="text-lg font-bold text-green-700 leading-tight">
+                        {services.find(s => s.type === order.serviceType)?.name ||
+                          t[order.serviceType] ||
+                          order.serviceType.replace('-', ' ').toUpperCase()}
+                      </h4>
 
-    <span
-      className={`px-3 py-1 rounded-full text-xs font-semibold text-white
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold text-white
         ${order.status === 'assigned' ? 'bg-green-600' :
-          order.status === 'pending' ? 'bg-yellow-500' :
-          order.status === 'completed' ? 'bg-blue-600' :
-          order.status === 'cancelled' ? 'bg-gray-500' :
-          'bg-red-600'}`}
-    >
-      {t[order.status] || order.status}
-    </span>
-  </div>
+                            order.status === 'pending' ? 'bg-yellow-500' :
+                              order.status === 'completed' ? 'bg-blue-600' :
+                                order.status === 'cancelled' ? 'bg-gray-500' :
+                                  'bg-red-600'}`}
+                      >
+                        {t[order.status] || order.status}
+                      </span>
+                    </div>
 
-  {/* Countdown + Cancel Button */}
-  {isCancellable && (
-    <div className="mb-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm text-red-600 font-semibold">
-          ⏳ {t.cancelWithin} {remainingTime.minutes}:{remainingTime.seconds.toString().padStart(2, '0')}
-        </span>
+                    {/* Countdown + Cancel Button */}
+                    {isCancellable && (
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-red-600 font-semibold">
+                            ⏳ {t.cancelWithin} {remainingTime.minutes}:{remainingTime.seconds.toString().padStart(2, '0')}
+                          </span>
 
-        <button
-          onClick={() => cancelOrder(order.id)}
-          disabled={loadingCancel[order.id]}
-          className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs shadow 
+                          <button
+                            onClick={() => cancelOrder(order.id)}
+                            disabled={loadingCancel[order.id]}
+                            className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs shadow 
           hover:bg-red-700 active:scale-95 transition-all"
-        >
-          {loadingCancel[order.id] ? t.cancelling : t.cancelOrder}
-        </button>
-      </div>
-    </div>
-  )}
+                          >
+                            {loadingCancel[order.id] ? t.cancelling : t.cancelOrder}
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
-  {/* Worker Section */}
-  <div className="mb-4">
-    <h5 className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1">
-      👷 {t.worker}{workerIds.length > 1 ? t.plural : ''}:
-    </h5>
+                    {/* Worker Section */}
+                    <div className="mb-4">
+                      <h5 className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1">
+                        👷 {t.worker}{workerIds.length > 1 ? t.plural : ''}:
+                      </h5>
 
-    <div className="flex flex-wrap gap-2">
-      {assignedWorkers.length > 0 ? (
-        assignedWorkers.map(worker => (
-          <div
-            key={worker.id}
-            className={`px-3 py-1 rounded-full text-xs font-semibold shadow-sm
-              ${
-                worker.acceptanceStatus === 'accepted'
-                  ? 'bg-green-100 text-green-700'
-                  : worker.acceptanceStatus === 'completed'
-                  ? 'bg-blue-100 text-blue-700'
-                  : worker.acceptanceStatus === 'rejected'
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-yellow-100 text-yellow-700'
-              }`}
-          >
-            {worker.name} - {worker.mobile}
-          </div>
-        ))
-      ) : (
-        <p className="text-gray-600 text-sm">{t.unassigned}</p>
-      )}
-    </div>
-  </div>
+                      <div className="flex flex-wrap gap-2">
+                        {assignedWorkers.length > 0 ? (
+                          assignedWorkers.map(worker => (
+                            <div
+                              key={worker.id}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold shadow-sm
+              ${worker.acceptanceStatus === 'accepted'
+                                  ? 'bg-green-100 text-green-700'
+                                  : worker.acceptanceStatus === 'completed'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : worker.acceptanceStatus === 'rejected'
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-yellow-100 text-yellow-700'
+                                }`}
+                            >
+                              {worker.name} - {worker.mobile}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-gray-600 text-sm">{t.unassigned}</p>
+                        )}
+                      </div>
+                    </div>
 
-  {/* Order Details */}
-  <div className="bg-green-50 rounded-xl p-3 mb-4 text-sm">
-    <h4 className="text-green-700 font-semibold mb-2 flex items-center gap-1 text-sm">
-      📄 {t.orderDetails}
-    </h4>
+                    {/* Order Details */}
+                    <div className="bg-green-50 rounded-xl p-3 mb-4 text-sm">
+                      <h4 className="text-green-700 font-semibold mb-2 flex items-center gap-1 text-sm">
+                        📄 {t.orderDetails}
+                      </h4>
 
-    <div className="grid grid-cols-2 gap-y-1 text-xs text-gray-700">
-      <p><span className="font-semibold">{t.days}: </span>{order.numberOfDays}</p>
-      <p><span className="font-semibold">{t.startDate}: </span>{formatDate(order.startDate)}</p>
-      <p><span className="font-semibold">{t.endDate}: </span>{formatDate(order.endDate)}</p>
-      <p><span className="font-semibold">{t.startTime}: </span>{order.startTime || t.na}</p>
-      <p className="col-span-2">
-        <span className="font-semibold">{t.estimatedCompletion}: </span>
-        {formatDateTime(estimatedCompletion)}
-      </p>
-    </div>
-  </div>
+                      <div className="grid grid-cols-2 gap-y-1 text-xs text-gray-700">
+                        <p><span className="font-semibold">{t.days}: </span>{order.numberOfDays}</p>
+                        <p><span className="font-semibold">{t.startDate}: </span>{formatDate(order.startDate)}</p>
+                        <p><span className="font-semibold">{t.endDate}: </span>{formatDate(order.endDate)}</p>
+                        <p><span className="font-semibold">{t.startTime}: </span>{order.startTime || t.na}</p>
+                        <p className="col-span-2">
+                          <span className="font-semibold">{t.estimatedCompletion}: </span>
+                          {formatDateTime(estimatedCompletion)}
+                        </p>
+                      </div>
+                    </div>
 
-  {/* Location */}
-  <div className="bg-amber-50 rounded-xl p-3 mb-4 text-sm">
-    <h4 className="text-amber-700 font-semibold mb-2 flex items-center gap-1 text-sm">
-      📍 {t.locationAndContact}
-    </h4>
+                    {/* Location */}
+                    <div className="bg-amber-50 rounded-xl p-3 mb-4 text-sm">
+                      <h4 className="text-amber-700 font-semibold mb-2 flex items-center gap-1 text-sm">
+                        📍 {t.locationAndContact}
+                      </h4>
 
-    <p className="text-xs"><span className="font-semibold">{t.address}: </span>{order.address || t.na}</p>
-    <p className="text-xs"><span className="font-semibold">{t.contact}: </span>{order.contactNumber || t.na}</p>
-  </div>
+                      <p className="text-xs"><span className="font-semibold">{t.address}: </span>{order.address || t.na}</p>
+                      <p className="text-xs"><span className="font-semibold">{t.contact}: </span>{order.contactNumber || t.na}</p>
+                    </div>
 
-  {/* Payment */}
-  <div className="bg-blue-50 rounded-xl p-3 mb-4 text-sm">
-    <h4 className="text-blue-700 font-semibold mb-2 flex items-center gap-1 text-sm">
-      💰 {t.paymentInfo}
-    </h4>
+                    {/* Payment */}
+                    <div className="bg-blue-50 rounded-xl p-3 mb-4 text-sm">
+                      <h4 className="text-blue-700 font-semibold mb-2 flex items-center gap-1 text-sm">
+                        💰 {t.paymentInfo}
+                      </h4>
 
-    <p className="text-xs">
-      <span className="font-semibold">{t.cost}: </span>
-      <span className="text-green-700 font-bold">₹{order.cost?.toFixed(2)}</span>
-    </p>
-    <p className="text-xs"><span className="font-semibold">{t.paymentMethod}: </span>{order.paymentMethod || t.na}</p>
-    <p className="text-xs">
-      <span className="font-semibold">{t.paymentStatus}: </span>
-      {order.paymentStatus ? t[order.paymentStatus.status] : t.notPaid}
-    </p>
-  </div>
+                      <p className="text-xs">
+                        <span className="font-semibold">{t.cost}: </span>
+                        <span className="text-green-700 font-bold">₹{order.cost?.toFixed(2)}</span>
+                      </p>
+                      <p className="text-xs"><span className="font-semibold">{t.paymentMethod}: </span>{order.paymentMethod || t.na}</p>
+                      <p className="text-xs">
+                        <span className="font-semibold">{t.paymentStatus}: </span>
+                        {order.paymentStatus ? t[order.paymentStatus.status] : t.notPaid}
+                      </p>
+                    </div>
 
-  {/* Additional Notes */}
-  <div className="bg-gray-50 rounded-xl p-3 text-xs">
-    <h4 className="text-gray-700 font-semibold mb-1">📝 {t.additionalInfo}</h4>
-    <p className="text-gray-600">{order.additionalNote || t.none}</p>
-  </div>
-</div>
+                    {/* Additional Notes */}
+                    <div className="bg-gray-50 rounded-xl p-3 text-xs">
+                      <h4 className="text-gray-700 font-semibold mb-1">📝 {t.additionalInfo}</h4>
+                      <p className="text-gray-600">{order.additionalNote || t.none}</p>
+                    </div>
+                  </div>
 
                 );
               })
