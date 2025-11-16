@@ -277,203 +277,134 @@ const FarmerDashboard = () => {
                 const remainingTime = timeLeft[order.id] || { minutes: 0, seconds: 0 };
 
                 return (
-                  <div
-                    key={order.id}
-                    className="bg-white rounded-xl shadow-lg p-6 border border-green-200 hover:shadow-2xl transition-all transform hover:scale-[1.02]"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-4">
-                      <h4 className="text-xl font-bold text-green-700 flex items-center gap-2 flex-1">
-                        <CheckCircleIcon className="w-6 h-6" />
-                        {services.find(s => s.type === order.serviceType)?.name || t[order.serviceType] || order.serviceType.replace('-', ' ').toUpperCase()}
-                      </h4>
-                      <div className="flex flex-col items-end space-y-2 w-full sm:w-auto">
-                        <span
-                          className={`inline-block px-4 py-1 rounded-full text-sm font-semibold text-white
-                            ${order.status === 'assigned' ? 'bg-green-600' :
-                              order.status === 'pending' ? 'bg-yellow-500' :
-                              order.status === 'completed' ? 'bg-blue-600' :
-                              order.status === 'cancelled' ? 'bg-gray-500' :
-                              'bg-red-600'}`}
-                        >
-                          {t[order.status] || order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                        </span>
-                        {isCancellable && (
-                          <div className="text-sm text-gray-600 flex items-center justify-end gap-2 w-full sm:w-auto">
-                            <CalendarIcon className="w-5 h-5 text-red-600 flex-shrink-0" />
-                            <span className="font-semibold text-red-600">
-                              {t.cancelWithin}{' '}
-                              {remainingTime.minutes}:{remainingTime.seconds.toString().padStart(2, '0')}
-                            </span>
-                          </div>
-                        )}
-                        {isCancellable && (
-                          <button
-                            onClick={() => cancelOrder(order.id)}
-                            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all flex items-center justify-center gap-2 transform hover:scale-105 w-full sm:w-auto min-w-[120px]"
-                            disabled={loadingCancel[order.id]}
-                          >
-                            <XCircleIcon className="w-5 h-5" />
-                            {loadingCancel[order.id] ? t.cancelling : t.cancelOrder}
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                <div
+  key={order.id}
+  className="bg-white rounded-2xl shadow-lg p-4 border border-green-100 
+  hover:shadow-xl transition-all active:scale-[0.99] sm:hover:scale-[1.01]"
+>
+  {/* Top Section: Title + Status */}
+  <div className="flex justify-between items-start mb-4">
+    <h4 className="text-lg font-bold text-green-700 leading-tight">
+      {services.find(s => s.type === order.serviceType)?.name ||
+        t[order.serviceType] ||
+        order.serviceType.replace('-', ' ').toUpperCase()}
+    </h4>
 
-                    <div className="mb-6">
-                      <p className="text-gray-700 font-semibold flex items-center gap-2">
-                        <UserCircleIcon className="w-5 h-5 text-green-600" />
-                        {t.worker}{workerIds.length > 1 ? t.plural : ''}:
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {assignedWorkers.length > 0 ? (
-                          assignedWorkers.map(worker => (
-                            <span
-                              key={worker.id}
-                              className={`inline-block px-3 py-1 rounded-full text-sm font-semibold
-                                ${worker.acceptanceStatus === 'accepted' ? 'bg-green-100 text-green-800' :
-                                  worker.acceptanceStatus === 'completed' ? 'bg-blue-100 text-blue-800' :
-                                  worker.acceptanceStatus === 'rejected' ? 'bg-red-100 text-red-800' :
-                                  'bg-yellow-100 text-yellow-800'}`}
-                            >
-                              {worker.name} (
-                              {worker.mobile === t.na ? (
-                                <span>{worker.mobile}</span>
-                              ) : (
-                                <a
-                                  href={`tel:${worker.mobile}`}
-                                  className="text-blue-600 hover:underline"
-                                >
-                                  {worker.mobile}
-                                </a>
-                              )}
-                              ) - {t[worker.acceptanceStatus] || worker.acceptanceStatus.charAt(0).toUpperCase() + worker.acceptanceStatus.slice(1)}
-                            </span>
-                          ))
-                        ) : (
-                          <p className="text-gray-600">{t.unassigned}</p>
-                        )}
-                      </div>
-                    </div>
+    <span
+      className={`px-3 py-1 rounded-full text-xs font-semibold text-white
+        ${order.status === 'assigned' ? 'bg-green-600' :
+          order.status === 'pending' ? 'bg-yellow-500' :
+          order.status === 'completed' ? 'bg-blue-600' :
+          order.status === 'cancelled' ? 'bg-gray-500' :
+          'bg-red-600'}`}
+    >
+      {t[order.status] || order.status}
+    </span>
+  </div>
 
-                    <div className="border-t border-green-200 pt-4 mb-4">
-                      <h5 className="text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                        <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                        {t.orderDetails}
-                      </h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                        {order.serviceType === 'farm-workers' && (
-                          <>
-                            {order.bundleDetails ? (
-                              <p>
-                                <span className="text-gray-700 font-semibold">{t.bundle}: </span>
-                                <span className="text-gray-900">{order.bundleDetails.name} ({order.bundleDetails.maleWorkers} {t.maleWorkers} + {order.bundleDetails.femaleWorkers} {t.femaleWorkers})</span>
-                              </p>
-                            ) : (
-                              <>
-                                <p>
-                                  <span className="text-gray-700 font-semibold">{t.maleWorkers}: </span>
-                                  <span className="text-gray-900">{order.maleWorkers || 0}</span>
-                                </p>
-                                <p>
-                                  <span className="text-gray-700 font-semibold">{t.femaleWorkers}: </span>
-                                  <span className="text-gray-900">{order.femaleWorkers || 0}</span>
-                                </p>
-                              </>
-                            )}
-                          </>
-                        )}
-                        {order.serviceType === 'ownertc' && (
-                          <p>
-                            <span className="text-gray-700 font-semibold">{t.hours}: </span>
-                            <span className="text-gray-900">{order.hours || t.na}</span>
-                          </p>
-                        )}
-                        <p>
-                          <span className="text-gray-700 font-semibold">{t.days}: </span>
-                          <span className="text-gray-900">{order.numberOfDays || 1} {t.day}{order.numberOfDays > 1 ? t.plural : ''}</span>
-                        </p>
-                        <p>
-                          <span className="text-gray-700 font-semibold">{t.startDate}: </span>
-                          <span className="text-gray-900">{formatDate(order.startDate)}</span>
-                        </p>
-                        <p>
-                          <span className="text-gray-700 font-semibold">{t.endDate}: </span>
-                          <span className="text-gray-900">{formatDate(order.endDate)}</span>
-                        </p>
-                        <p>
-                          <span className="text-gray-700 font-semibold">{t.startTime}: </span>
-                          <span className="text-gray-900">{order.startTime || t.na}</span>
-                        </p>
-                        <p>
-                          <span className="text-gray-700 font-semibold">{t.estimatedCompletion}: </span>
-                          <span className="text-gray-900">{formatDateTime(estimatedCompletion)}</span>
-                        </p>
-                      </div>
-                    </div>
+  {/* Countdown + Cancel Button */}
+  {isCancellable && (
+    <div className="mb-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm text-red-600 font-semibold">
+          ⏳ {t.cancelWithin} {remainingTime.minutes}:{remainingTime.seconds.toString().padStart(2, '0')}
+        </span>
 
-                    <div className="border-t border-green-200 pt-4 mb-4">
-                      <h5 className="text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                        <MapPinIcon className="w-5 h-5 text-green-600" />
-                        {t.locationAndContact}
-                      </h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                        <p>
-                          <span className="text-gray-700 font-semibold">{t.address}: </span>
-                          <span className="text-gray-900">{order.address || t.na}</span>
-                        </p>
-                        <p>
-                          <span className="text-gray-700 font-semibold">{t.contact}: </span>
-                          <span className="text-gray-900">{order.contactNumber || t.na}</span>
-                        </p>
-                        {/* <p>
-                          <span className="text-gray-700 font-semibold">{t.location}: </span>
-                          <span className="text-gray-900 text-sm">
-                            ({order.location?.latitude || t.na}, {order.location?.longitude || t.na})
-                          </span>
-                        </p> */}
-                      </div>
-                    </div>
+        <button
+          onClick={() => cancelOrder(order.id)}
+          disabled={loadingCancel[order.id]}
+          className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs shadow 
+          hover:bg-red-700 active:scale-95 transition-all"
+        >
+          {loadingCancel[order.id] ? t.cancelling : t.cancelOrder}
+        </button>
+      </div>
+    </div>
+  )}
 
-                    <div className="border-t border-green-200 pt-4 mb-4">
-                      <h5 className="text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                        <CurrencyRupeeIcon className="w-5 h-5 text-green-600" />
-                        {t.paymentInfo}
-                      </h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                        <p>
-                          <span className="text-gray-700 font-semibold">{t.cost}: </span>
-                          <span className="text-green-600 font-semibold">₹{order.cost?.toFixed(2) || t.na}</span>
-                        </p>
-                        <p>
-                          <span className="text-gray-700 font-semibold">{t.paymentMethod}: </span>
-                          <span className="text-gray-900">{order.paymentMethod ? t[order.paymentMethod] || order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1) : t.na}</span>
-                        </p>
-                        <p>
-                          <span className="text-gray-700 font-semibold">{t.paymentStatus}: </span>
-                          <span className={`font-semibold ${order.status === 'completed' ? 'text-green-600' : 'text-yellow-600'}`}>
-                            {order.status === 'completed'
-                              ? order.paymentStatus
-                                ? `${t.paid} (${t[order.paymentStatus.method] || order.paymentStatus.method.charAt(0).toUpperCase() + order.paymentStatus.method.slice(1)})`
-                                : t.paidUnknown
-                              : order.paymentStatus
-                                ? `${t[order.paymentStatus.status] || order.paymentStatus.status.charAt(0).toUpperCase() + order.paymentStatus.status.slice(1)} (${t[order.paymentStatus.method] || order.paymentStatus.method})`
-                                : t.notPaid}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
+  {/* Worker Section */}
+  <div className="mb-4">
+    <h5 className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1">
+      👷 {t.worker}{workerIds.length > 1 ? t.plural : ''}:
+    </h5>
 
-                    <div className="border-t border-green-200 pt-4">
-                      <h5 className="text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                        <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                        {t.additionalInfo}
-                      </h5>
-                      <p>
-                        <span className="text-gray-700 font-semibold">{t.note}: </span>
-                        <span className="text-gray-900 text-sm">{order.additionalNote || t.none}</span>
-                      </p>
-                    </div>
-                  </div>
+    <div className="flex flex-wrap gap-2">
+      {assignedWorkers.length > 0 ? (
+        assignedWorkers.map(worker => (
+          <div
+            key={worker.id}
+            className={`px-3 py-1 rounded-full text-xs font-semibold shadow-sm
+              ${
+                worker.acceptanceStatus === 'accepted'
+                  ? 'bg-green-100 text-green-700'
+                  : worker.acceptanceStatus === 'completed'
+                  ? 'bg-blue-100 text-blue-700'
+                  : worker.acceptanceStatus === 'rejected'
+                  ? 'bg-red-100 text-red-700'
+                  : 'bg-yellow-100 text-yellow-700'
+              }`}
+          >
+            {worker.name} - {worker.mobile}
+          </div>
+        ))
+      ) : (
+        <p className="text-gray-600 text-sm">{t.unassigned}</p>
+      )}
+    </div>
+  </div>
+
+  {/* Order Details */}
+  <div className="bg-green-50 rounded-xl p-3 mb-4 text-sm">
+    <h4 className="text-green-700 font-semibold mb-2 flex items-center gap-1 text-sm">
+      📄 {t.orderDetails}
+    </h4>
+
+    <div className="grid grid-cols-2 gap-y-1 text-xs text-gray-700">
+      <p><span className="font-semibold">{t.days}: </span>{order.numberOfDays}</p>
+      <p><span className="font-semibold">{t.startDate}: </span>{formatDate(order.startDate)}</p>
+      <p><span className="font-semibold">{t.endDate}: </span>{formatDate(order.endDate)}</p>
+      <p><span className="font-semibold">{t.startTime}: </span>{order.startTime || t.na}</p>
+      <p className="col-span-2">
+        <span className="font-semibold">{t.estimatedCompletion}: </span>
+        {formatDateTime(estimatedCompletion)}
+      </p>
+    </div>
+  </div>
+
+  {/* Location */}
+  <div className="bg-amber-50 rounded-xl p-3 mb-4 text-sm">
+    <h4 className="text-amber-700 font-semibold mb-2 flex items-center gap-1 text-sm">
+      📍 {t.locationAndContact}
+    </h4>
+
+    <p className="text-xs"><span className="font-semibold">{t.address}: </span>{order.address || t.na}</p>
+    <p className="text-xs"><span className="font-semibold">{t.contact}: </span>{order.contactNumber || t.na}</p>
+  </div>
+
+  {/* Payment */}
+  <div className="bg-blue-50 rounded-xl p-3 mb-4 text-sm">
+    <h4 className="text-blue-700 font-semibold mb-2 flex items-center gap-1 text-sm">
+      💰 {t.paymentInfo}
+    </h4>
+
+    <p className="text-xs">
+      <span className="font-semibold">{t.cost}: </span>
+      <span className="text-green-700 font-bold">₹{order.cost?.toFixed(2)}</span>
+    </p>
+    <p className="text-xs"><span className="font-semibold">{t.paymentMethod}: </span>{order.paymentMethod || t.na}</p>
+    <p className="text-xs">
+      <span className="font-semibold">{t.paymentStatus}: </span>
+      {order.paymentStatus ? t[order.paymentStatus.status] : t.notPaid}
+    </p>
+  </div>
+
+  {/* Additional Notes */}
+  <div className="bg-gray-50 rounded-xl p-3 text-xs">
+    <h4 className="text-gray-700 font-semibold mb-1">📝 {t.additionalInfo}</h4>
+    <p className="text-gray-600">{order.additionalNote || t.none}</p>
+  </div>
+</div>
+
                 );
               })
             )}
