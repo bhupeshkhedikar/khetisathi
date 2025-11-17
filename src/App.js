@@ -140,7 +140,7 @@ const BottomNav = ({ user, role, lang, handleLogout }) => {
   const navItems = getNavItems();
 
   const handleFloatingButton = () => {
-    if (!user) return navigate("/");
+    if (!user) return navigate("/marketplace");
     if (role === "farmer") return navigate("/marketplace");
     if (role === "worker") return navigate("/worker-dashboard");
     if (role === "driver") return navigate("/driver-dashboard");
