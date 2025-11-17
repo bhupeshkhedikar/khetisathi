@@ -1,4 +1,4 @@
-// ProductDetails.jsx (Marathi Version - Updated with Auto Slider + Gallery)
+// ProductDetails.jsx (Marathi Version - Updated without conditional hooks)
 
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -36,7 +36,7 @@ export default function ProductDetails() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Image Slider States
+  // Slider
   const [activeIndex, setActiveIndex] = useState(0);
   const sliderRef = useRef(null);
 
@@ -49,13 +49,13 @@ export default function ProductDetails() {
 
   const COMMISSION_PERCENT = 5;
 
-  // User auth
+  // Auth (always runs)
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setCurrentUser(u));
     return () => unsub();
   }, []);
 
-  // Load product realtime
+  // Load product (always runs)
   useEffect(() => {
     const unsub = onSnapshot(
       doc(db, "marketplaceProducts", id),
@@ -63,16 +63,12 @@ export default function ProductDetails() {
         if (snap.exists()) setProduct({ id: snap.id, ...snap.data() });
         setLoading(false);
       },
-      (err) => {
-        console.error(err);
-        setLoading(false);
-      }
+      () => setLoading(false)
     );
-
     return () => unsub();
   }, [id]);
 
-  // Auto slider every 3 sec
+  // Auto Slider
   useEffect(() => {
     if (!product) return;
 
@@ -85,31 +81,45 @@ export default function ProductDetails() {
     return () => clearInterval(interval);
   });
 
-  if (loading) return <div className="p-6 text-center">लोड होत आहे…</div>;
-  if (!product) return <div className="p-6 text-center text-red-600">उत्पादन सापडले नाही.</div>;
-
-  // Image list with fallback
+  // Resolve images safely
   const images =
     product?.images?.length > 0
       ? product.images
-      : [fallbackImages[product.category] || fallbackImages["other"]];
-
-  const isSeller = currentUser?.uid === product.sellerId;
-
-  const acceptedBid = product.acceptedBid || null;
-  const isAcceptedBuyer = acceptedBid?.buyerId === currentUser?.uid;
+      : [fallbackImages[product?.category] || fallbackImages["other"]];
 
   const computeCommission = (amt) =>
     Math.max(1, Math.round((amt * COMMISSION_PERCENT) / 100));
 
+  if (loading)
+    return <div className="p-6 text-center">लोड होत आहे…</div>;
+
+  if (!product)
+    return (
+      <div className="p-6 text-center text-red-600">
+        उत्पादन सापडले नाही.
+      </div>
+    );
+
+  const isSeller = currentUser?.uid === product.sellerId;
+  const acceptedBid = product.acceptedBid || null;
+  const isAcceptedBuyer =
+    acceptedBid && acceptedBid.buyerId === currentUser?.uid;
+
   // Place Bid
   const handlePlaceBid = async () => {
-    if (!bidAmount) return alert("कृपया योग्य रक्कम भरा");
+    if (!currentUser) {
+      alert("बोली लावण्यासाठी कृपया लॉगिन अथवा रजिस्टर करा.");
+      return;
+    }
+
+    if (!bidAmount || Number(bidAmount) <= 0)
+      return alert("कृपया योग्य बोली रक्कम भरा.");
 
     setPlacingBid(true);
+
     try {
       const bid = {
-        bidId: crypto.randomUUID(),
+        bidId: `${Date.now()}-${Math.floor(Math.random() * 1000000)}`,
         buyerId: currentUser.uid,
         buyerName: currentUser.displayName || "शेतकरी",
         amount: Number(bidAmount),
@@ -127,14 +137,16 @@ export default function ProductDetails() {
     } catch (err) {
       alert(err.message);
     }
+
     setPlacingBid(false);
   };
 
-  // Accept Bid (Seller)
+  // Accept Bid
   const handleAcceptBid = async (b) => {
-    if (!window.confirm(`₹${b.amount} स्वीकारायचे आहे का?`)) return;
+    if (!window.confirm(`₹${b.amount} ची बोली स्वीकारायची का?`)) return;
 
     setAcceptingBidId(b.bidId);
+
     const updated = product.bids.map((x) =>
       x.bidId === b.bidId
         ? { ...x, status: "accepted" }
@@ -155,11 +167,13 @@ export default function ProductDetails() {
     setAcceptingBidId(null);
   };
 
-  // Pay Commission
+  // Pay commission
   const handlePayCommission = async () => {
+    if (!acceptedBid) return;
+
     const commission = computeCommission(acceptedBid.amount);
 
-    if (!window.confirm(`आपण ₹${commission} कमिशन भरणार आहात?`)) return;
+    if (!window.confirm(`आपण ₹${commission} कमिशन भरणार आहात का?`)) return;
 
     setPayingCommission(true);
 
@@ -169,7 +183,7 @@ export default function ProductDetails() {
       commissionPaidAt: serverTimestamp(),
     });
 
-    alert("कमिशन भरले! संपर्क दाखवला जाईल.");
+    alert("कमिशन भरले!");
     setPayingCommission(false);
   };
 
@@ -182,18 +196,16 @@ export default function ProductDetails() {
           <ArrowLeftIcon className="w-5 h-5" /> परत जा
         </Link>
 
-        {/* Product Card */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
 
-          {/* ⭐ AUTO SLIDER SECTION ⭐ */}
+          {/* IMAGE SLIDER */}
           <div className="h-64 bg-gray-200 relative" ref={sliderRef}>
             <img
               src={images[activeIndex]}
-              alt="product"
               className="w-full h-full object-cover transition-all duration-500"
+              alt=""
             />
 
-            {/* Small indicators */}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
               {images.map((_, i) => (
                 <button
@@ -207,7 +219,7 @@ export default function ProductDetails() {
             </div>
           </div>
 
-          {/* ⭐ ALL IMAGES GALLERY ⭐ */}
+          {/* Image Thumbnails */}
           <div className="flex gap-2 overflow-x-auto p-2 bg-gray-100">
             {images.map((img, i) => (
               <img
@@ -217,11 +229,12 @@ export default function ProductDetails() {
                 className={`w-20 h-20 rounded-lg object-cover border ${
                   activeIndex === i ? "border-green-600" : "border-gray-300"
                 }`}
+                alt=""
               />
             ))}
           </div>
 
-          {/* PRODUCT CONTENT */}
+          {/* CONTENT */}
           <div className="p-4">
             <h2 className="text-xl font-bold text-green-800">{product.title}</h2>
 
@@ -232,10 +245,21 @@ export default function ProductDetails() {
 
             <p className="mt-3 text-sm text-gray-700">{product.description}</p>
 
-            {/* BUYER ACTION BUTTONS */}
+            {/* BUY BUTTONS */}
             <div className="mt-4">
 
-              {!isSeller && !isAcceptedBuyer && (
+              {/* Non logged in user → show बोली लावा */}
+              {!currentUser && (
+                <button
+                  className="w-full bg-green-600 text-white py-3 rounded-lg"
+                  onClick={() => alert("बोली लावण्यासाठी कृपया लॉगिन अथवा रजिस्टर करा.")}
+                >
+                  बोली लावा
+                </button>
+              )}
+
+              {/* Logged in but not seller */}
+              {currentUser && !isSeller && !isAcceptedBuyer && (
                 <button
                   onClick={() => setShowBidModal(true)}
                   className="w-full bg-green-600 text-white py-3 rounded-lg"
@@ -244,15 +268,18 @@ export default function ProductDetails() {
                 </button>
               )}
 
+              {/* Buyer Commission */}
               {isAcceptedBuyer && !product.buyerPaidCommission && (
                 <button
                   onClick={handlePayCommission}
+                  disabled={payingCommission}
                   className="w-full bg-yellow-600 text-white py-3 rounded-lg"
                 >
-                  कमिशन भरा
+                  {payingCommission ? "प्रक्रिया..." : "कमिशन भरा"}
                 </button>
               )}
 
+              {/* Buyer Contact */}
               {isAcceptedBuyer && product.buyerPaidCommission && (
                 <div className="mt-4 bg-green-100 p-4 rounded-xl">
                   <h3 className="text-green-800 font-bold text-lg">विक्रेता संपर्क</h3>
@@ -263,13 +290,13 @@ export default function ProductDetails() {
               )}
             </div>
 
-            {/* SELLER VIEW - BIDS */}
+            {/* SELLER — Bids */}
             {isSeller && (
               <div className="mt-6">
                 <h3 className="text-lg text-green-800 font-bold">आलेल्या बोली</h3>
 
                 {!product.bids?.length && (
-                  <p className="text-gray-500 mt-1">अजून कोणतीही बोली नाही.</p>
+                  <p className="text-gray-500 mt-1">अजून बोली नाही.</p>
                 )}
 
                 {(product.bids || []).map((b) => (
@@ -285,6 +312,7 @@ export default function ProductDetails() {
                     {b.status === "pending" && !product.acceptedBid && (
                       <button
                         onClick={() => handleAcceptBid(b)}
+                        disabled={acceptingBidId === b.bidId}
                         className="bg-green-600 text-white px-3 py-1 rounded-lg"
                       >
                         स्वीकारा
@@ -323,8 +351,9 @@ export default function ProductDetails() {
               <button
                 className="flex-1 bg-green-600 text-white py-2 rounded-lg"
                 onClick={handlePlaceBid}
+                disabled={placingBid}
               >
-                सबमिट
+                {placingBid ? "सबमिट..." : "सबमिट"}
               </button>
               <button
                 className="px-4 py-2 border rounded-lg"
