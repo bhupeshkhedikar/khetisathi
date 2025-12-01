@@ -1,4 +1,20 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
+import { db } from '../../firebaseConfig'; // adjust path if needed
+import { doc, updateDoc } from 'firebase/firestore';
+
+/**
+ * Full updated UserManagement component
+ * - Preserves original UI and logic provided by the user
+ * - Adds:
+ *   - Update Availability modal (single worker)
+ *   - Bulk Update Availability for multiple selected workers
+ *   - Calendar UI for selecting availability dates
+ *   - Week / Month / Custom Range / Calendar modes
+ * - Saves availability to firestore path: users/{workerId}.availability with workingDays and offDays
+ *
+ * NOTE: Ensure `db` is exported from your firebase config (../firebase).
+ */
 
 const UserManagement = ({
   farmers,
@@ -13,7 +29,7 @@ const UserManagement = ({
 }) => {
   const [currentLanguage, setCurrentLanguage] = useState('marathi');
 
-  // Translations for UI elements
+  // Translations for UI elements (kept from original)
   const translations = {
     english: {
       registeredUsers: 'Registered Users',
@@ -45,6 +61,9 @@ const UserManagement = ({
       none: 'None',
       pending: 'Pending',
       ready: 'Ready',
+      language: 'Language',
+      updateAvailability: 'Update Availability',
+      bulkUpdateAvailability: 'Bulk Update Availability',
     },
     marathi: {
       registeredUsers: 'नोंदणीकृत वापरकर्ते',
@@ -76,6 +95,9 @@ const UserManagement = ({
       none: 'कोणतेही नाही',
       pending: 'प्रलंबित',
       ready: 'तयार',
+      language: 'भाषा',
+      updateAvailability: 'उपलब्धता अद्यतनित करा',
+      bulkUpdateAvailability: 'एकत्र उपलब्धता अद्यतनित करा',
     },
     hindi: {
       registeredUsers: 'पंजीकृत उपयोगकर्ता',
@@ -107,24 +129,29 @@ const UserManagement = ({
       none: 'कोई नहीं',
       pending: 'लंबित',
       ready: 'तैयार',
+      language: 'भाषा',
+      updateAvailability: 'उपलब्धता अपडेट करें',
+      bulkUpdateAvailability: 'बल्क उपलब्धता अपडेट करें',
     },
   };
 
   const t = translations[currentLanguage];
 
-  // Helper function to format timestamp to DD-MM-YYYY
+  // Original helper: formatDate
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
     try {
-      // Handle Firebase Timestamp object or ISO string
       const date = timestamp.seconds
-        ? new Date(timestamp.seconds * 1000) // Firebase Timestamp
-        : new Date(timestamp); // ISO string
-      return date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      }).split('/').join('-');
+        ? new Date(timestamp.seconds * 1000)
+        : new Date(timestamp);
+      return date
+        .toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        })
+        .split('/')
+        .join('-');
     } catch {
       return 'N/A';
     }
@@ -138,7 +165,7 @@ const UserManagement = ({
     return `${day}-${month}-${year}`;
   };
 
-  // Skill labels
+  // Skill labels (kept entire original)
   const SKILL_LABELS = {
     'farm-worker': {
       english: 'Farm Worker',
@@ -304,7 +331,7 @@ const UserManagement = ({
     );
   };
 
-  // Analytics computations for workers
+  // Analytics computations for workers (kept from original)
   const totalMale = workers.filter(w => w.gender === 'male').length;
   const totalFemale = workers.filter(w => w.gender === 'female').length;
   const totalWorkers = workers.length;
@@ -327,22 +354,21 @@ const UserManagement = ({
     }))
     .filter(stat => stat.maleCount + stat.femaleCount > 0); // Only include skills with at least one worker
 
-  // Sort farmers
-  const sortedFarmers = [...farmers].sort((a, b) => {
+  // Sorting logic (kept but defensive)
+  const sortedFarmers = [...(farmers || [])].sort((a, b) => {
     if (farmerSortConfig.key === 'createdAt') {
       const dateA = a.createdAt ? (a.createdAt.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt).getTime()) : 0;
       const dateB = b.createdAt ? (b.createdAt.seconds ? b.createdAt.seconds * 1000 : new Date(b.createdAt).getTime()) : 0;
       return farmerSortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
     }
-    const aValue = a[farmerSortConfig.key] || '';
-    const bValue = b[farmerSortConfig.key] || '';
+    const aValue = (a[farmerSortConfig.key] || '').toString();
+    const bValue = (b[farmerSortConfig.key] || '').toString();
     return farmerSortConfig.direction === 'asc'
       ? aValue.localeCompare(bValue)
       : bValue.localeCompare(aValue);
   });
 
-  // Sort workers
-  const sortedWorkers = [...workers].sort((a, b) => {
+  const sortedWorkers = [...(workers || [])].sort((a, b) => {
     if (workerSortConfig.key === 'createdAt') {
       const dateA = a.createdAt ? (a.createdAt.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt).getTime()) : 0;
       const dateB = b.createdAt ? (b.createdAt.seconds ? b.createdAt.seconds * 1000 : new Date(b.createdAt).getTime()) : 0;
@@ -353,8 +379,8 @@ const UserManagement = ({
       aValue = (a.skills || []).map(s => getSkillLabel(s)).join(', ');
       bValue = (b.skills || []).map(s => getSkillLabel(s)).join(', ');
     } else {
-      aValue = a[workerSortConfig.key] || '';
-      bValue = b[workerSortConfig.key] || '';
+      aValue = (a[workerSortConfig.key] || '').toString();
+      bValue = (b[workerSortConfig.key] || '').toString();
     }
     return workerSortConfig.direction === 'asc'
       ? aValue.localeCompare(bValue)
@@ -362,13 +388,247 @@ const UserManagement = ({
   });
 
   // Debugging: Log workers data to check createdAt values
-  console.log('Workers Data:', workers.map(w => ({
-    id: w.id,
-    name: w.name,
-    createdAt: w.createdAt,
-    formattedDate: formatDate(w.createdAt),
-  })));
+  useEffect(() => {
+    try {
+      console.log('Workers Data:', (workers || []).map(w => ({
+        id: w.id,
+        name: w.name,
+        createdAt: w.createdAt,
+        formattedDate: formatDate(w.createdAt),
+        availability: w.availability
+      })));
+    } catch (e) {
+      // no-op
+    }
+  }, [workers]);
 
+  //
+  // --------------- NEW STATES & HELPERS FOR AVAILABILITY + BULK + CALENDAR ---------------
+  //
+  const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
+  const [selectedWorker, setSelectedWorker] = useState(null);
+  const [availabilityMode, setAvailabilityMode] = useState("week"); // week | month | custom | calendar
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  // Bulk selection state
+  const [selectedWorkers, setSelectedWorkers] = useState([]);
+  const [bulkMode, setBulkMode] = useState(false);
+
+  // Calendar dates selected in modal (YYYY-MM-DD)
+  const [calendarDates, setCalendarDates] = useState([]);
+
+  // Loading state for saving
+  const [saving, setSaving] = useState(false);
+
+  // Toggle single worker selection for bulk
+  const toggleWorkerSelection = (id) => {
+    setSelectedWorkers((prev) =>
+      prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]
+    );
+  };
+
+  // Utility: generate date range (inclusive) as YYYY-MM-DD
+  const generateDateRange = (start, end) => {
+    if (!start || !end) return [];
+    const dates = [];
+    let current = new Date(start);
+    const last = new Date(end);
+    // Normalize time portion to avoid timezone day shift issues
+    current.setHours(0,0,0,0);
+    last.setHours(0,0,0,0);
+
+    while (current <= last) {
+      dates.push(current.toISOString().split("T")[0]);
+      current.setDate(current.getDate() + 1);
+    }
+    return dates;
+  };
+
+  // Toggle date in calendarDates
+  const toggleCalendarDate = (date) => {
+    setCalendarDates((prev) =>
+      prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date].sort()
+    );
+  };
+
+  // Prepare workingDays array based on availabilityMode and mode-specific state
+  const computeWorkingDays = () => {
+    let workingDays = [];
+
+    if (availabilityMode === "week") {
+      const now = new Date();
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(now.getDate() + i);
+        workingDays.push(d.toISOString().split("T")[0]);
+      }
+    }
+
+    if (availabilityMode === "month") {
+      const now = new Date();
+      for (let i = 0; i < 30; i++) {
+        const d = new Date();
+        d.setDate(now.getDate() + i);
+        workingDays.push(d.toISOString().split("T")[0]);
+      }
+    }
+
+    if (availabilityMode === "custom") {
+      if (startDate && endDate) {
+        workingDays = generateDateRange(startDate, endDate);
+      }
+    }
+
+    if (availabilityMode === "calendar") {
+      workingDays = [...calendarDates];
+    }
+
+    // remove duplicates & sort
+    workingDays = [...new Set(workingDays)].sort();
+
+    return workingDays;
+  };
+
+  // Save availability to firestore for one or many workers
+  const handleSaveAvailability = async () => {
+    const workingDays = computeWorkingDays();
+
+    if (!workingDays || workingDays.length === 0) {
+      alert('Please select at least one date for availability.');
+      return;
+    }
+
+    const idsToUpdate = bulkMode ? selectedWorkers : (selectedWorker ? [selectedWorker.id] : []);
+
+    if (!idsToUpdate || idsToUpdate.length === 0) {
+      alert('No workers selected to update.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      for (const id of idsToUpdate) {
+        // find worker object to preserve offDays if present
+        const workerObj = (workers || []).find(w => w.id === id);
+        const existingOffDays = workerObj?.availability?.offDays || [];
+        // build availability object with both workingDays and offDays (Option 2)
+        const availabilityPayload = {
+          workingDays,
+          offDays: existingOffDays
+        };
+        const userRef = doc(db, "users", id); // use users collection (correct)
+        await updateDoc(userRef, {
+          availability: availabilityPayload
+        });
+      }
+      alert(bulkMode ? 'Bulk availability updated!' : 'Availability updated!');
+      // reset UI
+      setShowAvailabilityModal(false);
+      setBulkMode(false);
+      setSelectedWorkers([]);
+      setSelectedWorker(null);
+      setCalendarDates([]);
+      setStartDate('');
+      setEndDate('');
+    } catch (err) {
+      console.error('Error updating availability:', err);
+      alert('Failed to update availability. Check console for details.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Open availability modal for a single worker
+  const openWorkerAvailability = (worker) => {
+    setSelectedWorker(worker);
+    setBulkMode(false);
+    // prefill calendarDates from worker availability if exists
+    const existing = (worker.availability && worker.availability.workingDays) || [];
+    setCalendarDates(existing.slice(0, 100)); // limit for safety
+    setSelectedWorkers([]);
+    setShowAvailabilityModal(true);
+    setAvailabilityMode('week');
+    setStartDate('');
+    setEndDate('');
+  };
+
+  // Open availability modal for bulk selection
+  const openBulkAvailability = () => {
+    if (!selectedWorkers || selectedWorkers.length === 0) {
+      alert('Select one or more workers first.');
+      return;
+    }
+    setBulkMode(true);
+    setSelectedWorker(null);
+    setCalendarDates([]);
+    setShowAvailabilityModal(true);
+    setAvailabilityMode('week');
+    setStartDate('');
+    setEndDate('');
+  };
+
+  //
+  // ------------------ Calendar UI Component (inlined) ------------------
+  //
+  const Calendar = ({ selectedDates, toggleDate, monthOffset = 0 }) => {
+    // monthOffset: 0 = current month, -1 previous, +1 next
+    const base = new Date();
+    base.setMonth(base.getMonth() + monthOffset);
+    const year = base.getFullYear();
+    const month = base.getMonth();
+
+    const firstDayOfMonth = new Date(year, month, 1);
+    const firstWeekDay = firstDayOfMonth.getDay(); // 0 (Sun) - 6 (Sat)
+    const lastDate = new Date(year, month + 1, 0).getDate();
+
+    const days = [];
+    for (let i = 0; i < firstWeekDay; i++) days.push(null);
+    for (let i = 1; i <= lastDate; i++) days.push(i);
+
+    const weekdayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    return (
+      <div>
+        <div className="mb-2 text-center font-semibold">
+          {base.toLocaleString(undefined, { month: 'long', year: 'numeric' })}
+        </div>
+        <div className="grid grid-cols-7 gap-2 text-sm">
+          {weekdayNames.map((d) => (
+            <div key={d} className="text-center font-medium">{d}</div>
+          ))}
+          {days.map((day, index) =>
+            day === null ? (
+              <div key={index} className="p-2"></div>
+            ) : (
+              (() => {
+                const dateISO = new Date(year, month, day).toISOString().split('T')[0];
+                const isSelected = selectedDates.includes(dateISO);
+                const isPast = new Date(dateISO) < new Date(new Date().toISOString().split('T')[0]);
+                return (
+                  <button
+                    key={index}
+                    onClick={() => !isPast && toggleDate(dateISO)}
+                    className={`p-2 rounded border text-center focus:outline-none ${
+                      isSelected ? 'bg-green-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
+                    } ${isPast ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    title={isPast ? 'Past date - disabled' : dateISO}
+                  >
+                    {day}
+                  </button>
+                );
+              })()
+            )
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Keep track of calendar month navigation inside modal
+  const [calendarMonthOffset, setCalendarMonthOffset] = useState(0);
+
+  // Render component (keeps original layout and integrates new UI)
   return (
     <section className="mb-8">
       <div className="flex justify-between items-center mb-6">
@@ -422,7 +682,7 @@ const UserManagement = ({
           </div>
         </div>
 
-        {/* Total Workers Card (Optional summary) */}
+        {/* Total Workers Card */}
         <div className="bg-white rounded-lg shadow-lg p-6 border-l-4 border-green-500 col-span-1 md:col-span-2 lg:col-span-1">
           <div className="flex items-center">
             <div className="p-3 rounded-full bg-green-100">
@@ -465,6 +725,7 @@ const UserManagement = ({
         </div>
       )}
 
+      {/* Farmers Table (kept entire original) */}
       <div className="mb-6">
         <h4 className="text-xl font-semibold mb-4 text-gray-800">{t.farmers}</h4>
         {sortedFarmers.length === 0 ? (
@@ -510,8 +771,23 @@ const UserManagement = ({
           </div>
         )}
       </div>
+
+      {/* Workers Table with Bulk selection + Update Availability */}
       <div>
-        <h4 className="text-xl font-semibold mb-4 text-gray-800">{t.workers}</h4>
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-xl font-semibold text-gray-800">{t.workers}</h4>
+          <div className="flex items-center space-x-2">
+            {selectedWorkers.length > 0 && (
+              <button
+                onClick={openBulkAvailability}
+                className="bg-purple-600 text-white px-4 py-2 rounded shadow hover:bg-purple-700"
+              >
+                {t.bulkUpdateAvailability} ({selectedWorkers.length})
+              </button>
+            )}
+          </div>
+        </div>
+
         {sortedWorkers.length === 0 ? (
           <p className="text-center text-gray-600">{t.noWorkersRegistered}</p>
         ) : (
@@ -519,6 +795,18 @@ const UserManagement = ({
             <table className="min-w-full bg-white rounded-lg shadow-lg">
               <thead className="bg-green-600 text-white">
                 <tr>
+                  {/* Bulk select checkbox column */}
+                  <th className="py-3 px-6 text-left">
+                    <input
+                      type="checkbox"
+                      onChange={(e) =>
+                        setSelectedWorkers(e.target.checked ? (workers || []).map(w => w.id) : [])
+                      }
+                      checked={selectedWorkers.length > 0 && selectedWorkers.length === (workers || []).length}
+                      aria-label="select all workers"
+                    />
+                  </th>
+
                   <th className="py-3 px-6 text-left">{t.actions}</th>
                   <th onClick={() => handleWorkerSort('name')} className="py-3 px-6 text-left cursor-pointer">
                     {t.name} {workerSortConfig.key === 'name' && (workerSortConfig.direction === 'asc' ? '↑' : '↓')}
@@ -558,26 +846,46 @@ const UserManagement = ({
               <tbody>
                 {sortedWorkers.map((worker) => (
                   <tr key={worker.id} className="border-b hover:bg-gray-50">
+                    {/* checkbox for bulk selection */}
                     <td className="py-3 px-6">
-                      {worker.status === 'pending' && (
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleApproveWorker(worker.id)}
-                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition text-sm"
-                            disabled={loading}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleRejectWorker(worker.id)}
-                            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition text-sm"
-                            disabled={loading}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
+                      <input
+                        type="checkbox"
+                        checked={selectedWorkers.includes(worker.id)}
+                        onChange={() => toggleWorkerSelection(worker.id)}
+                        aria-label={`select-worker-${worker.id}`}
+                      />
                     </td>
+
+                    <td className="py-3 px-6">
+                      <div className="flex space-x-2 items-center">
+                        {worker.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => handleApproveWorker(worker.id)}
+                              className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-sm"
+                              disabled={loading}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleRejectWorker(worker.id)}
+                              className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-sm"
+                              disabled={loading}
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                        {/* Update availability single button */}
+                        <button
+                          onClick={() => openWorkerAvailability(worker)}
+                          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition text-sm"
+                        >
+                          {t.updateAvailability}
+                        </button>
+                      </div>
+                    </td>
+
                     <td className="py-3 px-6">{worker.name || 'N/A'}</td>
                     <td className="py-3 px-6">{worker.village || 'N/A'}</td>
                     <td className="py-3 px-6">{worker.email || 'N/A'}</td>
@@ -611,6 +919,185 @@ const UserManagement = ({
           </div>
         )}
       </div>
+
+      {/* Availability Modal (single + bulk) */}
+      {showAvailabilityModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-start z-50 overflow-auto">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-3xl mt-10 mb-10">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-xl font-semibold mb-1">
+                  {bulkMode ? t.bulkUpdateAvailability : `${t.updateAvailability} — ${selectedWorker?.name || ''}`}
+                </h3>
+                <p className="text-sm text-gray-600">Choose mode and save availability to Firestore.</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setShowAvailabilityModal(false);
+                    setBulkMode(false);
+                  }}
+                  className="text-gray-500 hover:text-gray-800"
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-medium mb-2">Mode</label>
+                <select
+                  value={availabilityMode}
+                  onChange={(e) => setAvailabilityMode(e.target.value)}
+                  className="border rounded w-full p-2 mb-2"
+                >
+                  <option value="week">Next 1 Week</option>
+                  <option value="month">Next 1 Month</option>
+                  <option value="custom">Custom Date Range</option>
+                  <option value="calendar">Calendar View</option>
+                </select>
+
+                {availabilityMode === 'custom' && (
+                  <div className="space-y-2">
+                    <label className="block text-sm">Start Date</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="border rounded w-full p-2"
+                    />
+                    <label className="block text-sm">End Date</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="border rounded w-full p-2"
+                    />
+                    <div className="text-xs text-gray-500 mt-1">
+                      Selected range: {startDate ? formatDateString(startDate) : 'N/A'} — {endDate ? formatDateString(endDate) : 'N/A'}
+                    </div>
+                  </div>
+                )}
+
+                {availabilityMode === 'calendar' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setCalendarMonthOffset(prev => prev - 1)}
+                          className="px-2 py-1 rounded border"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          onClick={() => setCalendarMonthOffset(prev => prev + 1)}
+                          className="px-2 py-1 rounded border"
+                        >
+                          ›
+                        </button>
+                        <div className="text-sm text-gray-600 ml-4">Click dates to toggle. Past dates disabled.</div>
+                      </div>
+                      <div className="text-sm">
+                        Selected: <span className="font-medium">{calendarDates.length}</span>
+                      </div>
+                    </div>
+
+                    <Calendar
+                      selectedDates={calendarDates}
+                      toggleDate={toggleCalendarDate}
+                      monthOffset={calendarMonthOffset}
+                    />
+
+                    <div className="mt-2 text-xs text-gray-600">
+                      Click on dates to toggle availability. Use month arrows to navigate.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block font-medium mb-2">Preview / Quick Actions</label>
+
+                <div className="bg-gray-50 border p-3 rounded mb-3 text-sm">
+                  <div className="mb-2">
+                    <strong>Preview (first 20 dates):</strong>
+                  </div>
+                  <div className="text-xs text-gray-700">
+                    {computeWorkingDays().slice(0, 20).map(d => (
+                      <div key={d} className="inline-block mr-2 mb-1 px-2 py-1 bg-white border rounded text-xs">
+                        {formatDateString(d)}
+                      </div>
+                    ))}
+                    {computeWorkingDays().length === 0 && <div>N/A</div>}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <button
+                    onClick={() => {
+                      setAvailabilityMode('week');
+                      setCalendarDates([]);
+                      setStartDate('');
+                      setEndDate('');
+                    }}
+                    className="w-full px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                  >
+                    Set Next 1 Week
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAvailabilityMode('month');
+                      setCalendarDates([]);
+                      setStartDate('');
+                      setEndDate('');
+                    }}
+                    className="w-full px-3 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
+                  >
+                    Set Next 1 Month
+                  </button>
+                  <button
+                    onClick={() => {
+                      // clear selection
+                      setCalendarDates([]);
+                      setStartDate('');
+                      setEndDate('');
+                      setAvailabilityMode('calendar');
+                    }}
+                    className="w-full px-3 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                  >
+                    Open Calendar (clear)
+                  </button>
+                </div>
+
+                <div className="mt-4 text-xs text-gray-500">
+                  Saving will update Firestore field: <code>users/&lt;id&gt;/availability</code>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowAvailabilityModal(false);
+                  setBulkMode(false);
+                }}
+                className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAvailability}
+                disabled={saving}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : (bulkMode ? 'Save Bulk' : 'Save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
