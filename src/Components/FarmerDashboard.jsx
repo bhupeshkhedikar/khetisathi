@@ -108,6 +108,7 @@ const FarmerDashboard = () => {
   }, [workers, t]);
 
   useEffect(() => {
+      console.log('Setting up orders listener',orders);
     const timer = setInterval(() => {
       const currentTime = new Date().getTime();
       setTimeLeft(prev => {
@@ -245,6 +246,8 @@ const FarmerDashboard = () => {
                   new Date(order.createdAt?.toDate() || Date.now()).getTime() +
                   (order.serviceType === 'ownertc' ? order.hours * 3600 * 1000 : 8 * 3600 * 1000) * order.numberOfDays
                 );
+
+                // Worker ids + assigned worker info (as before)
                 const workerIds = Array.isArray(order.workerId) ? order.workerId : order.workerId ? [order.workerId] : [];
                 const assignedWorkers = workerIds
                   .filter(id => workers[id])
@@ -259,6 +262,29 @@ const FarmerDashboard = () => {
                       acceptanceStatus
                     };
                   });
+
+                // determine counts robustly:
+                // priority:
+                // 1) bundleDetails.maleWorkers/femaleWorkers
+                // 2) order.maleWorkers / order.femaleWorkers
+                // 3) try to infer from order.totalWorkers (as other)
+                const bundle = order.bundleDetails || null;
+                const maleCount = bundle?.maleWorkers ?? (order.maleWorkers ?? 0);
+                const femaleCount = bundle?.femaleWorkers ?? (order.femaleWorkers ?? 0);
+                // otherWorkers is field you sometimes use; fallback to 0
+                const otherCount = order.otherWorkers ?? 0;
+                // If neither male nor female present but totalWorkers exists, and service is farm-workers, attempt simple split:
+                let inferredMale = maleCount;
+                let inferredFemale = femaleCount;
+                if (order.serviceType === 'farm-workers') {
+                  if (!maleCount && !femaleCount && (order.totalWorkers || 0) > 0) {
+                    // simple 50/50 fallback (round down male)
+                    const tWorkers = order.totalWorkers || 0;
+                    inferredMale = Math.floor(tWorkers / 2);
+                    inferredFemale = tWorkers - inferredMale;
+                  }
+                }
+                const totalWorkersCount = (inferredMale || 0) + (inferredFemale || 0) + (otherCount || 0);
 
                 const allWorkersAccepted = assignedWorkers.length > 0 && assignedWorkers.every(
                   worker => worker.acceptanceStatus === 'accepted' || worker.acceptanceStatus === 'completed'
@@ -325,10 +351,37 @@ const FarmerDashboard = () => {
                     {/* Worker Section */}
                     <div className="mb-4">
                       <h5 className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1">
-                        👷 {t.worker}{workerIds.length > 1 ? t.plural : ''}:
+                        👷 {t.worker}{totalWorkersCount > 1 ? t.plural : ''}:
                       </h5>
 
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 items-center">
+                        {/* show male/female badges when farm-workers */}
+                        {order.serviceType === 'farm-workers' ? (
+                          <>
+                            <div className="px-3 py-1 rounded-full text-xs font-semibold shadow-sm bg-blue-50 text-blue-700">
+                              {t.maleWorkers ?? 'Male'}: {inferredMale}
+                            </div>
+                            <div className="px-3 py-1 rounded-full text-xs font-semibold shadow-sm bg-pink-50 text-pink-700">
+                              {t.femaleWorkers ?? 'Female'}: {inferredFemale}
+                            </div>
+                            {otherCount > 0 && (
+                              <div className="px-3 py-1 rounded-full text-xs font-semibold shadow-sm bg-yellow-50 text-yellow-700">
+                                {t.otherWorkers ?? 'Other'}: {otherCount}
+                              </div>
+                            )}
+                            <div className="px-3 py-1 rounded-full text-xs font-semibold shadow-sm bg-green-50 text-green-700">
+                              {t.totalWorkersLabel || 'Total'}: {totalWorkersCount}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="px-3 py-1 rounded-full text-xs font-semibold shadow-sm bg-green-50 text-green-700">
+                              {t.totalWorkersLabel || 'Total'}: {order.totalWorkers ?? 0}
+                            </div>
+                          </>
+                        )}
+
+                        {/* assigned workers (if any) */}
                         {assignedWorkers.length > 0 ? (
                           assignedWorkers.map(worker => (
                             <div
@@ -346,9 +399,7 @@ const FarmerDashboard = () => {
                               {worker.name} - {worker.mobile}
                             </div>
                           ))
-                        ) : (
-                          <p className="text-gray-600 text-sm">{t.unassigned}</p>
-                        )}
+                        ) : null}
                       </div>
                     </div>
 
@@ -360,9 +411,41 @@ const FarmerDashboard = () => {
 
                       <div className="grid grid-cols-2 gap-y-1 text-xs text-gray-700">
                         <p><span className="font-semibold">{t.days}: </span>{order.numberOfDays}</p>
-                        <p><span className="font-semibold">{t.startDate}: </span>{formatDate(order.startDate)}</p>
-                        <p><span className="font-semibold">{t.endDate}: </span>{formatDate(order.endDate)}</p>
-                        <p><span className="font-semibold">{t.startTime}: </span>{order.startTime || t.na}</p>
+
+                        {order.serviceType === 'farm-workers' ? (
+                          <>
+                            {/* If bundle exists show bundle details */}
+                            {bundle ? (
+                              <>
+                                <p><span className="font-semibold">{t.bundle || 'Bundle'}: </span>{bundle.name}</p>
+                                <p><span className="font-semibold">{t.bundlePrice || 'Bundle Price'}: </span>₹{bundle.price}</p>
+                                <p><span className="font-semibold">{t.maleWorkers}: </span>{bundle.maleWorkers}</p>
+                                <p><span className="font-semibold">{t.femaleWorkers}: </span>{bundle.femaleWorkers}</p>
+                                <p><span className="font-semibold">{t.totalWorkersLabel || 'Total'}: </span>{(bundle.maleWorkers || 0) + (bundle.femaleWorkers || 0)}</p>
+                              </>
+                            ) : (
+                              <>
+                                <p><span className="font-semibold">{t.maleWorkers}: </span>{inferredMale}</p>
+                                <p><span className="font-semibold">{t.femaleWorkers}: </span>{inferredFemale}</p>
+                                <p><span className="font-semibold">{t.otherWorkers}: </span>{otherCount}</p>
+                                <p><span className="font-semibold">{t.totalWorkersLabel || 'Total'}: </span>{totalWorkersCount}</p>
+                              </>
+                            )}
+                            {/* vehicle info if present */}
+                            {order.vehicleType ? (
+                              <p><span className="font-semibold">{t.vehicleType || 'Vehicle'}: </span>{order.vehicleType} ({t.vehicleCost || 'Vehicle Cost'} ₹{order.vehicleCost ?? 0})</p>
+                            ) : null}
+                          </>
+                        ) : (
+                          <>
+                            <p><span className="font-semibold">{t.worker}: </span>{order.totalWorkers}</p>
+                            <p><span className="font-semibold">{t.startDate}: </span>{formatDate(order.startDate)}</p>
+                            <p><span className="font-semibold">{t.endDate}: </span>{formatDate(order.endDate)}</p>
+                            <p><span className="font-semibold">{t.startTime}: </span>{order.startTime || t.na}</p>
+                          </>
+                        )}
+
+                        {/* estimated completion shown for both */}
                         <p className="col-span-2">
                           <span className="font-semibold">{t.estimatedCompletion}: </span>
                           {formatDateTime(estimatedCompletion)}

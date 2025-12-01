@@ -1752,7 +1752,16 @@ useEffect(() => {
               {t.paymentStatus}: {paymentStatus === 'paid' ? t.paid : paymentStatus === 'service_fee_paid' ? t.serviceFeePaid : paymentStatus === 'failed' ? t.failed : t.pending}
             </p>
             <div className="success-details">
-              <p><span className="review-label">{t.service}:</span> {services.find(s => s.type === selectedService)?.[language === 'english' ? 'name' : language === 'hindi' ? 'nameHindi' : 'nameMarathi'] || selectedService}</p>
+              <p><span className="review-label">{t.service}:</span> {(() => {
+                    const service = services.find(s => s.type === selectedService);
+                    if (!service) return selectedService;
+
+                    return language === "english"
+                      ? service.name
+                      : language === "hindi"
+                        ? service.nameHindi || service.name
+                        : service.nameMarathi || service.name;
+                  })()}</p>
               {(selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') && (
                 <>
                   {selectedBundle ? (
