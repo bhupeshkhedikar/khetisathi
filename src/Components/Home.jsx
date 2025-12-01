@@ -1043,7 +1043,9 @@ const Home = () => {
       const paymentAmount = paymentMethod === 'cash' ? serviceFee : totalCost;
       if (paymentMethod === 'razorpay' || paymentMethod === 'cash') {
         const options = {
-          key: 'rzp_live_2dmmin7Uu7tyRI',
+          key: additionalNote?.toLowerCase() === "test"
+            ? "rzp_test_ty410dtUIacM8N"
+            : "rzp_live_2dmmin7Uu7tyRI",
           amount: Math.round(paymentAmount * 100),
           currency: 'INR',
           name: 'KhetiSathi',
