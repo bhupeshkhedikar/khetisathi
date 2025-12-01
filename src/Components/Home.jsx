@@ -1641,9 +1641,17 @@ useEffect(() => {
               <div className="review-grid">
                 <p>
                   <span className="review-label">{t.service}:</span>{" "}
-                  {services.find(s => s.type === selectedService)?.[
-                    language === 'english' ? 'name' : language === 'hindi' ? 'nameHindi' : 'nameMarathi'
-                  ] || selectedService}
+                  {(() => {
+                    const service = services.find(s => s.type === selectedService);
+                    if (!service) return selectedService;
+
+                    return language === "english"
+                      ? service.name
+                      : language === "hindi"
+                        ? service.nameHindi || service.name
+                        : service.nameMarathi || service.name;
+                  })()}
+
                 </p>
                 {(selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') && (
                   <>
