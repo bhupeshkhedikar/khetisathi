@@ -2316,7 +2316,7 @@ const Home = () => {
         <p className="app-download-description">{t.downloadAppDescription}</p>
         <div className="app-download-buttons">
           <a
-            href="https://drive.google.com/uc?export=download&id=191sEwBUhbgjQyHT5LZ42ELtf8-Np3yNz"
+            href="/KhetiSathi-App.apk"
             target="_blank"
             rel="noopener noreferrer"
             className="app-download-button google-play"
@@ -2324,7 +2324,7 @@ const Home = () => {
             <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Google Play" />
           </a>
           <a
-            href="https://drive.google.com/uc?export=download&id=191sEwBUhbgjQyHT5LZ42ELtf8-Np3yNz"
+            href="/KhetiSathi-App.apk"
             target="_blank"
             rel="noopener noreferrer"
             className="app-download-button app-store"
