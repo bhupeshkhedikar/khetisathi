@@ -349,38 +349,47 @@ const Home = () => {
     setAddress(addressComponents);
   }, [village, tahsil, district]);
 
-  useEffect(() => {
-    if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
-      if (selectedBundle) {
-        setVehicleType('');
-        setVehicleCost(0);
-      } else {
-        const totalWorkers = maleWorkers + femaleWorkers;
-        if (totalWorkers >= 1 && totalWorkers <= 4) {
-          setVehicleType('Bike');
-          setVehicleCost(totalWorkers * 30);
-        } else if (totalWorkers >= 5 && totalWorkers <= 6) {
-          setVehicleType('UV Auto');
-          setVehicleCost(150);
-        } else if (totalWorkers >= 7 && totalWorkers <= 10) {
-          setVehicleType('Omni');
-          setVehicleCost(300);
-        } else if (totalWorkers >= 11 && totalWorkers <= 20) {
-          setVehicleType('Tata Magic');
-          setVehicleCost(400);
-        } else if (totalWorkers > 20) {
-          setVehicleType('Bolero');
-          setVehicleCost(400);
-        } else {
-          setVehicleType('');
-          setVehicleCost(0);
-        }
-      }
-    } else {
+useEffect(() => {
+  // 🚫 If village is Lakhori → No vehicle
+  if (profile.village?.toLowerCase() === "lakhori") {
+    setVehicleType('');
+    setVehicleCost(0);
+    return; // STOP vehicle calculation here
+  }
+
+  if (selectedService === 'farm-workers' || selectedService === 'ploughing-laborer') {
+    if (selectedBundle) {
       setVehicleType('');
       setVehicleCost(0);
+    } else {
+      const totalWorkers = maleWorkers + femaleWorkers;
+
+      if (totalWorkers >= 1 && totalWorkers <= 4) {
+        setVehicleType('Bike');
+        setVehicleCost(totalWorkers * 30);
+      } else if (totalWorkers >= 5 && totalWorkers <= 6) {
+        setVehicleType('UV Auto');
+        setVehicleCost(150);
+      } else if (totalWorkers >= 7 && totalWorkers <= 10) {
+        setVehicleType('Omni');
+        setVehicleCost(300);
+      } else if (totalWorkers >= 11 && totalWorkers <= 20) {
+        setVehicleType('Tata Magic');
+        setVehicleCost(400);
+      } else if (totalWorkers > 20) {
+        setVehicleType('Bolero');
+        setVehicleCost(400);
+      } else {
+        setVehicleType('');
+        setVehicleCost(0);
+      }
     }
-  }, [selectedService, maleWorkers, femaleWorkers, selectedBundle, bundles]);
+  } else {
+    setVehicleType('');
+    setVehicleCost(0);
+  }
+}, [selectedService, maleWorkers, femaleWorkers, selectedBundle, bundles, profile.village]);
+
 
   useEffect(() => {
     if (selectedService) {
@@ -1392,7 +1401,7 @@ const Home = () => {
                         min="0"
                       />
                     </div>
-                    {vehicleType && (
+                   {vehicleType && profile.village?.toLowerCase() !== "lakhori" && (
                       <div className="input-wrapper">
                         <label className="input-label">{t.vehicleType}</label>
                         <div className="vehicle-info">
