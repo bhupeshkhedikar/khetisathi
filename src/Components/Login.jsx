@@ -8,12 +8,14 @@ import EquipmentDetails from './pages/newpages/EquipmentDetails.jsx';
 import EquipmentList from './pages/newpages/EquipmentList.jsx';
 import AdminEquipment from './pages/newpages/AdminEquipment.jsx';
 
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [language, setLanguage] = useState('marathi');
   const [loading, setLoading] = useState(false);
+ const [showPassword, setShowPassword] = useState(true);
 
   // Popup Snackbar
   const [popup, setPopup] = useState({ show: false, message: '', type: '' });
@@ -283,15 +285,27 @@ const Login = () => {
             required />
         </div>
 
-        <div className="mb-4">
-          <label className="block text-gray-700">{t.password}</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-2 border rounded focus:ring-2 focus:ring-green-600"
-            required />
-        </div>
+          <div className="mb-4 relative">
+            <label className="block text-gray-700">{t.password}</label>
+
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-2 pr-20 border rounded focus:ring-2 focus:ring-green-600"
+              required
+            />
+
+            {/* Show / Hide Button */}
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-2 top-9 text-sm text-green-700 font-medium"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+
 
         <button
           type="submit"
